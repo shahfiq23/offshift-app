@@ -57,6 +57,12 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .daynav{display:flex;gap:6px;align-items:center;padding-bottom:4px}
 .navb{width:34px;height:34px;border-radius:50%;background:var(--fill);color:var(--blue);font-size:24px;line-height:1;display:grid;place-items:center;padding-bottom:3px}
 .cal.editing{outline:2px solid var(--blue);outline-offset:2px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--fill);border-radius:9px;padding:2px;gap:2px}
+.seg button{border-radius:7px;padding:6px 0;font-size:13px;font-weight:600;color:var(--label)}
+.seg button[aria-selected="true"]{background:var(--cell2);box-shadow:0 3px 8px rgba(0,0,0,.12),0 1px 1px rgba(0,0,0,.08)}
+:root:not([data-theme="dark"]) .seg button[aria-selected="true"]{background:var(--cell)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg button[aria-selected="true"]{background:#636366}}
+.vrow.nextv{background:color-mix(in srgb,var(--blue) 10%,transparent)}
 /* grouped sections */
 .sec{display:grid;gap:7px;min-width:0}
 .sh{font-size:13px;color:var(--label2);text-transform:uppercase;padding:0 16px;letter-spacing:-.005em}
@@ -278,7 +284,7 @@ const hm=s=>{const h=Math.floor(s/3600),m=Math.round(s%3600/60);return h?`${h}h 
 
 // ---------- state ----------
 const KEY="offshift-v1";
-const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45};
+const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45,secView:"order"};
 let S=JSON.parse(JSON.stringify(DEF));
 try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}}
@@ -480,6 +486,19 @@ function viewRun(){
   <div class="sf">Up to three runs a week, only on free days. Never on a shift day, never the morning a night shift ends, and never two hard sessions back to back. ${WU}</div></div>`;
 }
 
+// Flat playlist order, 1-121, with the next unwatched video marked.
+function inOrder(){
+  const next=VID.find(v=>!S.done[v.i]);
+  let html="",lastDom=null;
+  for(const v of VID){
+    if(v.dom!==lastDom){if(lastDom!==null)html+="</div></div>";const dm=DOM.find(d=>d[0]===v.dom);
+      html+=`<div class="sec"><div class="sh">${v.dom==="0"?"Introduction":v.dom+".0 "+esc(dm[1])}</div><div class="grp">`;lastDom=v.dom}
+    const isNext=next&&v.i===next.i;
+    html+=`<div class="cell vrow ind${S.done[v.i]?" done":""}${isNext?" nextv":""}"${isNext?' id="nextvid"':""}><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.i+1} · ${v.obj} ${OBJ[v.obj]}${isNext?' · <b style="color:var(--blue)">Up next</b>':""}</span></div><span class="trail">${v.len}</span></div>`;
+  }
+  html+="</div></div>";
+  return (next?`<button class="btn tint block" data-act="jumpnext">Jump to Video ${next.i+1}: ${esc(next.title)}</button>`:"")+html;
+}
 function viewSec(){
   const sch=schedule();const done=VID.filter(v=>S.done[v.i]);const dsec=done.reduce((a,v)=>a+v.sec,0);
   const fin=sch.last?pd(sch.last):null;
@@ -496,7 +515,10 @@ function viewSec(){
     <div class="pad"><div class="bar" role="progressbar" aria-valuenow="${done.length}" aria-valuemin="0" aria-valuemax="121"><i style="width:${done.length/121*100}%"></i></div></div>
     <div class="cell"><label class="grow" for="mins">Study per free day</label><select id="mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">Shift days have no study target. The day a night shift ends gets half. After the videos, do two weeks of practice exams before you book. Domain 4 is the biggest slice and overlaps your SOC work.</div></div>
-  <div class="sec"><div class="sh">Course</div><div class="grp">${doms}</div></div>`;
+  <div class="seg" role="tablist">
+    <button role="tab" aria-selected="${S.secView!=="domain"}" data-act="secview" data-v="order">In Order</button>
+    <button role="tab" aria-selected="${S.secView==="domain"}" data-act="secview" data-v="domain">By Domain</button></div>
+  ${S.secView==="domain"?`<div class="sec"><div class="sh">Course</div><div class="grp">${doms}</div></div>`:inOrder()}`;
 }
 
 // ---------- Spoken run entry (iPhone keyboard dictation) ----------
@@ -578,6 +600,8 @@ document.addEventListener("click",e=>{
   else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed("Shifts Cleared")}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
   else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Backup Copied"),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast("Select the text and copy it")})}
   else if(a==="import"){try{const o=JSON.parse(document.getElementById("imp").value);if(!o||typeof o.shifts!=="object")throw 0;S=Object.assign({},DEF,o);changed("Restored")}catch(err){toast("That doesn't look like a backup")}}
+  else if(a==="secview"){S.secView=el.dataset.v;save();render();return}
+  else if(a==="jumpnext"){const n=document.getElementById("nextvid");if(n)n.scrollIntoView({behavior:"smooth",block:"center"});return}
   else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;changed("Nice Work")}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
