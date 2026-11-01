@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Off/Shift</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Off/Shift">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+/* Layout: iOS inset-grouped lists under a large title, fixed translucent tab bar at the bottom. Colors are Apple's system palette. */
+:root{
+  --bg:#F2F2F7; --cell:#FFFFFF; --cell2:#E9E9EE; --fill:rgba(120,120,128,.12);
+  --label:#000000; --label2:rgba(60,60,67,.6); --label3:rgba(60,60,67,.3); --sep:rgba(60,60,67,.18);
+  --blue:#007AFF; --orange:#FF9500; --green:#34C759; --indigo:#5856D6; --teal:#30B0C7; --red:#FF3B30;
+  --bar:rgba(249,249,249,.86);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Helvetica Neue",Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#000000; --cell:#1C1C1E; --cell2:#2C2C2E; --fill:rgba(118,118,128,.24);
+  --label:#FFFFFF; --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3); --sep:rgba(84,84,88,.6);
+  --blue:#0A84FF; --orange:#FF9F0A; --green:#30D158; --indigo:#5E5CE6; --teal:#40C8E0; --red:#FF453A;
+  --bar:rgba(22,22,24,.86); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#000000; --cell:#1C1C1E; --cell2:#2C2C2E; --fill:rgba(118,118,128,.24);
+  --label:#FFFFFF; --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3); --sep:rgba(84,84,88,.6);
+  --blue:#0A84FF; --orange:#FF9F0A; --green:#30D158; --indigo:#5E5CE6; --teal:#40C8E0; --red:#FF453A;
+  --bar:rgba(22,22,24,.86); color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--label);font:17px/1.29 var(--font);letter-spacing:-.022em;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px)}
+a{color:var(--blue);text-decoration:none}
+button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:6px}
+.page{max-width:680px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:8px calc(96px + env(safe-area-inset-bottom,0px));display:grid;gap:22px}
+
+/* large title */
+.lt{display:grid;gap:2px;padding-top:6px}
+.lt .sub{font-size:13px;font-weight:600;color:var(--label2);text-transform:uppercase;letter-spacing:.01em}
+.lt h1{margin:0;font-size:34px;line-height:41px;font-weight:700;letter-spacing:.012em}
+.lt .row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+
+/* grouped sections */
+.sec{display:grid;gap:7px;min-width:0}
+.sh{font-size:13px;color:var(--label2);text-transform:uppercase;padding:0 16px;letter-spacing:-.005em}
+.sh.big{font-size:22px;font-weight:700;color:var(--label);text-transform:none;padding:0 2px;letter-spacing:.01em}
+.sf{font-size:13px;line-height:1.38;color:var(--label2);padding:0 16px}
+.grp{background:var(--cell);border-radius:12px;overflow:hidden;min-width:0}
+.cell{display:flex;align-items:center;gap:12px;min-height:44px;padding:11px 16px;position:relative;min-width:0}
+.cell+.cell::before,.cellwrap+.cellwrap::before{content:"";position:absolute;top:0;left:16px;right:0;border-top:.5px solid var(--sep)}
+.cell.ind+.cell.ind::before{left:52px}
+.cell .grow{flex:1;min-width:0}
+.cell .trail{color:var(--label2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cell .t2{font-size:15px;color:var(--label2)}
+.cell.btnrow{justify-content:center;color:var(--blue);cursor:pointer;width:100%}
+.cell.btnrow.destructive{color:var(--red)}
+.chev{width:8px;height:13px;flex:none;color:var(--label3)}
+.ico{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;flex:none;color:#fff}
+.ico svg{width:17px;height:17px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;padding:12px 18px;font-weight:600;font-size:17px;cursor:pointer}
+.btn.fill{background:var(--blue);color:#fff}
+.btn.orange{background:var(--orange);color:#000}
+.btn.tint{background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--blue)}
+.btn.small{padding:7px 14px;font-size:15px;border-radius:20px}
+.btn.block{width:100%}
+
+/* rings */
+.rings{display:flex;gap:18px;align-items:center;padding:16px}
+.rings svg{width:132px;height:132px;flex:none}
+.rl{display:grid;gap:10px;min-width:0}
+.rl div{display:grid;gap:0}
+.rl .k{font-size:15px;font-weight:600}
+.rl .v{font:600 22px/1.15 var(--round);font-variant-numeric:tabular-nums;letter-spacing:0}
+.rl .v small{font-size:15px;color:var(--label2);font-weight:500}
+
+/* up next */
+.next{background:var(--cell);border-radius:16px;padding:16px;display:grid;gap:10px}
+.next .tag{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+.next .tag i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff}
+.next .tag i svg{width:13px;height:13px}
+.next h2{margin:0;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:.01em;text-wrap:balance}
+.next p{margin:0;color:var(--label2);font-size:15px;line-height:1.35}
+
+/* round checks (Reminders style) */
+.chk{appearance:none;-webkit-appearance:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--label3);flex:none;margin:0;display:grid;place-items:center;cursor:pointer}
+.chk:checked{background:var(--orange);border-color:var(--orange)}
+.chk:checked::after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg)}
+.vrow .grow{display:grid;gap:1px}
+.vrow a{color:var(--label);overflow-wrap:anywhere}
+.vrow.done a{color:var(--label2)}
+.vrow .code{font-size:13px;color:var(--label2);font-variant-numeric:tabular-nums}
+
+/* switch */
+.sw{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--fill);position:relative;flex:none;margin:0;cursor:pointer;transition:background .2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15),0 1px 1px rgba(0,0,0,.16);transition:transform .2s}
+.sw:checked{background:var(--green)}
+.sw:checked::after{transform:translateX(20px)}
+
+/* inputs inside cells */
+.cell input[type=number],.cell input[type=text],.cell input[type=date],.cell select{font:inherit;letter-spacing:inherit;color:var(--label2);background:transparent;border:0;text-align:right;min-width:0;width:120px;padding:0}
+.cell select{appearance:none;-webkit-appearance:none;color:var(--blue);width:auto;cursor:pointer}
+.cell input:focus{color:var(--label);outline:none}
+textarea{font:13px var(--mono);color:var(--label);background:transparent;border:0;width:100%;resize:vertical;padding:0}
+
+/* bars and stats */
+.bar{height:6px;border-radius:3px;background:var(--fill);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--green)}
+.bar.o i{background:var(--orange)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:14px 16px 4px}
+.stat{display:grid;gap:2px;min-width:0}
+.stat .k{font-size:13px;color:var(--label2);font-weight:600}
+.stat .v{font:700 clamp(19px,5.6vw,28px)/1.1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:0;white-space:nowrap}
+.stat .v.o{color:var(--orange)} .stat .v.g{color:var(--green)}
+.stat .s{font-size:13px;color:var(--label2)}
+.pad{padding:12px 16px 14px;display:grid;gap:10px}
+
+/* calendar */
+.month{display:grid;gap:8px}
+.mh{font-size:22px;font-weight:700;color:var(--red);padding:0 2px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--cell);border-radius:12px;padding:6px 4px 8px}
+.dow{font-size:11px;font-weight:600;color:var(--label2);text-align:center;padding:4px 0 6px}
+.day{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 7px;border-top:.5px solid var(--sep);cursor:pointer;min-width:0;border-radius:0;color:var(--label)}
+.day.blank{cursor:default}
+.day .n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:17px;font-variant-numeric:tabular-nums}
+.day.past .n{color:var(--label3)}
+.day.today .n{background:var(--red);color:#fff;font-weight:600}
+.day .st{font-size:10px;font-weight:600;color:#fff;background:var(--indigo);border-radius:4px;padding:1px 4px;white-space:nowrap;max-width:100%;overflow:hidden;font-variant-numeric:tabular-nums}
+.day.rec .st{background:transparent;color:var(--indigo)}
+.day .dots{display:flex;gap:3px;height:6px}
+.day .dots i{width:6px;height:6px;border-radius:50%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--label2);padding:0 4px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+/* details (disclosure groups) */
+details>summary{list-style:none;cursor:pointer}
+details>summary::-webkit-details-marker{display:none}
+details .chev{transition:transform .2s}
+details[open]>summary .chev{transform:rotate(90deg)}
+.obj{font-size:13px;color:var(--label2);text-transform:uppercase;padding:14px 16px 4px;background:var(--bg)}
+
+/* week plan */
+.wk{display:grid;gap:4px}
+.wk .h{display:flex;gap:8px;align-items:center}
+.wk .h b{font-weight:600}
+.badge{font-size:12px;font-weight:600;color:var(--orange);background:color-mix(in srgb,var(--orange) 16%,transparent);border-radius:6px;padding:2px 7px}
+.wk dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:2px 0 0;font-size:15px}
+.wk dt{color:var(--label2)}
+.wk dd{margin:0}
+
+/* chart */
+svg text{fill:var(--label2);font:10px var(--font)}
+
+/* tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border-top:.5px solid var(--sep);display:flex;justify-content:space-around;
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.tabbar a{flex:1;max-width:120px;display:grid;justify-items:center;gap:2px;color:var(--label2);font-size:10px;font-weight:500;letter-spacing:.01em;padding-bottom:4px}
+.tabbar a svg{width:26px;height:26px}
+.tabbar a[aria-current="page"]{color:var(--orange)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+
+/* HUD toast */
+.hud{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:30;background:var(--bar);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+  color:var(--label);border-radius:14px;padding:14px 20px;font-size:15px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.18);text-align:center;max-width:80vw}
+@media (prefers-reduced-motion:no-preference){
+  .ring{transition:stroke-dashoffset .6s ease}.bar i{transition:width .4s ease}
+  /* tab entrance: cards rise in one after another, rings and bars fill */
+  .page.enter>*{animation:rise .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 70ms)}
+  .page.enter .ring{animation:ringfill 1s cubic-bezier(.3,.7,.2,1) both .25s}
+  .page.enter .bar i{animation:barfill .9s cubic-bezier(.3,.7,.2,1) both .3s}
+  .tabbar a.pop svg{animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+  @keyframes ringfill{from{stroke-dashoffset:var(--c)}}
+  @keyframes barfill{from{width:0}}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(.82)}100%{transform:scale(1)}}
+}
+@media (max-width:380px){.rings svg{width:112px;height:112px}.stat .v{font-size:24px}.day .n{width:26px;height:26px;font-size:15px}}
+</style>
+</head>
+<body>
+<main class="page" id="app"></main>
+<nav class="tabbar" aria-label="Tabs">
+  <a href="#today"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="14" cy="14" r="11"/><circle cx="14" cy="14" r="6.6"/><circle cx="14" cy="14" r="2.4"/></svg>Today</a>
+  <a href="#plan"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="6" width="20" height="18" rx="4"/><path d="M4 11.5h20M9.5 3.5v5M18.5 3.5v5" stroke-linecap="round"/><circle cx="10" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="18" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="20.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="20.5" r="1.3" fill="currentColor" stroke="none"/></svg>Roster</a>
+  <a href="#run"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="14" cy="15.5" r="9.5"/><path d="M14 15.5V10M11 3.5h6M21.5 7.5l1.6-1.6"/></svg>2.4 km</a>
+  <a href="#secplus"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M14 3.5l9 3.5v6.5c0 5.6-3.8 9.6-9 11-5.2-1.4-9-5.4-9-11V7z"/><path d="M10 14l3 3 5.5-6"/></svg>Sec+</a>
+</nav>
+<div class="hud" id="toast" role="status" hidden></div>
+<script>
+// ---------- data ----------
+const V=[["0.1","How to Pass Your SY0-701 Security+ Exam","10:06"],
+["1.1","Security Controls","11:48"],
+["1.2","The CIA Triad","5:17"],["1.2","Non-repudiation","7:57"],["1.2","Authentication, Authorization, and Accounting","9:03"],["1.2","Gap Analysis","6:44"],["1.2","Zero Trust","10:04"],["1.2","Physical Security","8:17"],["1.2","Deception and Disruption","4:30"],
+["1.3","Change Management","11:22"],["1.3","Technical Change Management","10:54"],
+["1.4","Public Key Infrastructure","9:08"],["1.4","Encrypting Data","9:48"],["1.4","Key Exchange","3:39"],["1.4","Encryption Technologies","6:53"],["1.4","Obfuscation","8:00"],["1.4","Hashing and Digital Signatures","10:24"],["1.4","Blockchain Technology","2:22"],["1.4","Certificates","14:38"],
+["2.1","Threat Actors","10:23"],
+["2.2","Common Threat Vectors","17:14"],["2.2","Phishing","6:32"],["2.2","Impersonation","5:52"],["2.2","Watering Hole Attacks","4:12"],["2.2","Other Social Engineering Attacks","3:29"],
+["2.3","Memory Injections","2:39"],["2.3","Buffer Overflows","3:37"],["2.3","Race Conditions","4:58"],["2.3","Malicious Updates","5:45"],["2.3","Operating System Vulnerabilities","4:09"],["2.3","SQL Injection","5:09"],["2.3","Cross-site Scripting","8:34"],["2.3","Hardware Vulnerabilities","6:27"],["2.3","Virtualization Vulnerabilities","5:29"],["2.3","Cloud-specific Vulnerabilities","4:06"],["2.3","Supply Chain Vulnerabilities","9:12"],["2.3","Misconfiguration Vulnerabilities","7:09"],["2.3","Mobile Device Vulnerabilities","3:23"],["2.3","Zero-day Vulnerabilities","3:02"],
+["2.4","An Overview of Malware","6:06"],["2.4","Viruses and Worms","5:54"],["2.4","Spyware and Bloatware","4:21"],["2.4","Other Malware Types","7:32"],["2.4","Physical Attacks","4:04"],["2.4","Denial of Service","6:07"],["2.4","DNS Attacks","8:57"],["2.4","Wireless Attacks","7:55"],["2.4","On-path Attacks","5:30"],["2.4","Replay Attacks","5:45"],["2.4","Malicious Code","3:40"],["2.4","Application Attacks","11:48"],["2.4","Cryptographic Attacks","9:31"],["2.4","Password Attacks","7:15"],["2.4","Indicators of Compromise","10:59"],
+["2.5","Segmentation and Access Control","6:06"],["2.5","Mitigation Techniques","6:51"],["2.5","Hardening Techniques","12:11"],
+["3.1","Cloud Infrastructures","9:56"],["3.1","Network Infrastructure Concepts","6:56"],["3.1","Other Infrastructure Concepts","14:24"],["3.1","Infrastructure Considerations","13:48"],
+["3.2","Secure Infrastructures","5:54"],["3.2","Intrusion Prevention","5:14"],["3.2","Network Appliances","11:56"],["3.2","Port Security","3:50"],["3.2","Firewall Types","8:00"],["3.2","Secure Communication","9:55"],
+["3.3","Data Types and Classifications","5:54"],["3.3","States of Data","6:07"],["3.3","Protecting Data","14:28"],
+["3.4","Resiliency","9:42"],["3.4","Capacity Planning","3:53"],["3.4","Recovery Testing","5:18"],["3.4","Backups","12:16"],["3.4","Power Resiliency","4:02"],
+["4.1","Secure Baselines","4:11"],["4.1","Hardening Targets","10:11"],["4.1","Securing Wireless and Mobile","8:58"],["4.1","Wireless Security Settings","10:54"],["4.1","Application Security","8:26"],
+["4.2","Asset Management","8:37"],
+["4.3","Vulnerability Scanning","7:45"],["4.3","Threat Intelligence","4:46"],["4.3","Penetration Testing","6:21"],["4.3","Analyzing Vulnerabilities","10:29"],["4.3","Vulnerability Remediation","8:45"],
+["4.4","Security Monitoring","10:27"],["4.4","Security Tools","14:06"],
+["4.5","Firewalls","11:31"],["4.5","Web Filtering","10:00"],["4.5","Operating System Security","3:22"],["4.5","Secure Protocols","4:47"],["4.5","Email Security","7:05"],["4.5","Monitoring Data","7:25"],["4.5","Endpoint Security","9:25"],
+["4.6","Identity and Access Management","12:46"],["4.6","Access Controls","7:49"],["4.6","Multifactor Authentication","4:29"],["4.6","Password Security","6:22"],
+["4.7","Scripting and Automation","8:20"],
+["4.8","Incident Response","9:14"],["4.8","Incident Planning","6:50"],["4.8","Digital Forensics","9:54"],
+["4.9","Log Data","13:41"],
+["5.1","Security Policies","11:02"],["5.1","Security Standards","5:36"],["5.1","Security Procedures","7:02"],["5.1","Security Considerations","4:51"],["5.1","Data Roles and Responsibilities","2:27"],
+["5.2","Risk Management","3:30"],["5.2","Risk Analysis","9:13"],["5.2","Risk Management Strategies","3:12"],["5.2","Business Impact Analysis","2:55"],
+["5.3","Third-party Risk Assessment","11:36"],["5.3","Agreement Types","5:19"],
+["5.4","Compliance","8:06"],["5.4","Privacy","5:21"],
+["5.5","Audits and Assessments","2:49"],["5.5","Penetration Tests","5:29"],
+["5.6","Security Awareness","6:45"],["5.6","User Training","4:31"]];
+const OBJ={"0.1":"Introduction","1.1":"Security Controls","1.2":"Security Concepts","1.3":"Change Management","1.4":"Cryptographic Solutions","2.1":"Threat Actors","2.2":"Threat Vectors and Attack Surfaces","2.3":"Types of Vulnerabilities","2.4":"Indicators of Malicious Activity","2.5":"Mitigation Techniques","3.1":"Architecture Models","3.2":"Applying Security Principles","3.3":"Protecting Data","3.4":"Resiliency and Recovery","4.1":"Security Techniques","4.2":"Asset Management","4.3":"Vulnerability Management","4.4":"Security Monitoring","4.5":"Enterprise Security","4.6":"Identity and Access Management","4.7":"Automation and Orchestration","4.8":"Incident Response","4.9":"Security Data Sources","5.1":"Security Governance","5.2":"Risk Management","5.3":"Third-party Risk","5.4":"Security Compliance","5.5":"Audits and Assessments","5.6":"Security Awareness"};
+const DOM=[["0","The exam",""],["1","General Security Concepts","12%"],["2","Threats, Vulnerabilities, and Mitigations","22%"],["3","Security Architecture","18%"],["4","Security Operations","28%"],["5","Security Program Management and Oversight","20%"]];
+const secOf=t=>{const[m,s]=t.split(":").map(Number);return m*60+s};
+const VID=V.map((v,i)=>({i,obj:v[0],dom:v[0][0],title:v[1],len:v[2],sec:secOf(v[2]),
+  url:i===0?"https://www.professormesser.com/security-plus/sy0-701/sy0-701-video/how-to-pass-your-sy0-701-security-exam":
+  "https://www.professormesser.com/security-plus/sy0-701/sy0-701-video/"+v[1].toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-sy0-701/"}));
+const TOTAL_SEC=VID.reduce((a,v)=>a+v.sec,0);
+
+// 9-week 2.4 km block: Mon 2 Nov to Sun 3 Jan. Target 11:00 = 4:35/km = 1:50 per 400 m.
+const WU="Warm-up: 10 min easy jog + leg swings. Cool-down: 5–10 min walk.";
+const PLAN=[
+ {focus:"Base",A:"6 × 400 m in 2:00 each, 90 s walk/jog between",B:"Easy 3 km. Walk breaks are fine. You should be able to talk.",C:"Tempo: 2 × 1.2 km at 5:10/km, 2 min rest"},
+ {focus:"Base",A:"8 × 400 m in 1:58 each, 90 s rest",B:"Easy 3 km, fewer walk breaks than last week",C:"Tempo: 2 × 1.2 km at 5:05/km, 2 min rest"},
+ {focus:"Build",A:"5 × 600 m in 2:55 each, 2 min rest",B:"Easy 3.5 km",C:"Tempo: 1.6 km at 5:00/km, then 800 m easy"},
+ {focus:"Check-in",A:"5 × 400 m in 1:58, 90 s rest (lighter week)",B:"Easy 3 km",C:"TIME TRIAL: 2.4 km all-out. Log it. Aim: about 12:00"},
+ {focus:"Build",A:"6 × 600 m in 2:50 each, 2 min rest",B:"Easy 4 km",C:"Tempo: 2 km at 4:55/km"},
+ {focus:"Race pace",A:"4 × 800 m in 3:40 each, 2 min rest",B:"Easy 4 km",C:"2 × 1.2 km at 4:40/km, 2 min rest"},
+ {focus:"Race pace",A:"5 × 800 m in 3:40 each, 2 min rest",B:"Easy 4 km",C:"Tempo: 2.4 km at 4:50/km"},
+ {focus:"Sharpen",A:"3 × 1 km in 4:35 each, 3 min rest",B:"Easy 3.5 km",C:"1.6 km at 4:35/km, then 800 m easy"},
+ {focus:"Taper + test",A:"4 × 400 m in 1:48, full rest (short and sharp)",B:"Easy 2.5 km, legs fresh",C:"TIME TRIAL: 2.4 km all-out. Target 11:00"}];
+const KIND={A:"Intervals",B:"Easy run",C:"Tempo"};
+const BASE_SEC=780, GOAL_SEC=660;
+
+// ---------- dates ----------
+const pad=n=>String(n).padStart(2,"0");
+const ds=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const pd=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const add=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+const diff=(a,b)=>Math.round((a-b)/864e5);
+const START=new Date(2026,10,2), END=new Date(2027,0,3);
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const nice=d=>`${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`;
+let TODAY=new Date(); TODAY.setHours(0,0,0,0); let T=ds(TODAY);
+const fmt=s=>`${Math.floor(s/60)}:${pad(Math.round(s%60))}`;
+const hm=s=>{const h=Math.floor(s/3600),m=Math.round(s%3600/60);return h?`${h}h ${m}m`:`${m} min`};
+
+// ---------- state ----------
+const KEY="offshift-v1";
+const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45};
+let S=JSON.parse(JSON.stringify(DEF));
+try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}}
+// Shift days from the Cyber Shift roster (Nov 2026 to Jan 2027). Applied once per roster version;
+// after that, taps on the Roster tab win.
+const ROSTER_VER="2026-11-01";
+const ROSTER={"2026-11-01":"08:00-19:00","2026-11-02":"08:00-19:00","2026-11-06":"21:00-09:00","2026-11-07":"21:00-09:00","2026-11-08":"21:00-09:00","2026-11-12":"11:00-23:00","2026-11-13":"11:00-23:00","2026-11-14":"11:00-23:00","2026-11-18":"08:00-19:00","2026-11-19":"08:00-19:00","2026-11-20":"08:00-19:00","2026-11-24":"21:00-09:00","2026-11-25":"21:00-09:00","2026-11-26":"21:00-09:00","2026-11-30":"11:00-23:00","2026-12-01":"11:00-23:00","2026-12-02":"11:00-23:00","2026-12-06":"08:00-19:00","2026-12-07":"08:00-19:00","2026-12-08":"08:00-19:00","2026-12-12":"21:00-09:00","2026-12-13":"21:00-09:00","2026-12-14":"21:00-09:00","2026-12-18":"08:00-19:00","2026-12-19":"08:00-19:00","2026-12-20":"08:00-19:00","2026-12-24":"08:00-19:00","2026-12-25":"08:00-19:00","2026-12-26":"08:00-19:00","2026-12-30":"20:00-08:00","2026-12-31":"20:00-08:00","2027-01-01":"20:00-08:00","2027-01-05":"11:00-23:00","2027-01-06":"11:00-23:00","2027-01-07":"11:00-23:00","2027-01-11":"08:00-19:00","2027-01-12":"08:00-19:00","2027-01-13":"08:00-19:00","2027-01-17":"21:00-09:00","2027-01-18":"21:00-09:00","2027-01-19":"21:00-09:00","2027-01-23":"11:00-23:00","2027-01-24":"11:00-23:00","2027-01-25":"11:00-23:00","2027-01-29":"08:00-19:00","2027-01-30":"08:00-19:00","2027-01-31":"08:00-19:00"};
+if(S.seeded!==ROSTER_VER){Object.assign(S.shifts,ROSTER);S.seeded=ROSTER_VER;save()}
+
+// ---------- planning ----------
+let cache={};
+const isShift=s=>!!S.shifts[s];
+const shiftTime=s=>typeof S.shifts[s]==="string"&&/^\d\d:\d\d-\d\d:\d\d$/.test(S.shifts[s])?S.shifts[s]:null;
+const isNight=s=>{const t=shiftTime(s);return !!t&&+t.slice(0,2)>=19};
+const shortTime=s=>{const t=shiftTime(s);return t?(isNight(s)?"N ":"")+t.slice(0,2)+"–"+t.slice(6,8):"SHIFT"};
+const dayType=s=>{if(isShift(s))return "shift";const p=ds(add(pd(s),-1));return isShift(p)&&isNight(p)?"rec":"off"};
+function schedule(){
+  if(cache.sch)return cache.sch;
+  const map={};const queue=VID.filter(v=>!S.done[v.i]);
+  const todayDone=VID.filter(v=>S.done[v.i]===T);
+  let d=new Date(TODAY),qi=0,last=null;
+  for(let n=0;n<400&&(qi<queue.length||n===0);n++){
+    const s=ds(d),b=budget(s);const list=n===0?[...todayDone]:[];let used=list.reduce((a,v)=>a+v.sec,0);
+    while(b>0&&qi<queue.length&&used<b){list.push(queue[qi]);used+=queue[qi].sec;qi++}
+    if(list.length){map[s]=list;if(list.some(v=>!S.done[v.i]))last=s}
+    d=add(d,1);
+  }
+  cache.sch={map,last};return cache.sch;
+}
+const best24=()=>{const r=S.runs.filter(r=>r.tt);return r.length?Math.min(...r.map(r=>r.sec)):null};
+const screenTarget=s=>Math.max(5,9-4*Math.max(0,diff(pd(s),new Date(2026,10,1)))/60);
+
+// ---------- run placement ----------
+// Shift days are fully off. "rec" = the day a night shift ends (home ~9am, sleeping): no run, half study.
+// Each week picks up to 3 runs on the remaining free days. Intervals matter most, then tempo/test, then easy.
+// Two hard sessions are never placed on back-to-back days.
+function weekRuns(w){
+  if(cache["w"+w])return cache["w"+w];
+  const days=[...Array(7)].map((_,i)=>ds(add(START,w*7+i)));
+  const free=days.filter(s=>dayType(s)==="off");
+  const testWk=w===3||w===8;
+  const val={A:10,B:4,C:testWk?12:8};
+  const combos=(arr,k,st=0,cur=[])=>k===0?[cur]:arr.slice(st).flatMap((_,j)=>combos(arr,k-1,st+j+1,[...cur,arr[st+j]]));
+  const perms=a=>a.length<2?[a]:a.flatMap((x,i)=>perms([...a.slice(0,i),...a.slice(i+1)]).map(r=>[x,...r]));
+  const kindSets={1:[["A"],["C"]],2:[["A","C"],["A","B"],["C","B"]],3:[["A","B","C"]]};
+  let best=null,bs=-1e9;
+  for(let k=1;k<=Math.min(3,free.length);k++)for(const c of combos(free,k))for(const ks of kindSets[k])for(const pm of perms(ks)){
+    let sc=pm.reduce((a,x)=>a+val[x],0);
+    for(let i=1;i<c.length;i++){const g=diff(pd(c[i]),pd(c[i-1]));if(g===1&&pm[i]!=="B"&&pm[i-1]!=="B")sc-=7;if(g>=2)sc+=1}
+    if(pm.indexOf("A")>-1&&pm.indexOf("C")>-1&&pm.indexOf("A")>pm.indexOf("C"))sc-=.5;
+    if(sc>bs){bs=sc;best=c.map((d,i)=>[d,pm[i]])}
+  }
+  const out={};(best||[]).forEach(([d,k])=>out[d]=k);
+  cache["w"+w]=out;return out;
+}
+function runOn(s){const w=Math.floor(diff(pd(s),START)/7);if(w<0||w>8)return null;const k=weekRuns(w)[s];return k?{w,k,text:PLAN[w][k],focus:PLAN[w].focus,test:k==="C"&&(w===3||w===8)}:null}
+const budget=s=>{const t=dayType(s);return t==="off"?S.mins*60:t==="rec"?Math.round(S.mins/2)*60:0};
+
+// ---------- icons (SF Symbols-style line icons) ----------
+const IC={
+ rings:'<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="14" cy="14" r="11"/><circle cx="14" cy="14" r="6.6"/><circle cx="14" cy="14" r="2.4"/></svg>',
+ cal:'<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="6" width="20" height="18" rx="4"/><path d="M4 11.5h20M9.5 3.5v5M18.5 3.5v5" stroke-linecap="round"/><circle cx="10" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="18" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="20.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="20.5" r="1.3" fill="currentColor" stroke="none"/></svg>',
+ timer:'<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="14" cy="15.5" r="9.5"/><path d="M14 15.5V10M11 3.5h6M21.5 7.5l1.6-1.6"/></svg>',
+ shield:'<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M14 3.5l9 3.5v6.5c0 5.6-3.8 9.6-9 11-5.2-1.4-9-5.4-9-11V7z"/><path d="M10 14l3 3 5.5-6"/></svg>',
+ run:'<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="12.5" cy="3.2" r="2"/><path d="M8.6 6.4l3.2-.5c.5-.1 1 .2 1.2.6l1.4 2.8 2.3.7a1 1 0 01-.6 1.9l-2.7-.8a1 1 0 01-.6-.5l-.6-1.2-1.2 2.7 2.3 1.8c.3.2.4.5.4.8l-.2 4.3a1 1 0 01-2 0l.2-3.8-2.6-2-1.5 3.1a1 1 0 01-.8.5l-3.5.4a1 1 0 01-.2-2l3-.3 2.7-5.9-1.4.2-1.3 2a1 1 0 01-1.7-1.1l1.6-2.5c.2-.3.5-.5.9-.6z"/></svg>',
+ play:'<svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 4.2v11.6c0 .8.9 1.3 1.6.8l9-5.8c.6-.4.6-1.2 0-1.6l-9-5.8C6.9 2.9 6 3.4 6 4.2z"/></svg>',
+ moon:'<svg viewBox="0 0 20 20" fill="currentColor"><path d="M15.8 12.6A7 7 0 017.4 4.2a.6.6 0 00-.8-.7A7.6 7.6 0 1016.5 13.4a.6.6 0 00-.7-.8z"/></svg>',
+ bed:'<svg viewBox="0 0 20 20" fill="currentColor"><path d="M2 5.5a1 1 0 012 0V11h12.5A1.5 1.5 0 0118 12.5V16a1 1 0 01-2 0v-1.5H4V16a1 1 0 01-2 0z"/><rect x="5" y="7" width="4" height="3" rx="1.5"/><path d="M10 7.5c0-.3.2-.5.5-.5H15a2 2 0 012 2v1h-7z"/></svg>',
+ check:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>',
+ work:'<svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 018.5 2h3A1.5 1.5 0 0113 3.5V5h3a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h3zm1.5 0V5h3V3.5z"/></svg>',
+ heart:'<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path d="M10 17.3l-1.1-1C4.6 12.4 2 10 2 7a4 4 0 014-4c1.6 0 3 .8 4 2 1-1.2 2.4-2 4-2a4 4 0 014 4c0 3-2.6 5.4-6.9 9.3z"/></svg>',
+ chev:'<svg class="chev" viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 1.5l5 5-5 5"/></svg>'
+};
+
+// ---------- views ----------
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LONGDOW=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],LONGMON=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const longDate=d=>`${LONGDOW[d.getDay()]}, ${d.getDate()} ${LONGMON[d.getMonth()]}`;
+const vrow=v=>`<div class="cell vrow ind${S.done[v.i]?" done":""}"><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.obj} · ${OBJ[v.obj]}</span></div><span class="trail">${v.len}</span></div>`;
+const weekDays=d=>{const m=add(d,-((d.getDay()+6)%7));return [...Array(7)].map((_,i)=>ds(add(m,i)))};
+
+function ring(r,frac,color){const c=2*Math.PI*r,f=Math.max(0,Math.min(1,frac));
+  return `<circle cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-opacity=".22" stroke-width="15"/>
+  <circle class="ring" style="--c:${c}" cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-f)+(f===0?0:0)}" transform="rotate(-90 66 66)" ${f===0?'stroke-opacity="0"':""}/>`}
+
+function viewToday(){
+  const t=dayType(T),r=runOn(T),sch=schedule(),vids=sch.map[T]||[];
+  const runDone=!!S.runDone[T];const nextVid=vids.find(v=>!S.done[v.i]);
+  // rings: runs this week, study minutes this week, today's plan
+  const wd=weekDays(TODAY);
+  const runsPlanned=wd.filter(d=>runOn(d)).length,runsDone=wd.filter(d=>runOn(d)&&S.runDone[d]).length;
+  const studyGoal=wd.reduce((a,d)=>a+budget(d),0)/60,studyDone=VID.filter(v=>wd.includes(S.done[v.i])).reduce((a,v)=>a+v.sec,0)/60;
+  const todayPlanned=(r?1:0)+vids.length,todayDone=(r&&runDone?1:0)+vids.filter(v=>S.done[v.i]).length;
+  let next;
+  if(t==="shift")next=isNight(T)?{c:"var(--indigo)",i:IC.moon,e:"Night shift tonight",h:"Rest before tonight.",p:`You're on ${shiftTime(T)}. Nap this afternoon instead of scrolling. Nothing is planned today.`}
+    :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(T)?" · "+shiftTime(T):""}`,h:"Nothing planned today.",p:"You'll be tired after work, so there's no run and no study. Get home, eat, sleep."};
+  else if(t==="rec"&&!nextVid)next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:"Sleep first.",p:"Your night shift ended this morning. No run today."};
+  else if(t==="rec")next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:"Sleep first, then one or two videos.",p:`No run today. When you're up: ${nextVid.title} (${nextVid.len}).`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
+  else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:"Do this before you pick up your phone. Log your time on the 2.4 km tab after.",btn:`<button class="btn orange block" data-act="rundone">Mark Run as Done</button>`};
+  else if(nextVid)next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
+  else next={c:"var(--green)",i:IC.check,e:"All done",h:"Today's plan is finished.",p:"Put the phone in another room and do something offline."};
+  const before=TODAY<START;
+  const optional=(t==="shift")?VID.filter(v=>!S.done[v.i]).sort((a,b)=>a.sec-b.sec)[0]:null;
+  return `
+  <div class="lt"><div class="sub">${longDate(TODAY)}</div><h1>Today</h1></div>
+  ${before?`<p class="sf" style="padding:0 2px;margin:-10px 0 0">The 9-week run plan starts Monday, 2 November.</p>`:""}
+  <div class="sec"><div class="grp"><div class="rings">
+    <svg viewBox="0 0 132 132" role="img" aria-label="Weekly rings">${ring(58,runsPlanned?runsDone/runsPlanned:0,"var(--orange)")}${ring(41,studyGoal?studyDone/studyGoal:0,"var(--green)")}${ring(24,todayPlanned?todayDone/todayPlanned:1,"var(--teal)")}</svg>
+    <div class="rl">
+      <div><span class="k" style="color:var(--orange)">Runs this week</span><span class="v">${runsDone}<small>/${runsPlanned}</small></span></div>
+      <div><span class="k" style="color:var(--green)">Study this week</span><span class="v">${Math.round(studyDone)}<small>/${Math.round(studyGoal)} min</small></span></div>
+      <div><span class="k" style="color:var(--teal)">Today's plan</span><span class="v">${todayPlanned?`${todayDone}<small>/${todayPlanned} done</small>`:`<small>Rest day</small>`}</span></div>
+    </div></div></div></div>
+  <div class="sec"><div class="sh big">Up Next</div>
+    <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>
+  ${r?`<div class="sec"><div class="sh">Run · Week ${r.w+1} · ${r.focus}</div><div class="grp">
+      <div class="cell ind"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${KIND[r.k]}</div><div class="t2">${esc(r.text)}</div></div></div>
+      ${runDone?`<div class="cell" style="color:var(--green)">${IC.check.replace("<svg",'<svg width="20" height="20"')} Done</div>`:`<button class="cell btnrow" data-act="rundone">Mark as Done</button>`}
+    </div><div class="sf">${WU}</div></div>`:""}
+  <div class="sec"><div class="sh">Security+${vids.length?` · ${hm(vids.reduce((a,v)=>a+v.sec,0))}`:""}</div>
+    ${vids.length?`<div class="grp">${vids.map(vrow).join("")}</div>`:optional?`<div class="grp">${vrow(optional)}</div><div class="sf">Only if you feel like it on the commute. Shift days have no study target. This is the shortest video left.</div>`:`<div class="grp"><div class="cell">All 121 videos watched.</div></div><div class="sf">Move on to practice exams.</div>`}
+  </div>`;
+}
+function screenChart(){
+  const days=[...Array(14)].map((_,i)=>ds(add(TODAY,i-14)));
+  if(!days.some(d=>S.screen[d]!=null))return '<div class="t2" style="color:var(--label2);font-size:15px;padding:4px 4px 2px">Save a few days to see your two-week trend.</div>';
+  const W=600,H=150,pl=24,pb=18,max=12,x=i=>pl+i*(W-pl)/14+6,bw=(W-pl)/14-12,y=h=>H-pb-(h/max)*(H-pb-6);
+  const g=[0,4,8,12].map(h=>`<line x1="${pl}" x2="${W}" y1="${y(h)}" y2="${y(h)}" stroke="var(--sep)"/><text x="0" y="${y(h)+3}">${h}h</text>`).join("");
+  const b=days.map((d,i)=>{const v=S.screen[d];if(v==null)return"";const ok=v<=screenTarget(d);return `<rect x="${x(i)}" y="${y(v)}" width="${bw}" height="${Math.max(2,H-pb-y(v))}" fill="${ok?"var(--teal)":"var(--orange)"}" rx="4"><title>${d}: ${v}h</title></rect>`}).join("");
+  const tl=days.map((d,i)=>`${x(i)+bw/2},${y(screenTarget(d))}`).join(" ");
+  const lab=[0,7,13].map(i=>`<text x="${x(i)}" y="${H-4}">${pd(days[i]).getDate()} ${MON[pd(days[i]).getMonth()]}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Screen time, last 14 days">${g}${b}<polyline points="${tl}" fill="none" stroke="var(--label2)" stroke-dasharray="4 4" stroke-width="1.5"/>${lab}</svg>`;
+}
+
+function viewPlan(){
+  const sch=schedule();
+  const month=(y,m)=>{const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),lead=(first.getDay()+6)%7;
+    let cells=["M","T","W","T","F","S","S"].map(d=>`<div class="dow">${d}</div>`).join("")+'<div class="day blank"></div>'.repeat(lead);
+    for(let i=1;i<=n;i++){const d=new Date(y,m,i),s=ds(d),t=dayType(s),r=runOn(s),v=(sch.map[s]||[]).length,past=d<TODAY;
+      const lbl=t==="shift"?shortTime(s):t==="rec"?"sleep":"";
+      cells+=`<button class="day${t==="rec"?" rec":""}${s===T?" today":""}${past?" past":""}" data-act="shift" data-d="${s}" aria-label="${nice(d)}: ${t==="shift"?"shift "+(shiftTime(s)||""):t==="rec"?"after night shift":"free"}${r?", "+KIND[r.k]:""}. Tap to toggle shift." aria-pressed="${t==="shift"}">
+        <span class="n">${i}</span>${lbl?`<span class="st">${lbl}</span>`:'<span class="st" style="visibility:hidden">·</span>'}
+        <span class="dots">${r?`<i style="background:var(--orange)"></i>`:""}${v&&!past?`<i style="background:var(--green)"></i>`:""}</span></button>`}
+    return `<div class="month"><div class="mh">${LONGMON[m]} ${y}</div><div class="cal">${cells}</div></div>`};
+  return `<div class="lt"><div class="sub">Cyber Shift roster</div><h1>Roster</h1></div>
+  <div class="legend"><span><i style="background:var(--indigo)"></i>Shift (N = night)</span><span><i style="background:transparent;border:1.5px solid var(--indigo)"></i>After a night shift</span><span><i style="background:var(--orange)"></i>Run</span><span><i style="background:var(--green)"></i>Sec+ videos</span></div>
+  ${month(2026,10)}${month(2026,11)}${month(2027,0)}
+  <div class="sf" style="margin-top:-12px">Tap a day to add or remove a shift. Runs and videos move around it automatically.</div>
+  <div class="sec"><div class="sh">Backup</div><div class="grp">
+    <button class="cell btnrow" data-act="export">Copy Backup</button>
+    <div class="cell"><textarea id="imp" rows="2" placeholder="Paste a backup here to restore"></textarea></div>
+    <button class="cell btnrow" data-act="import">Restore from Backup</button>
+    <button class="cell btnrow destructive" data-act="clearshifts">Clear All Shifts</button>
+  </div><div class="sf">Progress is saved on this phone only. Copy a backup into Notes every week or two.</div></div>`;
+}
+
+function viewRun(){
+  const b=best24(),cur=b??BASE_SEC,pct=Math.max(0,Math.min(100,(BASE_SEC-cur)/(BASE_SEC-GOAL_SEC)*100));
+  const w=Math.floor(diff(TODAY,START)/7);
+  const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${p.focus}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
+    <dl><dt>Intervals</dt><dd>${esc(p.A)}</dd><dt>Easy</dt><dd>${esc(p.B)}</dd><dt>${i===3||i===8?"Test":"Tempo"}</dt><dd>${esc(p.C)}</dd></dl></div></div>`}).join("");
+  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${r.km} km${r.tt?' <span class="badge">2.4 Test</span>':""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(r.sec/r.km)} /km</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
+  return `<div class="lt"><div class="sub">IPPT 2.4 km · 2 Nov – 3 Jan</div><h1>2.4 km</h1></div>
+  <div class="sec"><div class="grp">
+    <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":"starting ~13:00"}</span></div>
+    <div class="stat"><span class="k">Goal</span><span class="v o">11:00</span><span class="s">4:35 /km</span></div>
+    <div class="stat"><span class="k">To Cut</span><span class="v g">${fmt(Math.max(0,cur-GOAL_SEC))}</span><span class="s">${Math.round(pct)}% there</span></div></div>
+    <div class="pad"><div class="bar o" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div>
+  </div><div class="sf">Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that. The week 4 test should come in near 12:00. If it does, 11:00 in week 9 is realistic.</div></div>
+  <div class="sec"><div class="sh">Log a Run</div><div class="grp">
+    <div class="cell"><label class="grow" for="rd">Date</label><input id="rd" type="date" value="${T}" style="width:150px"></div>
+    <div class="cell"><label class="grow" for="rk">Distance</label><input id="rk" type="number" inputmode="decimal" step="0.1" min="0.4" value="2.4" style="width:60px"><span class="trail">km</span></div>
+    <div class="cell"><label class="grow" for="rt">Time</label><input id="rt" type="text" inputmode="numeric" placeholder="12:45" style="width:80px"></div>
+    <div class="cell"><label class="grow" for="rtt">Full-effort 2.4 km test</label><input class="sw" id="rtt" type="checkbox"></div>
+    <button class="cell btnrow" data-act="logrun" style="font-weight:600">Log Run</button>
+  </div><div class="sf">Copy the distance and time from Strava after each run. Logging a run also ticks off that day's session.</div></div>
+  ${log?`<div class="sec"><div class="sh">History</div><div class="grp">${log}</div></div>`:""}
+  <div class="sec"><div class="sh">The Plan</div><div class="grp">${wkRows}</div>
+  <div class="sf">Up to three runs a week, only on free days. Never on a shift day, never the morning a night shift ends, and never two hard sessions back to back. ${WU}</div></div>`;
+}
+
+function viewSec(){
+  const sch=schedule();const done=VID.filter(v=>S.done[v.i]);const dsec=done.reduce((a,v)=>a+v.sec,0);
+  const fin=sch.last?pd(sch.last):null;
+  const doms=DOM.map(([k,name,w])=>{const vs=VID.filter(v=>v.dom===k),dn=vs.filter(v=>S.done[v.i]).length;
+    let body="",lastObj="";
+    for(const v of vs){if(v.obj!==lastObj){body+=`<div class="obj">${v.obj} ${esc(OBJ[v.obj])}</div>`;lastObj=v.obj}body+=vrow(v)}
+    const pct=dn/vs.length*100;
+    return `<details class="cellwrap" style="position:relative"${dn<vs.length&&dn>0?" open":""}><summary class="cell"><div class="grow" style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between;gap:8px"><span>${k==="0"?"Introduction":k+".0 "+esc(name)}</span><span class="trail">${dn}/${vs.length}</span></div><div class="bar"><i style="width:${pct}%"></i></div>${w?`<span class="t2" style="font-size:13px">${w} of the exam</span>`:""}</div>${IC.chev}</summary>${body}</details>`}).join("");
+  return `<div class="lt"><div class="sub">CompTIA SY0-701 · Professor Messer</div><h1>Security+</h1></div>
+  <div class="sec"><div class="grp">
+    <div class="stats"><div class="stat"><span class="k">Watched</span><span class="v">${done.length}<span style="font-size:17px;color:var(--label2)">/121</span></span></div>
+    <div class="stat"><span class="k">Time Left</span><span class="v">${hm(TOTAL_SEC-dsec)}</span></div>
+    <div class="stat"><span class="k">Finish</span><span class="v g">${fin?`${fin.getDate()} ${MON[fin.getMonth()]}`:"Done"}</span></div></div>
+    <div class="pad"><div class="bar" role="progressbar" aria-valuenow="${done.length}" aria-valuemin="0" aria-valuemax="121"><i style="width:${done.length/121*100}%"></i></div></div>
+    <div class="cell"><label class="grow" for="mins">Study per free day</label><select id="mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+  </div><div class="sf">Shift days have no study target. The day a night shift ends gets half. After the videos, do two weeks of practice exams before you book. Domain 4 is the biggest slice and overlaps your SOC work.</div></div>
+  <div class="sec"><div class="sh">Course</div><div class="grp">${doms}</div></div>`;
+}
+
+// ---------- Apple Health import (via Shortcuts clipboard text) ----------
+// Accepts "OFFSHIFT|2026-11-03|2.41 km|12:51" and looser text like "2.41 km 0:12:51" or "771 s".
+function parseRun(txt){
+  if(!txt)return null;txt=String(txt).trim();
+  const parts=txt.startsWith("OFFSHIFT")?txt.split("|").slice(1):[txt];
+  const all=parts.join(" ");
+  let d=(all.match(/(\d{4}-\d{2}-\d{2})/)||[])[1];
+  if(!d&&parts[0]){const t=Date.parse(parts[0].replace(/ at .*/,""));if(!isNaN(t))d=ds(new Date(t))}
+  d=d||T;
+  const distTxt=parts.length>=3?parts[1]:all;
+  let km=null,m;
+  if(m=distTxt.match(/([\d.,]+)\s*km/i))km=parseFloat(m[1].replace(",","."));
+  else if(m=distTxt.match(/([\d.,]+)\s*mi\b/i))km=parseFloat(m[1].replace(",","."))*1.609;
+  else if(m=distTxt.match(/([\d.,]+)\s*m\b/i))km=parseFloat(m[1].replace(",",""))/1000;
+  else if(parts.length>=3&&(m=parts[1].match(/^\s*([\d.]+)\s*$/)))km=parseFloat(m[1]);
+  const durTxt=parts.length>=3?parts.slice(2).join(" "):all.replace(/\d{4}-\d{2}-\d{2}/,"");
+  let sec=null;
+  if(m=durTxt.match(/(\d{1,2}):(\d{2}):(\d{2})/))sec=+m[1]*3600+ +m[2]*60+ +m[3];
+  else if(m=durTxt.match(/(\d{1,3}):(\d{2})(?!\d)/))sec=+m[1]*60+ +m[2];
+  else if(/min|hr|sec|\bs\b/i.test(durTxt)){const h=durTxt.match(/(\d+)\s*h/i),mi=durTxt.match(/(\d+)\s*min/i),se=durTxt.match(/(\d+)\s*s(ec)?\b/i);
+    sec=(h?+h[1]*3600:0)+(mi?+mi[1]*60:0)+(se?+se[1]:0)||null}
+  else if(m=durTxt.match(/^\s*([\d.]+)\s*$/))sec=Math.round(parseFloat(m[1]));
+  if(!(km>0)||!(sec>0))return null;
+  return {d,km:Math.round(km*100)/100,sec};
+}
+function fillRun(txt){
+  const r=parseRun(txt);
+  if(!r){toast("Couldn't read a run from that. Run the shortcut again?");return false}
+  document.getElementById("rd").value=r.d;document.getElementById("rk").value=r.km;
+  const mm=Math.floor(r.sec/60),ss=r.sec%60;document.getElementById("rt").value=mm+":"+pad(ss);
+  const pr=runOn(r.d);document.getElementById("rtt").checked=!!(pr&&pr.test&&Math.abs(r.km-2.4)<=0.15);
+  document.getElementById("pastebox").hidden=true;
+  toast("Filled in. Check it, then Log Run");return true;
+}
+document.addEventListener("input",e=>{if(e.target.id==="pastein"&&e.target.value.trim())fillRun(e.target.value)});
+
+// ---------- render + events ----------
+const VIEWS={today:viewToday,plan:viewPlan,run:viewRun,secplus:viewSec};
+function route(){const h=location.hash.slice(1);return VIEWS[h]?h:"today"}
+let enterT;
+function render(animate){
+  const r=route(),app=document.getElementById("app");
+  app.classList.remove("enter");
+  app.innerHTML=VIEWS[r]();
+  if(animate){[...app.children].forEach((el,i)=>el.style.setProperty("--i",Math.min(i,8)));void app.offsetWidth;app.classList.add("enter");
+    clearTimeout(enterT);enterT=setTimeout(()=>app.classList.remove("enter"),1800)}
+  document.querySelectorAll(".tabbar a").forEach(a=>a.getAttribute("href")==="#"+r?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
+}
+function changed(msg){cache={};save();const y=scrollY;render();scrollTo(0,y);if(msg)toast(msg)}
+let tt;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,1400)}
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-act]");if(!el)return;const a=el.dataset.act;
+  if(a==="shift"){const d=el.dataset.d;if(S.shifts[d])delete S.shifts[d];else S.shifts[d]="Shift";changed()}
+  else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed("Shifts Cleared")}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
+  else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Backup Copied"),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast("Select the text and copy it")})}
+  else if(a==="import"){try{const o=JSON.parse(document.getElementById("imp").value);if(!o||typeof o.shifts!=="object")throw 0;S=Object.assign({},DEF,o);changed("Restored")}catch(err){toast("That doesn't look like a backup")}}
+  else if(a==="health"){
+    const fallback=()=>{const b=document.getElementById("pastebox");b.hidden=false;const t=document.getElementById("pastein");t.value="";t.focus()};
+    if(navigator.clipboard&&navigator.clipboard.readText)navigator.clipboard.readText().then(t=>{if(!fillRun(t))fallback()},fallback);else fallback()}
+  else if(a==="rundone"){S.runDone[T]=true;changed("Nice Work")}
+  else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
+  else if(a==="logrun"){
+    const d=document.getElementById("rd").value,km=parseFloat(document.getElementById("rk").value),t=document.getElementById("rt").value.trim();
+    const m=t.match(/^(\d{1,2})[:.](\d{2})$/);
+    if(!d||!(km>0)||!m){toast("Enter a time like 12:45");return}
+    const sec=+m[1]*60+ +m[2],isT=document.getElementById("rtt").checked,prev=best24();
+    if(S.runs.some(r=>r.d===d&&r.sec===sec&&r.km===km)){toast("That run is already logged");return}
+    S.runs.push({d,km,sec,tt:isT});S.runDone[d]=true;
+    changed(isT&&(prev==null||sec<prev)?"New Best 2.4":"Run Logged")}
+  else if(a==="delrun"){const k=el.dataset.k;const i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);if(i>-1){S.runs.splice(i,1);changed("Deleted")}}
+});
+document.addEventListener("change",e=>{
+  const el=e.target;
+  if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];changed(el.checked?"Watched":null)}
+  else if(el.dataset.act==="mins"){S.mins=+el.value;changed("Plan Updated")}
+});
+window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
+  const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}});
+render(true);
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
