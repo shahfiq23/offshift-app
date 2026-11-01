@@ -177,7 +177,18 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 /* HUD toast */
 .hud{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:30;background:var(--bar);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
   color:var(--label);border-radius:14px;padding:14px 20px;font-size:15px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.18);text-align:center;max-width:80vw}
-@media (prefers-reduced-motion:no-preference){.ring{transition:stroke-dashoffset .6s ease}.bar i{transition:width .4s ease}}
+@media (prefers-reduced-motion:no-preference){
+  .ring{transition:stroke-dashoffset .6s ease}.bar i{transition:width .4s ease}
+  /* tab entrance: cards rise in one after another, rings and bars fill */
+  .page.enter>*{animation:rise .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 70ms)}
+  .page.enter .ring{animation:ringfill 1s cubic-bezier(.3,.7,.2,1) both .25s}
+  .page.enter .bar i{animation:barfill .9s cubic-bezier(.3,.7,.2,1) both .3s}
+  .tabbar a.pop svg{animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+  @keyframes ringfill{from{stroke-dashoffset:var(--c)}}
+  @keyframes barfill{from{width:0}}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(.82)}100%{transform:scale(1)}}
+}
 @media (max-width:380px){.rings svg{width:112px;height:112px}.stat .v{font-size:24px}.day .n{width:26px;height:26px;font-size:15px}}
 </style>
 </head>
@@ -343,7 +354,7 @@ const weekDays=d=>{const m=add(d,-((d.getDay()+6)%7));return [...Array(7)].map((
 
 function ring(r,frac,color){const c=2*Math.PI*r,f=Math.max(0,Math.min(1,frac));
   return `<circle cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-opacity=".22" stroke-width="15"/>
-  <circle class="ring" cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-f)+(f===0?0:0)}" transform="rotate(-90 66 66)" ${f===0?'stroke-opacity="0"':""}/>`}
+  <circle class="ring" style="--c:${c}" cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-f)+(f===0?0:0)}" transform="rotate(-90 66 66)" ${f===0?'stroke-opacity="0"':""}/>`}
 
 function viewToday(){
   const t=dayType(T),r=runOn(T),sch=schedule(),vids=sch.map[T]||[];
@@ -499,9 +510,13 @@ document.addEventListener("input",e=>{if(e.target.id==="pastein"&&e.target.value
 // ---------- render + events ----------
 const VIEWS={today:viewToday,plan:viewPlan,run:viewRun,secplus:viewSec};
 function route(){const h=location.hash.slice(1);return VIEWS[h]?h:"today"}
-function render(){
-  const r=route();
-  document.getElementById("app").innerHTML=VIEWS[r]();
+let enterT;
+function render(animate){
+  const r=route(),app=document.getElementById("app");
+  app.classList.remove("enter");
+  app.innerHTML=VIEWS[r]();
+  if(animate){[...app.children].forEach((el,i)=>el.style.setProperty("--i",Math.min(i,8)));void app.offsetWidth;app.classList.add("enter");
+    clearTimeout(enterT);enterT=setTimeout(()=>app.classList.remove("enter"),1800)}
   document.querySelectorAll(".tabbar a").forEach(a=>a.getAttribute("href")==="#"+r?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
 }
 function changed(msg){cache={};save();const y=scrollY;render();scrollTo(0,y);if(msg)toast(msg)}
@@ -532,9 +547,10 @@ document.addEventListener("change",e=>{
   if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];changed(el.checked?"Watched":null)}
   else if(el.dataset.act==="mins"){S.mins=+el.value;changed("Plan Updated")}
 });
-window.addEventListener("hashchange",()=>{render();scrollTo(0,0)});
-document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render()}});
-render();
+window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
+  const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}});
+render(true);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
