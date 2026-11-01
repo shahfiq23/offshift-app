@@ -70,6 +70,15 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .accin .vrow+.vrow::before{left:88px}
 @media (prefers-reduced-motion:reduce){.accb,.accin .vrow,.acch .chev{transition:none}}
 .vrow.nextv,.accin .vrow.nextv{background:color-mix(in srgb,var(--blue) 14%,var(--cell))}
+/* startup: a white heartbeat line draws across a black screen, then the app fades in */
+#splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-content:center;
+  padding:env(safe-area-inset-top,0px) 24px env(safe-area-inset-bottom,0px);transition:opacity .45s ease;cursor:pointer}
+#splash.out{opacity:0;pointer-events:none}
+#splash .stage{width:min(78vw,340px)}
+#splash .beat{width:100%;height:auto;overflow:visible;filter:drop-shadow(0 0 5px rgba(255,255,255,.35))}
+#splash .beatline{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.15s cubic-bezier(.45,.05,.35,1) forwards .15s}
+@keyframes draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){#splash .beatline{animation:none;stroke-dashoffset:0}}
 /* grouped sections */
 .sec{display:grid;gap:7px;min-width:0}
 .sh{font-size:13px;color:var(--label2);text-transform:uppercase;padding:0 16px;letter-spacing:-.005em}
@@ -214,6 +223,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true">
+  <div class="stage">
+    <svg class="beat" viewBox="0 0 300 80" fill="none"><path class="beatline" pathLength="1" d="M4 50 H84 Q92 50 96 43 Q100 50 108 50 H120 L127 57 L136 8 L146 72 L153 50 H170 Q180 50 186 37 Q192 50 202 50 H296" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+</div>
+</div>
 <main class="page" id="app"></main>
 <nav class="tabbar" aria-label="Tabs">
   <a href="#today"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="14" cy="14" r="11"/><circle cx="14" cy="14" r="6.6"/><circle cx="14" cy="14" r="2.4"/></svg>Today</a>
@@ -631,7 +646,11 @@ document.addEventListener("touchend",e=>{if(sx==null)return;const dx=e.changedTo
 window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}else if(route()==="today")render()});
-render(true);
+render();
+(function(){const sp=document.getElementById("splash");if(!sp)return;
+  const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;let done=false;
+  const finish=()=>{if(done)return;done=true;sp.classList.add("out");render(true);setTimeout(()=>sp.remove(),550)};
+  sp.addEventListener("click",finish);setTimeout(finish,reduced?500:1650)})();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).catch(()=>{});
 </script>
 </body>
