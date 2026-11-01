@@ -170,6 +170,7 @@ textarea{font:13px var(--mono);color:var(--label);background:transparent;border:
 .day.today .n{background:var(--red);color:#fff;font-weight:600}
 .day .st{font-size:10px;font-weight:600;color:#fff;background:var(--indigo);border-radius:4px;padding:1px 4px;white-space:nowrap;max-width:100%;overflow:hidden;font-variant-numeric:tabular-nums}
 .day.rec .st{background:transparent;color:var(--indigo)}
+.day.busy .st{background:var(--fill);color:var(--label2)}
 .day .dots{display:flex;gap:3px;height:6px}
 .day .dots i{width:6px;height:6px;border-radius:50%}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--label2);padding:0 4px}
@@ -305,7 +306,7 @@ const hm=s=>{const h=Math.floor(s/3600),m=Math.round(s%3600/60);return h?`${h}h 
 
 // ---------- state ----------
 const KEY="offshift-v1";
-const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45};
+const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45,busy:{}};
 let S=JSON.parse(JSON.stringify(DEF));
 try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}}
@@ -321,7 +322,8 @@ const isShift=s=>!!S.shifts[s];
 const shiftTime=s=>typeof S.shifts[s]==="string"&&/^\d\d:\d\d-\d\d:\d\d$/.test(S.shifts[s])?S.shifts[s]:null;
 const isNight=s=>{const t=shiftTime(s);return !!t&&+t.slice(0,2)>=19};
 const shortTime=s=>{const t=shiftTime(s);return t?(isNight(s)?"N ":"")+t.slice(0,2)+"–"+t.slice(6,8):"SHIFT"};
-const dayType=s=>{if(isShift(s))return "shift";const p=ds(add(pd(s),-1));return isShift(p)&&isNight(p)?"rec":"off"};
+const isBusy=s=>!!(S.busy&&S.busy[s]);
+const dayType=s=>{if(isShift(s))return "shift";if(isBusy(s))return "busy";const p=ds(add(pd(s),-1));return isShift(p)&&isNight(p)?"rec":"off"};
 function schedule(){
   if(cache.sch)return cache.sch;
   const map={};const queue=VID.filter(v=>!S.done[v.i]);
@@ -345,7 +347,9 @@ const screenTarget=s=>Math.max(5,9-4*Math.max(0,diff(pd(s),new Date(2026,10,1)))
 function weekRuns(w){
   if(cache["w"+w])return cache["w"+w];
   const days=[...Array(7)].map((_,i)=>ds(add(START,w*7+i)));
-  const free=days.filter(s=>dayType(s)==="off");
+  // When a day in this week is marked busy, its run moves to another free day from today on (past days keep only runs already done).
+  const hasBusy=days.some(isBusy);
+  const free=days.filter(s=>dayType(s)==="off"&&(!hasBusy||s>=T||S.runDone[s]));
   const testWk=w===3||w===8;
   const val={A:10,B:4,C:testWk?12:8};
   const combos=(arr,k,st=0,cur=[])=>k===0?[cur]:arr.slice(st).flatMap((_,j)=>combos(arr,k-1,st+j+1,[...cur,arr[st+j]]));
@@ -409,6 +413,7 @@ function viewDay(D){
   let next;
   if(t==="shift")next=isNight(D)?{c:"var(--indigo)",i:IC.moon,e:`Night shift · ${shiftTime(D)}`,h:isToday?"Rest before tonight.":"Night shift. Nothing planned.",p:"Nap in the afternoon instead of scrolling. No run, no study."}
     :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(D)?" · "+shiftTime(D):""}`,h:`Nothing planned ${when}.`,p:"You'll be tired after work, so there's no run and no study. Get home, rest and recharge for tomorrow."};
+  else if(t==="busy")next={c:"var(--label2)",i:IC.cal,e:"Busy",h:isToday?"Day off from the plan.":"Busy. Nothing planned.",p:"No run and no study. The run and videos moved to your other free days, so go enjoy it."};
   else if(t==="rec")next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:vids.length?"Sleep first, then one or two videos.":"Sleep first.",p:`The night shift ends that morning, so no run.${vids.length?` Videos: ${vidMin}.`:""}`};
   else if(!isToday){
     if(r)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:`${future?"Planned":"Was planned"}${vids.length?`, plus ${vids.length} video${vids.length>1?"s":""} (${vidMin})`:""}.`};
@@ -428,6 +433,7 @@ function viewDay(D){
   ${isToday&&TODAY<START?`<p class="sf" style="padding:0 2px;margin:-10px 0 0">The 9-week run plan starts Monday, 2 November.</p>`:""}
   <div class="sec"><div class="sh big">${isToday?"Up Next":"Plan"}</div>
     <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>
+  ${!future&&!isToday||t==="shift"?"":`<div class="sec"><div class="grp"><button class="cell btnrow" data-act="busy" data-d="${D}">${t==="busy"?"Undo Busy":"Can't Make It? Mark as Busy"}</button></div>${t==="busy"?"":`<div class="sf">Going out or something came up? This clears the day and moves its run and videos to your other free days.</div>`}</div>`}
   ${isToday?`<div class="sec"><div class="grp"><div class="rings">
     <svg viewBox="0 0 132 132" role="img" aria-label="Weekly rings">${ring(58,runsPlanned?runsDone/runsPlanned:0,"var(--orange)")}${ring(41,studyGoal?studyDone/studyGoal:0,"var(--green)")}${ring(24,todayPlanned?todayDone/todayPlanned:1,"var(--teal)")}</svg>
     <div class="rl">
@@ -463,14 +469,14 @@ function viewPlan(){
   const month=(y,m)=>{const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),lead=(first.getDay()+6)%7;
     let cells=["M","T","W","T","F","S","S"].map(d=>`<div class="dow">${d}</div>`).join("")+'<div class="day blank"></div>'.repeat(lead);
     for(let i=1;i<=n;i++){const d=new Date(y,m,i),s=ds(d),t=dayType(s),r=runOn(s),v=(sch.map[s]||[]).length,past=d<TODAY;
-      const lbl=t==="shift"?shortTime(s):t==="rec"?"sleep":"";
-      cells+=`<button class="day${t==="rec"?" rec":""}${s===T?" today":""}${past?" past":""}" data-act="${editShifts?"shift":"go"}" data-d="${s}" aria-label="${nice(d)}: ${t==="shift"?"shift "+(shiftTime(s)||""):t==="rec"?"after night shift":"free"}${r?", "+KIND[r.k]:""}. ${editShifts?"Tap to toggle shift.":"Tap to open."}" aria-pressed="${t==="shift"}">
+      const lbl=t==="shift"?shortTime(s):t==="rec"?"sleep":t==="busy"?"busy":"";
+      cells+=`<button class="day${t==="rec"?" rec":t==="busy"?" busy":""}${s===T?" today":""}${past?" past":""}" data-act="${editShifts?"shift":"go"}" data-d="${s}" aria-label="${nice(d)}: ${t==="shift"?"shift "+(shiftTime(s)||""):t==="rec"?"after night shift":t==="busy"?"busy":"free"}${r?", "+KIND[r.k]:""}. ${editShifts?"Tap to toggle shift.":"Tap to open."}" aria-pressed="${t==="shift"}">
         <span class="n">${i}</span>${lbl?`<span class="st">${lbl}</span>`:'<span class="st" style="visibility:hidden">·</span>'}
         <span class="dots">${r?`<i style="background:var(--orange)"></i>`:""}${v&&!past?`<i style="background:var(--green)"></i>`:""}</span></button>`}
     return `<div class="month"><div class="mh">${LONGMON[m]} ${y}</div><div class="cal${editShifts?" editing":""}">${cells}</div></div>`};
   return `<div class="lt"><div class="sub">Cyber Shift roster</div><div class="row"><h1>Roster</h1><button class="btn ${editShifts?"fill":"tint"} small" data-act="editshifts">${editShifts?"Done":"Edit Shifts"}</button></div></div>
   ${editShifts?'<div class="sf" style="margin-top:-10px;color:var(--blue)">Tap days to add or remove a shift. Tap Done when finished.</div>':""}
-  <div class="legend"><span><i style="background:var(--indigo)"></i>Shift (N = night)</span><span><i style="background:transparent;border:1.5px solid var(--indigo)"></i>After a night shift</span><span><i style="background:var(--orange)"></i>Run</span><span><i style="background:var(--green)"></i>Sec+ videos</span></div>
+  <div class="legend"><span><i style="background:var(--indigo)"></i>Shift (N = night)</span><span><i style="background:transparent;border:1.5px solid var(--indigo)"></i>After a night shift</span><span><i style="background:var(--label3)"></i>Busy</span><span><i style="background:var(--orange)"></i>Run</span><span><i style="background:var(--green)"></i>Sec+ videos</span></div>
   ${month(2026,10)}${month(2026,11)}${month(2027,0)}
   <div class="sf" style="margin-top:-12px">Tap any day to see its plan. Use Edit Shifts to change your roster; runs and videos move around it automatically.</div>
   <div class="sec"><div class="sh">Backup</div><div class="grp">
@@ -690,6 +696,7 @@ document.addEventListener("click",e=>{
   else if(a==="jumpnext"){const n=VID.find(v=>!S.done[v.i]);if(!n)return;const box=document.querySelector(`.acc[data-dom="${n.dom}"]`);
     const go=()=>{const r=document.getElementById("nextvid");if(r)r.scrollIntoView({behavior:"smooth",block:"center"})};
     if(box&&!box.classList.contains("open")){box.classList.add("open");openDoms.add(n.dom);box.querySelector(".acch").setAttribute("aria-expanded","true");setTimeout(go,380)}else go();return}
+  else if(a==="busy"){const d=el.dataset.d;S.busy=S.busy||{};if(S.busy[d])delete S.busy[d];else S.busy[d]=1;changed(S.busy[d]?"Marked Busy · Plan Moved":"Back on the Plan");return}
   else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;changed("Nice Work")}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
