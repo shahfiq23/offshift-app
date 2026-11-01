@@ -434,6 +434,7 @@ function viewDay(D){
       <div><span class="k" style="color:var(--green)">Study this week</span><span class="v">${Math.round(studyDone)}<small>/${Math.round(studyGoal)} min</small></span></div>
       <div><span class="k" style="color:var(--teal)">Today's plan</span><span class="v">${todayPlanned?`${todayDone}<small>/${todayPlanned} done</small>`:`<small>Rest day</small>`}</span></div>
     </div></div></div></div>`:""}
+  ${isToday&&dd.getDay()===0?weekRecap():""}
   <div class="sec"><div class="sh big">${isToday?"Up Next":"Plan"}</div>
     <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>
   ${r?`<div class="sec"><div class="sh">Run · Week ${r.w+1} · ${r.focus}</div><div class="grp">
@@ -481,6 +482,71 @@ function viewPlan(){
   </div><div class="sf">Progress is saved on this phone only. Copy a backup into Notes every week or two.</div></div>`;
 }
 
+// ---------- 2.4 km progress charts ----------
+// Test chart: logged 2.4 tests against the target path (13:00 on 2 Nov down to 11:00 on 3 Jan). Faster is higher.
+function testChart(){
+  const tests=S.runs.filter(r=>r.tt).sort((a,b)=>a.d<b.d?-1:1);
+  const W=340,H=190,L=40,R=12,Tp=14,B=26,span=diff(END,START);
+  const xs=d=>L+Math.max(0,Math.min(1,diff(pd(d),START)/span))*(W-L-R);
+  const lo=Math.min(GOAL_SEC-30,...tests.map(t=>t.sec)),hi=Math.max(BASE_SEC+30,...tests.map(t=>t.sec));
+  const ys=sec=>Tp+(sec-lo)/(hi-lo)*(H-Tp-B);
+  const ticks=[];for(let t=Math.ceil(lo/60)*60;t<=hi;t+=60)ticks.push(t);
+  let g=ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${ys(t)}" y2="${ys(t)}" stroke="var(--sep)"/><text x="${L-6}" y="${ys(t)+3.5}" text-anchor="end">${fmt(t)}</text>`).join("");
+  g+=`<line x1="${L}" x2="${W-R}" y1="${ys(GOAL_SEC)}" y2="${ys(GOAL_SEC)}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(GOAL_SEC)-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal 11:00</text>`;
+  const target=`<line x1="${xs(ds(START))}" y1="${ys(BASE_SEC)}" x2="${xs(ds(END))}" y2="${ys(GOAL_SEC)}" stroke="var(--label2)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
+  const months=[[2026,10,1],[2026,11,1],[2027,0,1]].map(([y,m,d])=>{const dd=new Date(y,m,d);if(dd<START)dd.setTime(START.getTime());return `<text x="${xs(ds(dd))}" y="${H-8}" text-anchor="${m===10?"start":"middle"}">${MON[m]}</text>`}).join("");
+  const today=TODAY>=START&&TODAY<=END?`<line x1="${xs(T)}" x2="${xs(T)}" y1="${Tp}" y2="${H-B}" stroke="var(--blue)" stroke-opacity=".5" stroke-dasharray="2 3"/>`:"";
+  const line=tests.length>1?`<polyline points="${tests.map(t=>`${xs(t.d)},${ys(t.sec)}`).join(" ")}" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`:"";
+  const dots=tests.map((t,i)=>`<circle cx="${xs(t.d)}" cy="${ys(t.sec)}" r="${i===tests.length-1?5:3.5}" fill="var(--orange)" stroke="var(--cell)" stroke-width="2"><title>${nice(pd(t.d))}: ${fmt(t.sec)}</title></circle>`).join("");
+  const last=tests[tests.length-1];
+  const lbl=last?`<text x="${Math.min(xs(last.d)+8,W-R-30)}" y="${ys(last.sec)-9}" style="fill:var(--label);font-weight:700;font-size:12px">${fmt(last.sec)}</text>`:"";
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="2.4 km test times against the target path">${g}${target}${today}${months}${line}${dots}${lbl}</svg>`;
+}
+// Pace chart: every logged run's pace per km, oldest to newest. Faster is higher.
+function paceChart(){
+  const runs=[...S.runs].sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0).slice(-14);
+  if(!runs.length)return "";
+  const W=340,H=150,L=40,R=12,Tp=14,B=22;
+  const paces=runs.map(r=>r.sec/r.km),goalP=GOAL_SEC/2.4;
+  const lo=Math.min(goalP-10,...paces),hi=Math.max(goalP+60,...paces)+30;
+  const n=runs.length,bw=Math.min(18,(W-L-R)/n-6),xs=i=>L+((i+.5)/n)*(W-L-R),ys=p=>Tp+(p-lo)/(hi-lo)*(H-Tp-B);
+  const ticks=[];for(let t=Math.ceil(lo/30)*30;t<=hi;t+=30)ticks.push(t);
+  let g=ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${ys(t)}" y2="${ys(t)}" stroke="var(--sep)"/><text x="${L-6}" y="${ys(t)+3.5}" text-anchor="end">${fmt(t)}</text>`).join("");
+  g+=`<line x1="${L}" x2="${W-R}" y1="${ys(goalP)}" y2="${ys(goalP)}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(goalP)-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal pace 4:35</text>`;
+  const bars=runs.map((r,i)=>{const p=paces[i];return `<rect x="${xs(i)-bw/2}" y="${ys(p)}" width="${bw}" height="${Math.max(3,H-B-ys(p))}" rx="4" fill="${r.tt?"var(--orange)":"var(--teal)"}"><title>${nice(pd(r.d))}: ${r.km} km, ${fmt(p)}/km</title></rect>`}).join("");
+  const lab=runs.map((r,i)=>(n<=7||(n-1-i)%2===0)?`<text x="${xs(i)}" y="${H-6}" text-anchor="middle">${pd(r.d).getDate()}/${pd(r.d).getMonth()+1}</text>`:"").join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Pace per km for recent runs">${g}${bars}${lab}</svg>`;
+}
+
+// ---------- Sunday recap ----------
+function weekRecap(){
+  const wd=weekDays(TODAY),nx=wd.map(d=>ds(add(pd(d),7)));
+  const runsPlanned=wd.filter(d=>runOn(d)),runsDone=runsPlanned.filter(d=>S.runDone[d]).length;
+  const extra=S.runs.filter(r=>wd.includes(r.d)&&!runOn(r.d)).length;
+  const vids=VID.filter(v=>wd.includes(S.done[v.i])),vmin=vids.reduce((a,v)=>a+v.sec,0);
+  const tests=S.runs.filter(r=>r.tt&&wd.includes(r.d)),bestAll=best24();
+  const pb=tests.find(t=>t.sec===bestAll);
+  const sch=schedule();
+  const nShifts=nx.filter(isShift),nNights=nShifts.filter(isNight).length;
+  const nRuns=nx.map(d=>[d,runOn(d)]).filter(([,r])=>r);
+  const nVid=nx.reduce((a,d)=>a+(sch.map[d]||[]).reduce((b,v)=>b+v.sec,0),0);
+  const nTest=nRuns.find(([,r])=>r.test);
+  const ring=(f,c)=>{const r=13,cc=2*Math.PI*r;return `<svg viewBox="0 0 34 34" width="34" height="34"><circle cx="17" cy="17" r="${r}" fill="none" stroke="${c}" stroke-opacity=".22" stroke-width="5"/><circle cx="17" cy="17" r="${r}" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${cc}" stroke-dashoffset="${cc*(1-Math.max(0,Math.min(1,f)))}" transform="rotate(-90 17 17)" ${f<=0?'stroke-opacity="0"':""}/></svg>`};
+  const msg=runsPlanned.length&&runsDone===runsPlanned.length?"Every run done this week. That's how the 2.4 comes down."
+    :runsDone>0?`${runsDone} of ${runsPlanned.length} runs done. Next week, aim for all of them.`
+    :runsPlanned.length?"No runs logged this week. A fresh week starts tomorrow.":"The run plan starts tomorrow.";
+  return `<div class="sec"><div class="sh big">Week in Review</div><div class="grp">
+    <div class="cell"><span class="ico" style="background:transparent">${ring(runsPlanned.length?runsDone/runsPlanned.length:0,"var(--orange)")}</span><div class="grow"><div>Runs</div><div class="t2">${runsDone} of ${runsPlanned.length} planned${extra?` · ${extra} extra`:""}</div></div></div>
+    <div class="cell"><span class="ico" style="background:transparent">${ring(vids.length?1:0,"var(--green)")}</span><div class="grow"><div>Security+</div><div class="t2">${vids.length} video${vids.length===1?"":"s"} · ${hm(vmin)}</div></div></div>
+    ${pb?`<div class="cell"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>New best 2.4</div><div class="t2">${fmt(pb.sec)} on ${nice(pd(pb.d))}</div></div></div>`:""}
+  </div><div class="sf">${msg}</div></div>
+  <div class="sec"><div class="sh">Next Week · ${nice(pd(nx[0]))} – ${nice(pd(nx[6]))}</div><div class="grp">
+    <div class="cell"><span class="ico" style="background:var(--indigo)">${IC.work}</span><div class="grow"><div>${nShifts.length} shift${nShifts.length===1?"":"s"}</div><div class="t2">${nNights?`${nNights} night shift${nNights>1?"s":""}`:"All day shifts"}${nShifts.length?` · ${nShifts.map(d=>DOW[pd(d).getDay()]).join(", ")}`:""}</div></div></div>
+    <div class="cell"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${nRuns.length} run${nRuns.length===1?"":"s"}${nTest?' <span class="badge">2.4 Test</span>':""}</div><div class="t2">${nRuns.map(([d,r])=>`${DOW[pd(d).getDay()]} ${r.test?"Test":KIND[r.k]}`).join(" · ")||"Rest week"}</div></div></div>
+    <div class="cell"><span class="ico" style="background:var(--blue)">${IC.play}</span><div class="grow"><div>Security+</div><div class="t2">${nVid?`About ${hm(nVid)} planned`:"Nothing planned"}</div></div></div>
+  </div></div>`;
+}
+
 function viewRun(){
   const b=best24(),cur=b??BASE_SEC,pct=Math.max(0,Math.min(100,(BASE_SEC-cur)/(BASE_SEC-GOAL_SEC)*100));
   const w=Math.floor(diff(TODAY,START)/7);
@@ -494,6 +560,9 @@ function viewRun(){
     <div class="stat"><span class="k">To Cut</span><span class="v g">${fmt(Math.max(0,cur-GOAL_SEC))}</span><span class="s">${Math.round(pct)}% there</span></div></div>
     <div class="pad"><div class="bar o" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div>
   </div><div class="sf">Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that. The week 4 test should come in near 12:00. If it does, 11:00 in week 9 is realistic.</div></div>
+  <div class="sec"><div class="sh">2.4 km Tests</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${testChart()}</div></div>
+    <div class="sf">${S.runs.some(r=>r.tt)?"Orange is your logged tests. Stay on or above the dashed target line to reach 11:00 by 3 January.":"The dashed line is your target path from 13:00 to 11:00. Your 2.4 tests appear here as you log them; the first is on 29 November."}</div></div>
+  ${S.runs.length?`<div class="sec"><div class="sh">Pace per Run</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${paceChart()}</div></div><div class="sf">Your last ${Math.min(14,S.runs.length)} runs. Taller is faster; orange bars are 2.4 tests. Easy runs should sit well below the goal pace.</div></div>`:""}
   <div class="sec"><div class="sh">Log a Run</div><div class="grp">
     <div class="cell" style="display:grid;gap:6px;align-items:start"><label for="voice" class="t2" style="display:flex;gap:6px;align-items:center;color:var(--blue);font-weight:600;font-size:15px">${IC.mic} Say it</label>
       <textarea id="voice" rows="2" placeholder="Tap here, then the mic on your keyboard. Try “2.4 in 12 minutes 45”."></textarea><div id="voiceout" class="t2" aria-live="polite"></div></div>
