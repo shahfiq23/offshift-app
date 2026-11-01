@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Off/Shift</title>
+<title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Off/Shift">
+<meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
@@ -52,6 +52,11 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .lt h1{margin:0;font-size:34px;line-height:41px;font-weight:700;letter-spacing:.012em}
 .lt .row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
 
+.greet{font-size:22px;font-weight:700;letter-spacing:.01em;padding-top:10px;margin-bottom:-14px;
+  background:linear-gradient(90deg,var(--indigo),#FF375F 55%,var(--orange));-webkit-background-clip:text;background-clip:text;color:transparent;width:fit-content}
+.daynav{display:flex;gap:6px;align-items:center;padding-bottom:4px}
+.navb{width:34px;height:34px;border-radius:50%;background:var(--fill);color:var(--blue);font-size:24px;line-height:1;display:grid;place-items:center;padding-bottom:3px}
+.cal.editing{outline:2px solid var(--blue);outline-offset:2px}
 /* grouped sections */
 .sec{display:grid;gap:7px;min-width:0}
 .sh{font-size:13px;color:var(--label2);text-transform:uppercase;padding:0 16px;letter-spacing:-.005em}
@@ -356,42 +361,57 @@ function ring(r,frac,color){const c=2*Math.PI*r,f=Math.max(0,Math.min(1,frac));
   return `<circle cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-opacity=".22" stroke-width="15"/>
   <circle class="ring" style="--c:${c}" cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-f)+(f===0?0:0)}" transform="rotate(-90 66 66)" ${f===0?'stroke-opacity="0"':""}/>`}
 
-function viewToday(){
-  const t=dayType(T),r=runOn(T),sch=schedule(),vids=sch.map[T]||[];
-  const runDone=!!S.runDone[T];const nextVid=vids.find(v=>!S.done[v.i]);
-  // rings: runs this week, study minutes this week, today's plan
+const NAME="Shahfiq";
+function greeting(){const h=new Date().getHours();return h>=5&&h<12?"Good morning":h>=12&&h<18?"Good afternoon":"Good evening"}
+function dayTitle(D){const n=diff(pd(D),TODAY);return n===0?"Today":n===1?"Tomorrow":n===-1?"Yesterday":LONGDOW[pd(D).getDay()]}
+function viewDay(D){
+  const isToday=D===T,future=D>T,dd=pd(D);
+  const t=dayType(D),r=runOn(D),sch=schedule();
+  const vids=future||isToday?(sch.map[D]||[]):VID.filter(v=>S.done[v.i]===D);
+  const runDone=!!S.runDone[D];const nextVid=vids.find(v=>!S.done[v.i]);
+  const vidMin=hm(vids.reduce((a,v)=>a+v.sec,0));
   const wd=weekDays(TODAY);
   const runsPlanned=wd.filter(d=>runOn(d)).length,runsDone=wd.filter(d=>runOn(d)&&S.runDone[d]).length;
   const studyGoal=wd.reduce((a,d)=>a+budget(d),0)/60,studyDone=VID.filter(v=>wd.includes(S.done[v.i])).reduce((a,v)=>a+v.sec,0)/60;
   const todayPlanned=(r?1:0)+vids.length,todayDone=(r&&runDone?1:0)+vids.filter(v=>S.done[v.i]).length;
+  const when=isToday?"today":future?"that day":"that day";
   let next;
-  if(t==="shift")next=isNight(T)?{c:"var(--indigo)",i:IC.moon,e:"Night shift tonight",h:"Rest before tonight.",p:`You're on ${shiftTime(T)}. Nap this afternoon instead of scrolling. Nothing is planned today.`}
-    :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(T)?" · "+shiftTime(T):""}`,h:"Nothing planned today.",p:"You'll be tired after work, so there's no run and no study. Get home, eat, sleep."};
-  else if(t==="rec"&&!nextVid)next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:"Sleep first.",p:"Your night shift ended this morning. No run today."};
-  else if(t==="rec")next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:"Sleep first, then one or two videos.",p:`No run today. When you're up: ${nextVid.title} (${nextVid.len}).`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
-  else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:"Do this before you pick up your phone. Log your time on the 2.4 km tab after.",btn:`<button class="btn orange block" data-act="rundone">Mark Run as Done</button>`};
+  if(t==="shift")next=isNight(D)?{c:"var(--indigo)",i:IC.moon,e:`Night shift · ${shiftTime(D)}`,h:isToday?"Rest before tonight.":"Night shift. Nothing planned.",p:"Nap in the afternoon instead of scrolling. No run, no study."}
+    :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(D)?" · "+shiftTime(D):""}`,h:`Nothing planned ${when}.`,p:"You'll be tired after work, so there's no run and no study. Get home, eat, sleep."};
+  else if(t==="rec")next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:vids.length?"Sleep first, then one or two videos.":"Sleep first.",p:`The night shift ends that morning, so no run.${vids.length?` Videos: ${vidMin}.`:""}`};
+  else if(!isToday){
+    if(r)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:`${future?"Planned":"Was planned"}${vids.length?`, plus ${vids.length} video${vids.length>1?"s":""} (${vidMin})`:""}.`};
+    else if(vids.length)next={c:"var(--blue)",i:IC.play,e:"Study day",h:`${vids.length} video${vids.length>1?"s":""} · ${vidMin}`,p:future?"No run planned. Legs rest.":"No run was planned."};
+    else next={c:"var(--green)",i:IC.check,e:"Free day",h:"Nothing planned.",p:"Enjoy it."};
+  }
+  else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:"Do this before you pick up your phone. Log your time on the 2.4 km tab after.",btn:`<button class="btn orange block" data-act="rundone" data-d="${D}">Mark Run as Done</button>`};
   else if(nextVid)next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
   else next={c:"var(--green)",i:IC.check,e:"All done",h:"Today's plan is finished.",p:"Put the phone in another room and do something offline."};
-  const before=TODAY<START;
-  const optional=(t==="shift")?VID.filter(v=>!S.done[v.i]).sort((a,b)=>a.sec-b.sec)[0]:null;
+  const optional=(isToday&&t==="shift")?VID.filter(v=>!S.done[v.i]).sort((a,b)=>a.sec-b.sec)[0]:null;
+  const prev=ds(add(dd,-1)),nxt=ds(add(dd,1));
   return `
-  <div class="lt"><div class="sub">${longDate(TODAY)}</div><h1>Today</h1></div>
-  ${before?`<p class="sf" style="padding:0 2px;margin:-10px 0 0">The 9-week run plan starts Monday, 2 November.</p>`:""}
-  <div class="sec"><div class="grp"><div class="rings">
+  ${isToday?`<div class="greet">${greeting()}, ${NAME}</div>`:""}
+  <div class="lt"><div class="sub">${longDate(dd)}</div><div class="row"><h1>${dayTitle(D)}</h1>
+    <div class="daynav">${!isToday?`<button class="btn tint small" data-act="go" data-d="${T}">Today</button>`:""}
+    <button class="navb" data-act="go" data-d="${prev}" aria-label="Previous day">‹</button><button class="navb" data-act="go" data-d="${nxt}" aria-label="Next day">›</button></div></div></div>
+  ${isToday&&TODAY<START?`<p class="sf" style="padding:0 2px;margin:-10px 0 0">The 9-week run plan starts Monday, 2 November.</p>`:""}
+  ${isToday?`<div class="sec"><div class="grp"><div class="rings">
     <svg viewBox="0 0 132 132" role="img" aria-label="Weekly rings">${ring(58,runsPlanned?runsDone/runsPlanned:0,"var(--orange)")}${ring(41,studyGoal?studyDone/studyGoal:0,"var(--green)")}${ring(24,todayPlanned?todayDone/todayPlanned:1,"var(--teal)")}</svg>
     <div class="rl">
       <div><span class="k" style="color:var(--orange)">Runs this week</span><span class="v">${runsDone}<small>/${runsPlanned}</small></span></div>
       <div><span class="k" style="color:var(--green)">Study this week</span><span class="v">${Math.round(studyDone)}<small>/${Math.round(studyGoal)} min</small></span></div>
       <div><span class="k" style="color:var(--teal)">Today's plan</span><span class="v">${todayPlanned?`${todayDone}<small>/${todayPlanned} done</small>`:`<small>Rest day</small>`}</span></div>
-    </div></div></div></div>
-  <div class="sec"><div class="sh big">Up Next</div>
+    </div></div></div></div>`:""}
+  <div class="sec"><div class="sh big">${isToday?"Up Next":"Plan"}</div>
     <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>
   ${r?`<div class="sec"><div class="sh">Run · Week ${r.w+1} · ${r.focus}</div><div class="grp">
       <div class="cell ind"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${KIND[r.k]}</div><div class="t2">${esc(r.text)}</div></div></div>
-      ${runDone?`<div class="cell" style="color:var(--green)">${IC.check.replace("<svg",'<svg width="20" height="20"')} Done</div>`:`<button class="cell btnrow" data-act="rundone">Mark as Done</button>`}
+      ${runDone?`<div class="cell" style="color:var(--green)">${IC.check.replace("<svg",'<svg width="20" height="20"')} Done</div>`:future?"":`<button class="cell btnrow" data-act="rundone" data-d="${D}">Mark as Done</button>`}
     </div><div class="sf">${WU}</div></div>`:""}
-  <div class="sec"><div class="sh">Security+${vids.length?` · ${hm(vids.reduce((a,v)=>a+v.sec,0))}`:""}</div>
-    ${vids.length?`<div class="grp">${vids.map(vrow).join("")}</div>`:optional?`<div class="grp">${vrow(optional)}</div><div class="sf">Only if you feel like it on the commute. Shift days have no study target. This is the shortest video left.</div>`:`<div class="grp"><div class="cell">All 121 videos watched.</div></div><div class="sf">Move on to practice exams.</div>`}
+  <div class="sec"><div class="sh">Security+${vids.length?` · ${vidMin}`:""}</div>
+    ${vids.length?`<div class="grp">${vids.map(vrow).join("")}</div>${future?'<div class="sf">Projected from your current pace. It shifts if you watch more or less before then.</div>':""}`
+      :optional?`<div class="grp">${vrow(optional)}</div><div class="sf">Only if you feel like it on the commute. Shift days have no study target. This is the shortest video left.</div>`
+      :`<div class="grp"><div class="cell" style="color:var(--label2)">${!future&&!isToday?"No videos watched that day.":t==="shift"?"No study on shift days.":"No videos planned."}</div></div>`}
   </div>`;
 }
 function screenChart(){
@@ -405,20 +425,22 @@ function screenChart(){
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Screen time, last 14 days">${g}${b}<polyline points="${tl}" fill="none" stroke="var(--label2)" stroke-dasharray="4 4" stroke-width="1.5"/>${lab}</svg>`;
 }
 
+let editShifts=false;
 function viewPlan(){
   const sch=schedule();
   const month=(y,m)=>{const first=new Date(y,m,1),n=new Date(y,m+1,0).getDate(),lead=(first.getDay()+6)%7;
     let cells=["M","T","W","T","F","S","S"].map(d=>`<div class="dow">${d}</div>`).join("")+'<div class="day blank"></div>'.repeat(lead);
     for(let i=1;i<=n;i++){const d=new Date(y,m,i),s=ds(d),t=dayType(s),r=runOn(s),v=(sch.map[s]||[]).length,past=d<TODAY;
       const lbl=t==="shift"?shortTime(s):t==="rec"?"sleep":"";
-      cells+=`<button class="day${t==="rec"?" rec":""}${s===T?" today":""}${past?" past":""}" data-act="shift" data-d="${s}" aria-label="${nice(d)}: ${t==="shift"?"shift "+(shiftTime(s)||""):t==="rec"?"after night shift":"free"}${r?", "+KIND[r.k]:""}. Tap to toggle shift." aria-pressed="${t==="shift"}">
+      cells+=`<button class="day${t==="rec"?" rec":""}${s===T?" today":""}${past?" past":""}" data-act="${editShifts?"shift":"go"}" data-d="${s}" aria-label="${nice(d)}: ${t==="shift"?"shift "+(shiftTime(s)||""):t==="rec"?"after night shift":"free"}${r?", "+KIND[r.k]:""}. ${editShifts?"Tap to toggle shift.":"Tap to open."}" aria-pressed="${t==="shift"}">
         <span class="n">${i}</span>${lbl?`<span class="st">${lbl}</span>`:'<span class="st" style="visibility:hidden">·</span>'}
         <span class="dots">${r?`<i style="background:var(--orange)"></i>`:""}${v&&!past?`<i style="background:var(--green)"></i>`:""}</span></button>`}
-    return `<div class="month"><div class="mh">${LONGMON[m]} ${y}</div><div class="cal">${cells}</div></div>`};
-  return `<div class="lt"><div class="sub">Cyber Shift roster</div><h1>Roster</h1></div>
+    return `<div class="month"><div class="mh">${LONGMON[m]} ${y}</div><div class="cal${editShifts?" editing":""}">${cells}</div></div>`};
+  return `<div class="lt"><div class="sub">Cyber Shift roster</div><div class="row"><h1>Roster</h1><button class="btn ${editShifts?"fill":"tint"} small" data-act="editshifts">${editShifts?"Done":"Edit Shifts"}</button></div></div>
+  ${editShifts?'<div class="sf" style="margin-top:-10px;color:var(--blue)">Tap days to add or remove a shift. Tap Done when finished.</div>':""}
   <div class="legend"><span><i style="background:var(--indigo)"></i>Shift (N = night)</span><span><i style="background:transparent;border:1.5px solid var(--indigo)"></i>After a night shift</span><span><i style="background:var(--orange)"></i>Run</span><span><i style="background:var(--green)"></i>Sec+ videos</span></div>
   ${month(2026,10)}${month(2026,11)}${month(2027,0)}
-  <div class="sf" style="margin-top:-12px">Tap a day to add or remove a shift. Runs and videos move around it automatically.</div>
+  <div class="sf" style="margin-top:-12px">Tap any day to see its plan. Use Edit Shifts to change your roster; runs and videos move around it automatically.</div>
   <div class="sec"><div class="sh">Backup</div><div class="grp">
     <button class="cell btnrow" data-act="export">Copy Backup</button>
     <div class="cell"><textarea id="imp" rows="2" placeholder="Paste a backup here to restore"></textarea></div>
@@ -508,8 +530,11 @@ function fillRun(txt){
 document.addEventListener("input",e=>{if(e.target.id==="pastein"&&e.target.value.trim())fillRun(e.target.value)});
 
 // ---------- render + events ----------
-const VIEWS={today:viewToday,plan:viewPlan,run:viewRun,secplus:viewSec};
-function route(){const h=location.hash.slice(1);return VIEWS[h]?h:"today"}
+let DAYSEL=null;
+const VIEWS={today:()=>viewDay(T),day:()=>viewDay(DAYSEL),plan:viewPlan,run:viewRun,secplus:viewSec};
+function route(){const h=location.hash.slice(1);const m=h.match(/^day-(\d{4}-\d{2}-\d{2})$/);
+  if(m){if(m[1]===T)return "today";DAYSEL=m[1];return "day"}return VIEWS[h]&&h!=="day"?h:"today"}
+const goDay=d=>{location.hash=d===T?"#today":"#day-"+d};
 let enterT;
 function render(animate){
   const r=route(),app=document.getElementById("app");
@@ -517,12 +542,14 @@ function render(animate){
   app.innerHTML=VIEWS[r]();
   if(animate){[...app.children].forEach((el,i)=>el.style.setProperty("--i",Math.min(i,8)));void app.offsetWidth;app.classList.add("enter");
     clearTimeout(enterT);enterT=setTimeout(()=>app.classList.remove("enter"),1800)}
-  document.querySelectorAll(".tabbar a").forEach(a=>a.getAttribute("href")==="#"+r?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
+  const tab=r==="day"?"today":r;document.querySelectorAll(".tabbar a").forEach(a=>a.getAttribute("href")==="#"+tab?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
 }
 function changed(msg){cache={};save();const y=scrollY;render();scrollTo(0,y);if(msg)toast(msg)}
 let tt;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,1400)}
 document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;const a=el.dataset.act;
+  if(a==="go"){goDay(el.dataset.d);return}
+  if(a==="editshifts"){editShifts=!editShifts;render();return}
   if(a==="shift"){const d=el.dataset.d;if(S.shifts[d])delete S.shifts[d];else S.shifts[d]="Shift";changed()}
   else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed("Shifts Cleared")}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
   else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Backup Copied"),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast("Select the text and copy it")})}
@@ -530,7 +557,7 @@ document.addEventListener("click",e=>{
   else if(a==="health"){
     const fallback=()=>{const b=document.getElementById("pastebox");b.hidden=false;const t=document.getElementById("pastein");t.value="";t.focus()};
     if(navigator.clipboard&&navigator.clipboard.readText)navigator.clipboard.readText().then(t=>{if(!fillRun(t))fallback()},fallback);else fallback()}
-  else if(a==="rundone"){S.runDone[T]=true;changed("Nice Work")}
+  else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;changed("Nice Work")}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
     const d=document.getElementById("rd").value,km=parseFloat(document.getElementById("rk").value),t=document.getElementById("rt").value.trim();
@@ -547,9 +574,13 @@ document.addEventListener("change",e=>{
   if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];changed(el.checked?"Watched":null)}
   else if(el.dataset.act==="mins"){S.mins=+el.value;changed("Plan Updated")}
 });
+let sx=null,sy=null;
+document.addEventListener("touchstart",e=>{const r=route();if(r!=="today"&&r!=="day"){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+document.addEventListener("touchend",e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
+  if(Math.abs(dx)>70&&Math.abs(dy)<45){const cur=route()==="day"?DAYSEL:T;goDay(ds(add(pd(cur),dx<0?1:-1)))}},{passive:true});
 window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
-document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}else if(route()==="today")render()});
 render(true);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
