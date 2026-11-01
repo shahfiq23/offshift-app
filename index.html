@@ -57,12 +57,19 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .daynav{display:flex;gap:6px;align-items:center;padding-bottom:4px}
 .navb{width:34px;height:34px;border-radius:50%;background:var(--fill);color:var(--blue);font-size:24px;line-height:1;display:grid;place-items:center;padding-bottom:3px}
 .cal.editing{outline:2px solid var(--blue);outline-offset:2px}
-.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--fill);border-radius:9px;padding:2px;gap:2px}
-.seg button{border-radius:7px;padding:6px 0;font-size:13px;font-weight:600;color:var(--label)}
-.seg button[aria-selected="true"]{background:var(--cell2);box-shadow:0 3px 8px rgba(0,0,0,.12),0 1px 1px rgba(0,0,0,.08)}
-:root:not([data-theme="dark"]) .seg button[aria-selected="true"]{background:var(--cell)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg button[aria-selected="true"]{background:#636366}}
-.vrow.nextv{background:color-mix(in srgb,var(--blue) 10%,transparent)}
+.acc+.acc{border-top:.5px solid var(--sep)}
+.acch{width:100%;text-align:left;cursor:pointer}
+.acch .chev{transition:transform .3s cubic-bezier(.3,.7,.2,1)}
+.acc.open .acch .chev{transform:rotate(90deg)}
+.accb{display:grid;grid-template-rows:0fr;transition:grid-template-rows .38s cubic-bezier(.3,.7,.2,1)}
+.acc.open .accb{grid-template-rows:1fr}
+.accin{overflow:hidden;min-height:0;background:var(--bg)}
+.accin .vrow{background:var(--cell);opacity:0;transform:translateY(-6px);transition:opacity .25s ease,transform .3s ease}
+.acc.open .accin .vrow{opacity:1;transform:none;transition-delay:.08s}
+.vrow .num{width:24px;flex:none;text-align:right;font-size:13px;color:var(--label3);font-variant-numeric:tabular-nums;margin-right:-4px}
+.accin .vrow+.vrow::before{left:88px}
+@media (prefers-reduced-motion:reduce){.accb,.accin .vrow,.acch .chev{transition:none}}
+.vrow.nextv,.accin .vrow.nextv{background:color-mix(in srgb,var(--blue) 14%,var(--cell))}
 /* grouped sections */
 .sec{display:grid;gap:7px;min-width:0}
 .sh{font-size:13px;color:var(--label2);text-transform:uppercase;padding:0 16px;letter-spacing:-.005em}
@@ -284,7 +291,7 @@ const hm=s=>{const h=Math.floor(s/3600),m=Math.round(s%3600/60);return h?`${h}h 
 
 // ---------- state ----------
 const KEY="offshift-v1";
-const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45,secView:"order"};
+const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45};
 let S=JSON.parse(JSON.stringify(DEF));
 try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}}
@@ -397,7 +404,7 @@ function viewDay(D){
   else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:"Do this before you pick up your phone. Log your time on the 2.4 km tab after.",btn:`<button class="btn orange block" data-act="rundone" data-d="${D}">Mark Run as Done</button>`};
   else if(nextVid)next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
   else next={c:"var(--green)",i:IC.check,e:"All done",h:"Today's plan is finished.",p:"Put the phone in another room and do something offline."};
-  const optional=(isToday&&t==="shift")?VID.filter(v=>!S.done[v.i]).sort((a,b)=>a.sec-b.sec)[0]:null;
+  const optional=(isToday&&t==="shift")?VID.find(v=>!S.done[v.i]):null;
   const prev=ds(add(dd,-1)),nxt=ds(add(dd,1));
   return `
   ${isToday?`<div class="greet">${greeting()}, ${NAME}</div>`:""}
@@ -420,7 +427,7 @@ function viewDay(D){
     </div><div class="sf">${WU}</div></div>`:""}
   <div class="sec"><div class="sh">Security+${vids.length?` · ${vidMin}`:""}</div>
     ${vids.length?`<div class="grp">${vids.map(vrow).join("")}</div>${future?'<div class="sf">Projected from your current pace. It shifts if you watch more or less before then.</div>':""}`
-      :optional?`<div class="grp">${vrow(optional)}</div><div class="sf">Only if you feel like it on the commute. Shift days have no study target. This is the shortest video left.</div>`
+      :optional?`<div class="grp">${vrow(optional)}</div><div class="sf">Only if you feel like it on the commute. Shift days have no study target. This is your next video in order.</div>`
       :`<div class="grp"><div class="cell" style="color:var(--label2)">${!future&&!isToday?"No videos watched that day.":t==="shift"?"No study on shift days.":"No videos planned."}</div></div>`}
   </div>`;
 }
@@ -486,27 +493,24 @@ function viewRun(){
   <div class="sf">Up to three runs a week, only on free days. Never on a shift day, never the morning a night shift ends, and never two hard sessions back to back. ${WU}</div></div>`;
 }
 
-// Flat playlist order, 1-121, with the next unwatched video marked.
-function inOrder(){
+// Course list: domain dropdowns, videos numbered 1-121 in playlist order, next video marked.
+let openDoms=null;
+function courseList(){
   const next=VID.find(v=>!S.done[v.i]);
-  let html="",lastDom=null;
-  for(const v of VID){
-    if(v.dom!==lastDom){if(lastDom!==null)html+="</div></div>";const dm=DOM.find(d=>d[0]===v.dom);
-      html+=`<div class="sec"><div class="sh">${v.dom==="0"?"Introduction":v.dom+".0 "+esc(dm[1])}</div><div class="grp">`;lastDom=v.dom}
-    const isNext=next&&v.i===next.i;
-    html+=`<div class="cell vrow ind${S.done[v.i]?" done":""}${isNext?" nextv":""}"${isNext?' id="nextvid"':""}><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.i+1} · ${v.obj} ${OBJ[v.obj]}${isNext?' · <b style="color:var(--blue)">Up next</b>':""}</span></div><span class="trail">${v.len}</span></div>`;
-  }
-  html+="</div></div>";
-  return (next?`<button class="btn tint block" data-act="jumpnext">Jump to Video ${next.i+1}: ${esc(next.title)}</button>`:"")+html;
+  if(!openDoms)openDoms=new Set(next?[next.dom]:[]);
+  return DOM.map(([k,name,w])=>{
+    const vs=VID.filter(v=>v.dom===k),dn=vs.filter(v=>S.done[v.i]).length,open=openDoms.has(k);
+    const rows=vs.map(v=>{const isNext=next&&v.i===next.i;
+      return `<div class="cell vrow ind${S.done[v.i]?" done":""}${isNext?" nextv":""}"${isNext?' id="nextvid"':""}><span class="num">${v.i+1}</span><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.obj} ${OBJ[v.obj]}${isNext?' · <b style="color:var(--blue)">Up next</b>':""}</span></div><span class="trail">${v.len}</span></div>`}).join("");
+    return `<div class="acc${open?" open":""}" data-dom="${k}">
+      <button class="cell acch" data-act="acc" data-dom="${k}" aria-expanded="${open}"><div class="grow" style="display:grid;gap:6px">
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">${k==="0"?"Introduction":k+".0 "+esc(name)}</span><span class="trail">${dn}/${vs.length}</span></div>
+        <div class="bar"><i style="width:${dn/vs.length*100}%"></i></div>${w?`<span class="t2" style="font-size:13px">${w} of the exam · videos ${vs[0].i+1}–${vs[vs.length-1].i+1}</span>`:""}</div>${IC.chev}</button>
+      <div class="accb"><div class="accin">${rows}</div></div></div>`}).join("");
 }
 function viewSec(){
   const sch=schedule();const done=VID.filter(v=>S.done[v.i]);const dsec=done.reduce((a,v)=>a+v.sec,0);
   const fin=sch.last?pd(sch.last):null;
-  const doms=DOM.map(([k,name,w])=>{const vs=VID.filter(v=>v.dom===k),dn=vs.filter(v=>S.done[v.i]).length;
-    let body="",lastObj="";
-    for(const v of vs){if(v.obj!==lastObj){body+=`<div class="obj">${v.obj} ${esc(OBJ[v.obj])}</div>`;lastObj=v.obj}body+=vrow(v)}
-    const pct=dn/vs.length*100;
-    return `<details class="cellwrap" style="position:relative"${dn<vs.length&&dn>0?" open":""}><summary class="cell"><div class="grow" style="display:grid;gap:6px"><div style="display:flex;justify-content:space-between;gap:8px"><span>${k==="0"?"Introduction":k+".0 "+esc(name)}</span><span class="trail">${dn}/${vs.length}</span></div><div class="bar"><i style="width:${pct}%"></i></div>${w?`<span class="t2" style="font-size:13px">${w} of the exam</span>`:""}</div>${IC.chev}</summary>${body}</details>`}).join("");
   return `<div class="lt"><div class="sub">CompTIA SY0-701 · Professor Messer</div><h1>Security+</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Watched</span><span class="v">${done.length}<span style="font-size:17px;color:var(--label2)">/121</span></span></div>
@@ -515,10 +519,8 @@ function viewSec(){
     <div class="pad"><div class="bar" role="progressbar" aria-valuenow="${done.length}" aria-valuemin="0" aria-valuemax="121"><i style="width:${done.length/121*100}%"></i></div></div>
     <div class="cell"><label class="grow" for="mins">Study per free day</label><select id="mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">Shift days have no study target. The day a night shift ends gets half. After the videos, do two weeks of practice exams before you book. Domain 4 is the biggest slice and overlaps your SOC work.</div></div>
-  <div class="seg" role="tablist">
-    <button role="tab" aria-selected="${S.secView!=="domain"}" data-act="secview" data-v="order">In Order</button>
-    <button role="tab" aria-selected="${S.secView==="domain"}" data-act="secview" data-v="domain">By Domain</button></div>
-  ${S.secView==="domain"?`<div class="sec"><div class="sh">Course</div><div class="grp">${doms}</div></div>`:inOrder()}`;
+  ${(()=>{const n=VID.find(v=>!S.done[v.i]);return n?`<button class="btn tint block" data-act="jumpnext">Continue: ${n.i+1}. ${esc(n.title)}</button>`:""})()}
+  <div class="sec"><div class="sh">Course · in playlist order</div><div class="grp">${courseList()}</div></div>`;
 }
 
 // ---------- Spoken run entry (iPhone keyboard dictation) ----------
@@ -600,8 +602,11 @@ document.addEventListener("click",e=>{
   else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed("Shifts Cleared")}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
   else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Backup Copied"),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast("Select the text and copy it")})}
   else if(a==="import"){try{const o=JSON.parse(document.getElementById("imp").value);if(!o||typeof o.shifts!=="object")throw 0;S=Object.assign({},DEF,o);changed("Restored")}catch(err){toast("That doesn't look like a backup")}}
-  else if(a==="secview"){S.secView=el.dataset.v;save();render();return}
-  else if(a==="jumpnext"){const n=document.getElementById("nextvid");if(n)n.scrollIntoView({behavior:"smooth",block:"center"});return}
+  else if(a==="acc"){const k=el.dataset.dom,box=el.closest(".acc"),open=!box.classList.contains("open");
+    box.classList.toggle("open",open);el.setAttribute("aria-expanded",open);open?openDoms.add(k):openDoms.delete(k);return}
+  else if(a==="jumpnext"){const n=VID.find(v=>!S.done[v.i]);if(!n)return;const box=document.querySelector(`.acc[data-dom="${n.dom}"]`);
+    const go=()=>{const r=document.getElementById("nextvid");if(r)r.scrollIntoView({behavior:"smooth",block:"center"})};
+    if(box&&!box.classList.contains("open")){box.classList.add("open");openDoms.add(n.dom);box.querySelector(".acch").setAttribute("aria-expanded","true");setTimeout(go,380)}else go();return}
   else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;changed("Nice Work")}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
