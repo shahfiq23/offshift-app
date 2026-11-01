@@ -408,7 +408,7 @@ function viewDay(D){
   const when=isToday?"today":future?"that day":"that day";
   let next;
   if(t==="shift")next=isNight(D)?{c:"var(--indigo)",i:IC.moon,e:`Night shift · ${shiftTime(D)}`,h:isToday?"Rest before tonight.":"Night shift. Nothing planned.",p:"Nap in the afternoon instead of scrolling. No run, no study."}
-    :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(D)?" · "+shiftTime(D):""}`,h:`Nothing planned ${when}.`,p:"You'll be tired after work, so there's no run and no study. Get home, eat, sleep."};
+    :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(D)?" · "+shiftTime(D):""}`,h:`Nothing planned ${when}.`,p:"You'll be tired after work, so there's no run and no study. Get home, rest and recharge for tomorrow."};
   else if(t==="rec")next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:vids.length?"Sleep first, then one or two videos.":"Sleep first.",p:`The night shift ends that morning, so no run.${vids.length?` Videos: ${vidMin}.`:""}`};
   else if(!isToday){
     if(r)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:`${future?"Planned":"Was planned"}${vids.length?`, plus ${vids.length} video${vids.length>1?"s":""} (${vidMin})`:""}.`};
