@@ -272,8 +272,7 @@ const OBJ={"0.1":"Introduction","1.1":"Security Controls","1.2":"Security Concep
 const DOM=[["0","The exam",""],["1","General Security Concepts","12%"],["2","Threats, Vulnerabilities, and Mitigations","22%"],["3","Security Architecture","18%"],["4","Security Operations","28%"],["5","Security Program Management and Oversight","20%"]];
 const secOf=t=>{const[m,s]=t.split(":").map(Number);return m*60+s};
 const VID=V.map((v,i)=>({i,obj:v[0],dom:v[0][0],title:v[1],len:v[2],sec:secOf(v[2]),
-  url:i===0?"https://www.professormesser.com/security-plus/sy0-701/sy0-701-video/how-to-pass-your-sy0-701-security-exam":
-  "https://www.professormesser.com/security-plus/sy0-701/sy0-701-video/"+v[1].toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+"-sy0-701/"}));
+  url:"https://www.youtube.com/results?search_query="+encodeURIComponent(i===0?"Professor Messer How to Pass Your SY0-701 Security+ Exam":`Professor Messer SY0-701 ${v[0]} ${v[1]}`)}));
 const TOTAL_SEC=VID.reduce((a,v)=>a+v.sec,0);
 
 // 9-week 2.4 km block: Mon 2 Nov to Sun 3 Jan. Target 11:00 = 4:35/km = 1:50 per 400 m.
