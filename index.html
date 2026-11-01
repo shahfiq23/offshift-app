@@ -427,6 +427,8 @@ function viewDay(D){
     <div class="daynav">${!isToday?`<button class="btn tint small" data-act="go" data-d="${T}">Today</button>`:""}
     <button class="navb" data-act="go" data-d="${prev}" aria-label="Previous day">‹</button><button class="navb" data-act="go" data-d="${nxt}" aria-label="Next day">›</button></div></div></div>
   ${isToday&&TODAY<START?`<p class="sf" style="padding:0 2px;margin:-10px 0 0">The 9-week run plan starts Monday, 2 November.</p>`:""}
+  <div class="sec"><div class="sh big">${isToday?"Up Next":"Plan"}</div>
+    <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>
   ${isToday?`<div class="sec"><div class="grp"><div class="rings">
     <svg viewBox="0 0 132 132" role="img" aria-label="Weekly rings">${ring(58,runsPlanned?runsDone/runsPlanned:0,"var(--orange)")}${ring(41,studyGoal?studyDone/studyGoal:0,"var(--green)")}${ring(24,todayPlanned?todayDone/todayPlanned:1,"var(--teal)")}</svg>
     <div class="rl">
@@ -435,8 +437,6 @@ function viewDay(D){
       <div><span class="k" style="color:var(--teal)">Today's plan</span><span class="v">${todayPlanned?`${todayDone}<small>/${todayPlanned} done</small>`:`<small>Rest day</small>`}</span></div>
     </div></div></div></div>`:""}
   ${isToday&&dd.getDay()===0?weekRecap():""}
-  <div class="sec"><div class="sh big">${isToday?"Up Next":"Plan"}</div>
-    <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>
   ${r?`<div class="sec"><div class="sh">Run · Week ${r.w+1} · ${r.focus}</div><div class="grp">
       <div class="cell ind"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${KIND[r.k]}</div><div class="t2">${esc(r.text)}</div></div></div>
       ${runDone?`<div class="cell" style="color:var(--green)">${IC.check.replace("<svg",'<svg width="20" height="20"')} Done</div>`:future?"":`<button class="cell btnrow" data-act="rundone" data-d="${D}">Mark as Done</button>`}
