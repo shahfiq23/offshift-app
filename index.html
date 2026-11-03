@@ -713,17 +713,24 @@ function icsText(days,extra=[]){
   const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
   const esc_=t=>String(t).replace(/\\/g,"\\\\").replace(/[,;]/g,m=>"\\"+m).replace(/\n/g,"\\n");
   const dt=(d,h,m,add_=0)=>{const x=new Date(pd(d).getTime());x.setHours(h,m+add_,0,0);return `${x.getFullYear()}${pad(x.getMonth()+1)}${pad(x.getDate())}T${pad(x.getHours())}${pad(x.getMinutes())}00`};
-  const ev=(uid,d,h,m,mins,title,desc)=>["BEGIN:VEVENT",`UID:${uid}@rhythm-shahfiq23`,`DTSTAMP:${stamp}`,`DTSTART:${dt(d,h,m)}`,`DTEND:${dt(d,h,m,mins)}`,`SUMMARY:${esc_(title)}`,`DESCRIPTION:${esc_(desc)}`,
-    "BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${esc_(title)}`,"TRIGGER:-PT0M","END:VALARM","END:VEVENT"].join("\r\n");
+  // alarms: list of ISO 8601 offsets before the start, e.g. ["-PT0M"] or ["-P1D","-PT2H"]
+  const ev=(uid,d,h,m,mins,title,desc,alarms=["-PT0M"])=>["BEGIN:VEVENT",`UID:${uid}@rhythm-shahfiq23`,`DTSTAMP:${stamp}`,`DTSTART:${dt(d,h,m)}`,`DTEND:${dt(d,h,m,mins)}`,`SUMMARY:${esc_(title)}`,`DESCRIPTION:${esc_(desc)}`,
+    ...alarms.flatMap(tr=>["BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${esc_(title)}`,`TRIGGER:${tr}`,"END:VALARM"]),"END:VEVENT"].join("\r\n");
   const sch=schedule(),out=[];let nRun=0,nStudy=0;
+  let nShift=0;
   for(const d of days){
+    // Shifts from the roster, with alerts 1 day and 2 hours before. Night shifts run past midnight.
+    if(S.calShifts!==false&&isShift(d)){const tm=shiftTime(d);
+      if(tm){const [h1,m1]=tm.slice(0,5).split(":").map(Number),[h2,m2]=tm.slice(6).split(":").map(Number);
+        let mins=(h2*60+m2)-(h1*60+m1);if(mins<=0)mins+=1440;
+        out.push(ev(`shift-${d}`,d,h1,m1,mins,"Shift @ Univers",`${isNight(d)?"Night shift":"Day shift"} ${tm.replace("-","–")} · nothing else planned`,["-P1D","-PT2H"]));nShift++}}
     const r=runOn(d);
     if(r&&!S.runDone[d]){out.push(ev(`run-${d}`,d,st[0],st[1],45,`Run · ${r.test?"2.4 km test":KIND[r.k]}`,`${r.text}\n${WU}\nWeek ${r.w+1} · ${r.focus}`));nRun++}
     const vids=(sch.map[d]||[]).filter(v=>!S.done[v.i]);
     if(vids.length){const mins=Math.max(15,Math.round(vids.reduce((a,v)=>a+v.sec,0)/60));
       out.push(ev(`study-${d}`,d,sd[0],sd[1],mins,`Security+ · ${vids.length} video${vids.length>1?"s":""}`,vids.map(v=>`${v.i+1}. ${v.title} (${v.len})`).join("\n")));nStudy++}
   }
-  return {text:["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Rhythm//Planner//EN","CALSCALE:GREGORIAN","X-WR-CALNAME:Rhythm",...extra,...out,"END:VCALENDAR"].join("\r\n"),nRun,nStudy};
+  return {text:["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Rhythm//Planner//EN","CALSCALE:GREGORIAN","X-WR-CALNAME:Rhythm",...extra,...out,"END:VCALENDAR"].join("\r\n"),nRun,nStudy,nShift};
 }
 function exportCalendar(){
   const span=S.calSpan||"week",last=span==="week"?add(TODAY,6):span==="month"?add(TODAY,27):END;
@@ -846,11 +853,12 @@ function viewSettings(){
   </div><div class="sf">Test runs replace that week's tempo. The goal sets your target pace (${fmt(goalSec()/2.4)}/km) and the target line on your charts. Interval paces in the plan stay set for 11:00.</div></div>
   ${syncSection()}
   <div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-calshifts">Include shifts</label><input class="sw" type="checkbox" id="set-calshifts" data-act="calshifts" ${S.calShifts===false?"":"checked"}></div>
     <div class="cell"><label class="grow" for="set-runat">Run reminder</label><input id="set-runat" type="time" value="${S.runAt||"07:30"}" data-act="calset" style="width:110px"></div>
     <div class="cell"><label class="grow" for="set-studyat">Study reminder</label><input id="set-studyat" type="time" value="${S.studyAt||"20:00"}" data-act="calset" style="width:110px"></div>
     ${syncOn()?"":`<div class="cell"><label class="grow" for="set-span">Add</label><select id="set-span" data-act="calset">${[["week","Next 7 days"],["month","Next 4 weeks"],["all","Until 3 Jan"]].map(([v,l])=>`<option value="${v}" ${(S.calSpan||"week")===v?"selected":""}>${l}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <button class="cell btnrow" data-act="calexport" style="font-weight:600">Add to Calendar</button>`}
-  </div><div class="sf">${syncOn()?"Times used in your live calendar. Changes show up next time your iPhone refreshes it.":"Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday. Turn on Automatic Sync above to have it update by itself."}</div></div>
+  </div><div class="sf">${syncOn()?"Your live calendar has your shifts, runs and study in one place. Changes show up next time your iPhone refreshes it.":"Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday. Turn on Automatic Sync above to have it update by itself."}</div></div>
   <div class="sec"><div class="sh">Study</div><div class="grp">
     <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>
@@ -932,6 +940,8 @@ document.addEventListener("click",e=>{
   else if(a==="splash"){S.splash=el.checked?undefined:false;if(S.splash===undefined)delete S.splash;save();
     toast({t:el.checked?"Animation on":"Animation off",s:el.checked?"Plays when the app opens":"The app opens straight to Today",k:"ok"});return}
   else if(a==="calexport"){exportCalendar();return}
+  else if(a==="calshifts"){if(el.checked)delete S.calShifts;else S.calShifts=false;save();
+    toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
   else if(a==="syncrestore"){restoreSync();return}
