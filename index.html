@@ -206,8 +206,22 @@ svg text{fill:var(--label2);font:10px var(--font)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 
 /* HUD toast */
-.hud{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:30;background:var(--bar);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
-  color:var(--label);border-radius:14px;padding:14px 20px;font-size:15px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.18);text-align:center;max-width:80vw}
+/* notifications: a capsule that drops from the top like the Dynamic Island */
+.island{position:fixed;left:0;right:0;margin:0 auto;width:fit-content;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:120;display:flex;align-items:center;gap:11px;
+  max-width:min(92vw,380px);min-width:200px;padding:9px 18px 9px 9px;border-radius:30px;background:#000;color:#fff;
+  box-shadow:0 10px 30px rgba(0,0,0,.28),0 0 0 .5px rgba(255,255,255,.14) inset;transform:translateY(-140%) scale(.6);opacity:0;cursor:pointer;
+  transition:transform .55s cubic-bezier(.2,1.35,.35,1),opacity .25s ease}
+.island.show{transform:none;opacity:1}
+.island.hide{transform:translateY(-140%) scale(.75);opacity:0;transition:transform .35s cubic-bezier(.5,0,.75,0),opacity .3s ease}
+.iico{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff}
+.iico svg{width:19px;height:19px}
+.island.show .iico{animation:ipop .5s cubic-bezier(.2,1.6,.4,1) .12s both}
+.itxt{display:grid;min-width:0;line-height:1.2}
+.itxt b{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.itxt span{font-size:13px;color:rgba(235,235,245,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.itxt span:empty{display:none}
+@keyframes ipop{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.island,.island.hide{transition:opacity .2s}.island{transform:none}.island.show .iico{animation:none}}
 @media (prefers-reduced-motion:no-preference){
   .ring{transition:stroke-dashoffset .6s ease}.bar i{transition:width .4s ease}
   /* tab entrance: cards rise in one after another, rings and bars fill */
@@ -237,7 +251,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   <a href="#run"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="14" cy="15.5" r="9.5"/><path d="M14 15.5V10M11 3.5h6M21.5 7.5l1.6-1.6"/></svg>2.4 km</a>
   <a href="#secplus"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M14 3.5l9 3.5v6.5c0 5.6-3.8 9.6-9 11-5.2-1.4-9-5.4-9-11V7z"/><path d="M10 14l3 3 5.5-6"/></svg>Sec+</a>
 </nav>
-<div class="hud" id="toast" role="status" hidden></div>
+<div class="island" id="toast" role="status" aria-live="polite" hidden><span class="iico" id="toastIco"></span><span class="itxt"><b id="toastT"></b><span id="toastS"></span></span></div>
 <script>
 // ---------- data ----------
 const V=[["0.1","How to Pass Your SY0-701 Security+ Exam","10:06"],
@@ -690,15 +704,37 @@ function render(animate){
   const tab=r==="day"?"today":r;document.querySelectorAll(".tabbar a").forEach(a=>a.getAttribute("href")==="#"+tab?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
 }
 function changed(msg){cache={};save();const y=scrollY;render();scrollTo(0,y);if(msg)toast(msg)}
-let tt;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,1400)}
+// toast("text") or toast({t:"Title", s:"subtitle", k:"ok|run|video|moved|undo|warn|copy|best"})
+const TK={ok:["var(--green)",'<path d="M4.5 10.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'],
+ run:["var(--orange)",null],video:["var(--blue)",null],
+ moved:["var(--indigo)",'<path d="M4 10h11M11 5.5l4.5 4.5-4.5 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'],
+ undo:["#636366",'<path d="M7.5 5L3.5 9l4 4M4 9h8a4.5 4.5 0 010 9H9" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>'],
+ warn:["var(--red)",'<path d="M10 4.5v7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="10" cy="15.5" r="1.6" fill="currentColor"/>'],
+ copy:["var(--teal)",'<rect x="6.5" y="6.5" width="9" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4.5 13V5.5a2 2 0 012-2H12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'],
+ best:["linear-gradient(135deg,#FF9F0A,#FF375F)",'<path d="M10 3l2.2 4.6 5 .7-3.6 3.5.9 5L10 14.4 5.5 16.8l.9-5L2.8 8.3l5-.7z" fill="currentColor"/>']};
+let tt,tt2;
+function toast(m){
+  if(typeof m==="string")m={t:m,k:/^(Enter|That|Couldn)/.test(m)?"warn":"ok"};
+  const el=document.getElementById("toast"),[bg,path]=TK[m.k]||TK.ok;
+  const svg=path?`<svg viewBox="0 0 20 20">${path}</svg>`:(m.k==="run"?IC.run:IC.play);
+  document.getElementById("toastIco").innerHTML=svg;document.getElementById("toastIco").style.background=bg;
+  document.getElementById("toastT").textContent=m.t;document.getElementById("toastS").textContent=m.s||"";
+  clearTimeout(tt);clearTimeout(tt2);el.hidden=false;el.classList.remove("show","hide");void el.offsetWidth;el.classList.add("show");
+  tt=setTimeout(dismissToast,m.s?2600:1900);
+}
+function dismissToast(){const el=document.getElementById("toast");if(el.hidden)return;el.classList.add("hide");el.classList.remove("show");tt2=setTimeout(()=>{el.hidden=true;el.classList.remove("hide")},380)}
+(()=>{const el=document.getElementById("toast");let y0=null;
+  el.addEventListener("click",dismissToast);
+  el.addEventListener("touchstart",e=>{y0=e.touches[0].clientY},{passive:true});
+  el.addEventListener("touchend",e=>{if(y0!=null&&e.changedTouches[0].clientY-y0<-15)dismissToast();y0=null},{passive:true});})();
 document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;const a=el.dataset.act;
   if(a==="go"){goDay(el.dataset.d);return}
   if(a==="editshifts"){editShifts=!editShifts;render();return}
   if(a==="shift"){const d=el.dataset.d;if(S.shifts[d])delete S.shifts[d];else S.shifts[d]="Shift";changed()}
-  else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed("Shifts Cleared")}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
-  else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Backup Copied"),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast("Select the text and copy it")})}
-  else if(a==="import"){try{const o=JSON.parse(document.getElementById("imp").value);if(!o||typeof o.shifts!=="object")throw 0;S=Object.assign({},DEF,o);changed("Restored")}catch(err){toast("That doesn't look like a backup")}}
+  else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed({t:"Shifts cleared",s:"Tap days to add them back",k:"undo"})}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
+  else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast({t:"Backup copied",s:"Paste it into Notes to keep it safe",k:"copy"}),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast({t:"Copy it yourself",s:"Select the text in the box and copy",k:"copy"})})}
+  else if(a==="import"){try{const o=JSON.parse(document.getElementById("imp").value);if(!o||typeof o.shifts!=="object")throw 0;S=Object.assign({},DEF,o);changed({t:"Backup restored",s:"Your progress is back",k:"ok"})}catch(err){toast({t:"Not a backup",s:"Paste the full text you copied",k:"warn"})}}
   else if(a==="acc"){const k=el.dataset.dom,box=el.closest(".acc"),open=!box.classList.contains("open");
     box.classList.toggle("open",open);el.setAttribute("aria-expanded",open);open?openDoms.add(k):openDoms.delete(k);return}
   else if(a==="jumpnext"){const n=VID.find(v=>!S.done[v.i]);if(!n)return;const box=document.querySelector(`.acc[data-dom="${n.dom}"]`);
@@ -707,23 +743,33 @@ document.addEventListener("click",e=>{
   else if(a==="skip"){const d=el.dataset.d,k=el.dataset.k;S.busy=S.busy||{};const o={...skipOf(d)};
     if(el.checked)delete o[k];else o[k]=1;
     if(o.run||o.study)S.busy[d]=o;else delete S.busy[d];
-    changed(el.checked?"Back on the Plan":k==="run"?"Run Moved":"Videos Moved");return}
-  else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;changed("Nice Work")}
+    const before=k==="run"?runOn(d):null,nv=k==="study"?(schedule().map[d]||[]).length:0;
+    cache={};let msg;
+    if(el.checked)msg={t:"Back on the plan",s:k==="run"?"Your run is back on "+nice(pd(d)):"Your videos are back on "+nice(pd(d)),k:"undo"};
+    else if(k==="run"&&before){const w=before.w,to=Object.entries(weekRuns(w)).find(([dd,kk])=>kk===before.k);
+      msg={t:"Run moved",s:to?`${before.test?"2.4 test":KIND[before.k]} → ${nice(pd(to[0]))}`:`${KIND[before.k]} dropped this week to keep hard days apart`,k:"moved"}}
+    else if(k==="run")msg={t:"Run skipped",k:"moved"};
+    else msg={t:"Videos moved",s:nv?`${nv} video${nv>1?"s":""} → your next free days`:"Moved to your next free days",k:"moved"};
+    changed(msg);return}
+  else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;(()=>{const dd=el.dataset.d||T,r=runOn(dd),wd=weekDays(pd(dd)),pl=wd.filter(x=>runOn(x)).length,dn=wd.filter(x=>runOn(x)&&S.runDone[x]).length;
+    changed({t:"Run done. Nice work!",s:`${r?(r.test?"2.4 test":KIND[r.k])+" · ":""}${dn} of ${pl} this week`,k:"run"})})()}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
     const d=document.getElementById("rd").value,km=parseFloat(document.getElementById("rk").value),t=document.getElementById("rt").value.trim();
     const m=t.match(/^(\d{1,2})[:.](\d{2})$/);
-    if(!d||!(km>0)||!m){toast("Enter a time like 12:45");return}
+    if(!d||!(km>0)||!m){toast({t:"Check the time",s:"Enter it like 12:45",k:"warn"});return}
     const sec=+m[1]*60+ +m[2],isT=document.getElementById("rtt").checked,prev=best24();
-    if(S.runs.some(r=>r.d===d&&r.sec===sec&&r.km===km)){toast("That run is already logged");return}
+    if(S.runs.some(r=>r.d===d&&r.sec===sec&&r.km===km)){toast({t:"Already logged",s:"That run is in your history",k:"warn"});return}
     S.runs.push({d,km,sec,tt:isT});S.runDone[d]=true;
-    changed(isT&&(prev==null||sec<prev)?"New Best 2.4":"Run Logged")}
-  else if(a==="delrun"){const k=el.dataset.k;const i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);if(i>-1){S.runs.splice(i,1);changed("Deleted")}}
+    changed(isT&&(prev==null||sec<prev)?{t:"New best 2.4!",s:prev==null?`${fmt(sec)} · ${fmt(Math.max(0,sec-GOAL_SEC))} to go`:`${fmt(sec)} · ${fmt(prev-sec)} faster`,k:"best"}
+      :{t:"Run logged",s:`${km} km · ${fmt(sec)} · ${fmt(sec/km)}/km`,k:"run"})}
+  else if(a==="delrun"){const k=el.dataset.k;const i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);if(i>-1){S.runs.splice(i,1);changed({t:"Run deleted",k:"undo"})}}
 });
 document.addEventListener("change",e=>{
   const el=e.target;
-  if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];changed(el.checked?"Watched":null)}
-  else if(el.dataset.act==="mins"){S.mins=+el.value;changed("Plan Updated")}
+  if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];(()=>{if(!el.checked){changed(null);return}const v=VID[+i];changed(null);const n=VID.find(x=>!S.done[x.i]);
+    toast({t:`Video ${v.i+1} watched`,s:n?`Next: ${n.title}`:"All 121 done. Time for practice exams!",k:"video"})})()}
+  else if(el.dataset.act==="mins"){S.mins=+el.value;(()=>{changed(null);const f=schedule().last;toast({t:"Plan updated",s:`${S.mins} min per free day${f?` · finish ${pd(f).getDate()} ${MON[pd(f).getMonth()]}`:""}`,k:"ok"})})()}
 });
 let sx=null,sy=null;
 document.addEventListener("touchstart",e=>{const r=route();if(r!=="today"&&r!=="day"){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
