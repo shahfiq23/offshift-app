@@ -460,7 +460,11 @@ function viewDay(D){
     else if(vids.length)next={c:"var(--blue)",i:IC.play,e:"Study day",h:`${vids.length} video${vids.length>1?"s":""} · ${vidMin}`,p:future?"No run planned. Legs rest.":"No run was planned."};
     else next={c:"var(--green)",i:IC.check,e:"Free day",h:"Nothing planned.",p:"Enjoy it."};
   }
-  else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:"Do this before you pick up your phone. Log your time on the 2.4 km tab after.",btn:`<button class="btn orange block" data-act="rundone" data-d="${D}">Mark Run as Done</button>`};
+  else if(nextVid&&r&&!runDone&&(()=>{const [h,m]=(S.runAt||"20:15").split(":").map(Number),at=new Date();at.setHours(h,m,0,0);return new Date()<at})())
+    next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}. Study first, while you're fresh. Your run is later tonight.`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
+  else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:(()=>{const [h,m]=(S.runAt||"20:15").split(":").map(Number),now=new Date(),at=new Date();at.setHours(h,m,0,0);
+      const lbl=at.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+      return now<at?`Planned for tonight at ${lbl}. Log your time on the 2.4 km tab after.`:"Time to run. Log your time on the 2.4 km tab after."})(),btn:`<button class="btn orange block" data-act="rundone" data-d="${D}">Mark Run as Done</button>`};
   else if(nextVid)next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
   else next={c:"var(--green)",i:IC.check,e:"All done",h:"Today's plan is finished.",p:"Put the phone in another room and do something offline."};
   const optional=(isToday&&t==="shift")?VID.find(v=>!S.done[v.i]):null;
@@ -709,7 +713,7 @@ document.addEventListener("input",e=>{if(e.target.id==="voice"){clearTimeout(voi
 let DAYSEL=null;
 // ---------- Calendar export (.ics) ----------
 function icsText(days,extra=[]){
-  const st=(S.runAt||"07:30").split(":").map(Number),sd=(S.studyAt||"20:00").split(":").map(Number);
+  const st=(S.runAt||"20:15").split(":").map(Number),sd=(S.studyAt||"17:30").split(":").map(Number);
   const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
   const esc_=t=>String(t).replace(/\\/g,"\\\\").replace(/[,;]/g,m=>"\\"+m).replace(/\n/g,"\\n");
   const dt=(d,h,m,add_=0)=>{const x=new Date(pd(d).getTime());x.setHours(h,m+add_,0,0);return `${x.getFullYear()}${pad(x.getMonth()+1)}${pad(x.getDate())}T${pad(x.getHours())}${pad(x.getMinutes())}00`};
@@ -854,8 +858,8 @@ function viewSettings(){
   ${syncSection()}
   <div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
     <div class="cell"><label class="grow" for="set-calshifts">Include shifts</label><input class="sw" type="checkbox" id="set-calshifts" data-act="calshifts" ${S.calShifts===false?"":"checked"}></div>
-    <div class="cell"><label class="grow" for="set-runat">Run reminder</label><input id="set-runat" type="time" value="${S.runAt||"07:30"}" data-act="calset" style="width:110px"></div>
-    <div class="cell"><label class="grow" for="set-studyat">Study reminder</label><input id="set-studyat" type="time" value="${S.studyAt||"20:00"}" data-act="calset" style="width:110px"></div>
+    <div class="cell"><label class="grow" for="set-runat">Run reminder</label><input id="set-runat" type="time" value="${S.runAt||"20:15"}" data-act="calset" style="width:110px"></div>
+    <div class="cell"><label class="grow" for="set-studyat">Study reminder</label><input id="set-studyat" type="time" value="${S.studyAt||"17:30"}" data-act="calset" style="width:110px"></div>
     ${syncOn()?"":`<div class="cell"><label class="grow" for="set-span">Add</label><select id="set-span" data-act="calset">${[["week","Next 7 days"],["month","Next 4 weeks"],["all","Until 3 Jan"]].map(([v,l])=>`<option value="${v}" ${(S.calSpan||"week")===v?"selected":""}>${l}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <button class="cell btnrow" data-act="calexport" style="font-weight:600">Add to Calendar</button>`}
   </div><div class="sf">${syncOn()?"Your live calendar has your shifts, runs and study in one place. Changes show up next time your iPhone refreshes it.":"Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday. Turn on Automatic Sync above to have it update by itself."}</div></div>
