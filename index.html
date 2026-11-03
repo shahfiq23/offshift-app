@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="1.7">
+<meta name="app-version" content="1.8">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -146,7 +146,7 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .sw:checked::after{transform:translateX(20px)}
 
 /* inputs inside cells */
-.cell input[type=number],.cell input[type=text],.cell input[type=date],.cell input[type=time],.cell select{font:inherit;letter-spacing:inherit;color:var(--label2);background:transparent;border:0;text-align:right;min-width:0;width:120px;padding:0}
+.cell input[type=number],.cell input[type=text],.cell input[type=password],.cell input[type=date],.cell input[type=time],.cell select{font:inherit;letter-spacing:inherit;color:var(--label2);background:transparent;border:0;text-align:right;min-width:0;width:120px;padding:0}
 .cell select{appearance:none;-webkit-appearance:none;color:var(--blue);width:auto;cursor:pointer}
 .cell input:focus{color:var(--label);outline:none}
 #voice{font:17px/1.3 var(--font)!important;letter-spacing:-.022em}
@@ -346,7 +346,7 @@ const KEY="offshift-v1";
 const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45,busy:{}};
 let S=JSON.parse(JSON.stringify(DEF));
 try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}try{scheduleSync()}catch(e){/* sync code not loaded yet during startup */}}
 // Shift days from the Cyber Shift roster (Nov 2026 to Jan 2027). Applied once per roster version;
 // after that, taps on the Roster tab win.
 const ROSTER_VER="2026-11-01";
@@ -708,7 +708,7 @@ document.addEventListener("input",e=>{if(e.target.id==="voice"){clearTimeout(voi
 // ---------- render + events ----------
 let DAYSEL=null;
 // ---------- Calendar export (.ics) ----------
-function icsText(days){
+function icsText(days,extra=[]){
   const st=(S.runAt||"07:30").split(":").map(Number),sd=(S.studyAt||"20:00").split(":").map(Number);
   const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
   const esc_=t=>String(t).replace(/\\/g,"\\\\").replace(/[,;]/g,m=>"\\"+m).replace(/\n/g,"\\n");
@@ -723,7 +723,7 @@ function icsText(days){
     if(vids.length){const mins=Math.max(15,Math.round(vids.reduce((a,v)=>a+v.sec,0)/60));
       out.push(ev(`study-${d}`,d,sd[0],sd[1],mins,`Security+ · ${vids.length} video${vids.length>1?"s":""}`,vids.map(v=>`${v.i+1}. ${v.title} (${v.len})`).join("\n")));nStudy++}
   }
-  return {text:["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Rhythm//Planner//EN","CALSCALE:GREGORIAN","X-WR-CALNAME:Rhythm",...out,"END:VCALENDAR"].join("\r\n"),nRun,nStudy};
+  return {text:["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Rhythm//Planner//EN","CALSCALE:GREGORIAN","X-WR-CALNAME:Rhythm",...extra,...out,"END:VCALENDAR"].join("\r\n"),nRun,nStudy};
 }
 function exportCalendar(){
   const span=S.calSpan||"week",last=span==="week"?add(TODAY,6):span==="month"?add(TODAY,27):END;
@@ -736,6 +736,88 @@ function exportCalendar(){
   const url=URL.createObjectURL(file),a=document.createElement("a");a.href=url;a.download="rhythm-plan.ics";a.target="_blank";document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),60000);toast(msg);
 }
+
+// ---------- Automatic sync to a secret GitHub Gist ----------
+// The key and sync status live outside S, so backups never contain the key and a restore never overwrites them.
+const TOKEN_KEY="rhythm-gh-token",SYNC_KEY="rhythm-sync";
+const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}};
+const lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let SY=lsGet(SYNC_KEY,null);
+const ghToken=()=>lsGet(TOKEN_KEY,null);
+const syncOn=()=>!!(ghToken()&&SY&&SY.gist);
+function setSY(p){SY=Object.assign({},SY||{},p);lsSet(SYNC_KEY,SY)}
+async function gh(path,opt={}){
+  const r=await fetch("https://api.github.com"+path,{...opt,headers:{"Authorization":"Bearer "+ghToken(),"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28",...(opt.body?{"Content-Type":"application/json"}:{})}});
+  if(!r.ok){const e=new Error("github "+r.status);e.status=r.status;throw e}
+  return r.status===204?null:r.json();
+}
+function icsSubscription(){
+  const last=new Date(Math.max(END.getTime(),schedule().last?pd(schedule().last).getTime():0,add(TODAY,28).getTime()));
+  const days=[];for(let d=add(TODAY,-7);d<=last&&days.length<200;d=add(d,1))days.push(ds(d));
+  return icsText(days,["X-WR-CALDESC:Runs and Security+ study from Rhythm","REFRESH-INTERVAL;VALUE=DURATION:PT1H","X-PUBLISHED-TTL:PT1H"]).text;
+}
+const syncFiles=()=>({"rhythm-backup.json":{content:JSON.stringify(S)},"rhythm.ics":{content:icsSubscription()}});
+const calURL=()=>SY&&SY.user&&SY.gist?`https://gist.githubusercontent.com/${SY.user}/${SY.gist}/raw/rhythm.ics`:null;
+const syncErr=e=>e&&(e.status===401||e.status===403)?"Your GitHub key was rejected. It may have expired; connect a new one.":e&&e.status===404?"The sync file is missing on GitHub. Disconnect and connect again.":"Couldn't reach GitHub. It'll retry when you're back online.";
+let syncT=null,syncBusy=false;
+function scheduleSync(){if(!syncOn()||SY.pending)return;setSY({dirty:true});clearTimeout(syncT);syncT=setTimeout(pushSync,2500)}
+async function pushSync(manual){
+  if(!syncOn()||SY.pending||syncBusy)return;syncBusy=true;
+  try{await gh("/gists/"+SY.gist,{method:"PATCH",body:JSON.stringify({files:syncFiles()})});
+    setSY({last:Date.now(),lastDay:T,dirty:false,err:null});if(manual)toast({t:"Backed up",s:"Saved to GitHub · calendar updated",k:"copy"})}
+  catch(e){setSY({err:syncErr(e)});if(manual)toast({t:"Backup failed",s:e.status===401||e.status===403?"GitHub key rejected":"Check your connection",k:"warn"})}
+  finally{syncBusy=false;if(route()==="settings")render()}
+}
+async function connectSync(token){
+  token=(token||"").trim();if(!/^(github_pat_|ghp_)\w{20,}$/.test(token)){toast({t:"That doesn't look like a key",s:"It starts with github_pat_ or ghp_",k:"warn"});return}
+  lsSet(TOKEN_KEY,token);toast({t:"Connecting…",s:"Checking your key with GitHub",k:"copy"});
+  try{
+    const me=await gh("/user");
+    const list=await gh("/gists?per_page=100");
+    const found=list.find(g=>g.description==="Rhythm sync"&&g.files&&g.files["rhythm-backup.json"]);
+    if(found){SY={user:me.login,gist:found.id,pending:"choose",remoteAt:found.updated_at};lsSet(SYNC_KEY,SY);
+      toast({t:"Found a backup",s:"Choose which copy to keep",k:"copy"})}
+    else{const g=await gh("/gists",{method:"POST",body:JSON.stringify({description:"Rhythm sync",public:false,files:syncFiles()})});
+      SY={user:me.login,gist:g.id,last:Date.now(),lastDay:T};lsSet(SYNC_KEY,SY);
+      toast({t:"Sync is on",s:"Backups and calendar now update by themselves",k:"ok"})}
+  }catch(e){lsSet(TOKEN_KEY,null);SY=null;lsSet(SYNC_KEY,null);
+    toast({t:"Couldn't connect",s:e.status===401?"GitHub rejected that key":e.status===403||e.status===404?"The key needs Gists: Read and write":"Check your connection",k:"warn"})}
+  render();
+}
+async function restoreSync(){
+  try{const g=await gh("/gists/"+SY.gist);const f=g.files["rhythm-backup.json"];
+    const txt=f.truncated?await (await fetch(f.raw_url)).text():f.content;const o=JSON.parse(txt);
+    if(!o||typeof o.shifts!=="object")throw new Error("bad backup");
+    S=Object.assign({},DEF,o);setSY({pending:null});applyTheme();changed({t:"Restored from GitHub",s:"Your progress is back",k:"ok"});pushSync()}
+  catch(e){toast({t:"Restore failed",s:e.status?syncErr(e):"The backup file couldn't be read",k:"warn"})}
+}
+function disconnectSync(){lsSet(TOKEN_KEY,null);lsSet(SYNC_KEY,null);SY=null;render();toast({t:"Sync off",s:"Your backup stays on GitHub",k:"undo"})}
+const ago=t=>{if(!t)return "never";const s=(Date.now()-t)/1000;return s<60?"just now":s<3600?`${Math.floor(s/60)} min ago`:s<86400?`${Math.floor(s/3600)} h ago`:nice(new Date(t))};
+function syncSection(){
+  const chev=IC.chev;
+  if(!syncOn())return `<div class="sec"><div class="sh">Automatic Sync</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-token">GitHub key</label><input id="set-token" type="password" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
+    <button class="cell btnrow" data-act="syncconnect" style="font-weight:600">Connect</button>
+  </div><div class="sf">Backs up your progress and keeps a calendar of your plan up to date on your GitHub, automatically. The key stays on this phone and is never included in backups.</div></div>`;
+  if(SY.pending==="choose")return `<div class="sec"><div class="sh">Automatic Sync</div><div class="grp">
+    <div class="cell"><div class="grow"><div>Backup found on GitHub</div><div class="t2">Last saved ${SY.remoteAt?nice(new Date(SY.remoteAt)):"earlier"}. Which copy do you want to keep?</div></div></div>
+    <button class="cell btnrow" data-act="syncrestore" style="font-weight:600">Restore from GitHub</button>
+    <button class="cell btnrow" data-act="synckeeplocal">Keep This Phone's Data</button>
+  </div><div class="sf">Keeping this phone's data replaces the GitHub copy.</div></div>`;
+  const url=calURL();
+  return `<div class="sec"><div class="sh">Automatic Sync</div><div class="grp">
+    <div class="cell"><span class="ico" style="background:${SY.err?"var(--red)":"var(--green)"}">${SY.err?'<svg viewBox="0 0 20 20" width="17" height="17"><path d="M10 4.5v7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="10" cy="15.5" r="1.6" fill="currentColor"/></svg>':IC.check}</span>
+      <div class="grow"><div>${SY.err?"Sync needs attention":"Backed up"}</div><div class="t2">${SY.err?esc(SY.err):`${ago(SY.last)} · @${esc(SY.user)}`}</div></div></div>
+    <button class="cell btnrow" data-act="syncnow">Back Up Now</button>
+    <button class="cell btnrow" data-act="syncrestore">Restore from GitHub</button>
+  </div><div class="sf">Every change backs up a few seconds later. If you're offline, it catches up next time you open the app.</div></div>
+  <div class="sec"><div class="sh">Live Calendar</div><div class="grp">
+    <a class="cell btnrow" href="${url.replace(/^https:/,"webcal:")}" style="font-weight:600">Subscribe in Calendar</a>
+    <button class="cell btnrow" data-act="copycal">Copy Calendar Link</button>
+  </div><div class="sf">Subscribe once. Your runs and study blocks then update by themselves, including when you skip something. When iPhone asks, turn off "Remove Alerts" to keep the alerts.</div></div>
+  <div class="sec"><div class="grp"><button class="cell btnrow destructive" data-act="syncoff">Disconnect GitHub</button></div></div>`;
+}
+window.addEventListener("online",()=>{if(syncOn()&&SY.dirty)pushSync()});
 
 // ---------- Settings ----------
 function applyTheme(){
@@ -762,12 +844,13 @@ function viewSettings(){
     <div class="cell"><label class="grow" for="set-t1">First test</label><select id="set-t1" data-act="tw" data-n="0">${[...Array(7)].map((_,i)=>i+1).map(w=>`<option value="${w}" ${testWeeks()[0]===w?"selected":""} ${w>=testWeeks()[1]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t2">Final test</label><select id="set-t2" data-act="tw" data-n="1">${[...Array(7)].map((_,i)=>i+2).map(w=>`<option value="${w}" ${testWeeks()[1]===w?"selected":""} ${w<=testWeeks()[0]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">Test runs replace that week's tempo. The goal sets your target pace (${fmt(goalSec()/2.4)}/km) and the target line on your charts. Interval paces in the plan stay set for 11:00.</div></div>
+  ${syncSection()}
   <div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
     <div class="cell"><label class="grow" for="set-runat">Run reminder</label><input id="set-runat" type="time" value="${S.runAt||"07:30"}" data-act="calset" style="width:110px"></div>
     <div class="cell"><label class="grow" for="set-studyat">Study reminder</label><input id="set-studyat" type="time" value="${S.studyAt||"20:00"}" data-act="calset" style="width:110px"></div>
-    <div class="cell"><label class="grow" for="set-span">Add</label><select id="set-span" data-act="calset">${[["week","Next 7 days"],["month","Next 4 weeks"],["all","Until 3 Jan"]].map(([v,l])=>`<option value="${v}" ${(S.calSpan||"week")===v?"selected":""}>${l}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
-    <button class="cell btnrow" data-act="calexport" style="font-weight:600">Add to Calendar</button>
-  </div><div class="sf">Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday.</div></div>
+    ${syncOn()?"":`<div class="cell"><label class="grow" for="set-span">Add</label><select id="set-span" data-act="calset">${[["week","Next 7 days"],["month","Next 4 weeks"],["all","Until 3 Jan"]].map(([v,l])=>`<option value="${v}" ${(S.calSpan||"week")===v?"selected":""}>${l}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+    <button class="cell btnrow" data-act="calexport" style="font-weight:600">Add to Calendar</button>`}
+  </div><div class="sf">${syncOn()?"Times used in your live calendar. Changes show up next time your iPhone refreshes it.":"Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday. Turn on Automatic Sync above to have it update by itself."}</div></div>
   <div class="sec"><div class="sh">Study</div><div class="grp">
     <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>
@@ -775,7 +858,7 @@ function viewSettings(){
     <button class="cell btnrow" data-act="export">Copy Backup</button>
     <div class="cell"><textarea id="imp" rows="2" placeholder="Paste a backup here to restore"></textarea></div>
     <button class="cell btnrow" data-act="import">Restore from Backup</button>
-  </div><div class="sf">Your progress is saved on this phone only. Copy a backup into Notes every week or two.</div></div>
+  </div><div class="sf">${syncOn()?"Automatic Sync already backs up to GitHub. This is a manual copy if you want one.":"Your progress is saved on this phone only. Copy a backup into Notes every week or two, or turn on Automatic Sync."}</div></div>
   <div class="sec"><div class="grp">
     <button class="cell btnrow destructive" data-act="clearshifts">Clear All Shifts</button>
     <button class="cell btnrow destructive" data-act="resetall">Reset All Progress</button>
@@ -849,6 +932,12 @@ document.addEventListener("click",e=>{
   else if(a==="splash"){S.splash=el.checked?undefined:false;if(S.splash===undefined)delete S.splash;save();
     toast({t:el.checked?"Animation on":"Animation off",s:el.checked?"Plays when the app opens":"The app opens straight to Today",k:"ok"});return}
   else if(a==="calexport"){exportCalendar();return}
+  else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
+  else if(a==="syncnow"){pushSync(true);return}
+  else if(a==="syncrestore"){restoreSync();return}
+  else if(a==="synckeeplocal"){setSY({pending:null});pushSync(true);render();return}
+  else if(a==="syncoff"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Disconnect";return}disconnectSync();return}
+  else if(a==="copycal"){const u=calURL();(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast({t:"Link copied",s:"Calendar app › Add Subscription Calendar",k:"copy"}),()=>toast({t:"Couldn't copy",s:u,k:"warn"}));return}
   else if(a==="theme"){S.theme=el.dataset.v==="system"?null:el.dataset.v;save();applyTheme();render();
     toast({t:"Appearance",s:el.dataset.v==="system"?"Following your iPhone":el.dataset.v==="dark"?"Dark mode on":"Light mode on",k:"ok"});return}
   else if(a==="resetall"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Reset Everything";return}
@@ -874,7 +963,7 @@ document.addEventListener("change",e=>{
   else if(el.dataset.act==="goal"){S.goal=+el.value;if(S.goal===660)delete S.goal;changed({t:"Goal updated",s:`${fmt(goalSec())} · ${fmt(goalSec()/2.4)}/km`,k:"run"})}
   else if(el.dataset.act==="tw"){const tw=[...testWeeks()];tw[+el.dataset.n]=+el.value;S.testWeeks=tw;
     changed({t:"Test weeks updated",s:`Week ${tw[0]+1} and week ${tw[1]+1}`,k:"run"})}
-  else if(el.dataset.act==="calset"){if(el.id==="set-runat")S.runAt=el.value;else if(el.id==="set-studyat")S.studyAt=el.value;else S.calSpan=el.value;save()}
+  else if(el.dataset.act==="calset"){if(el.id==="set-runat")S.runAt=el.value;else if(el.id==="set-studyat")S.studyAt=el.value;else S.calSpan=el.value;save();if(syncOn()&&el.type==="time")toast({t:"Reminder time saved",s:"Your live calendar will update",k:"ok"})}
   else if(el.id==="set-name"){S.name=el.value.trim();save();toast({t:"Name saved",s:`${greeting()}, ${nameOf()}`,k:"ok"})}
   else if(el.dataset.act==="mins"){S.mins=+el.value;(()=>{changed(null);const f=schedule().last;toast({t:"Plan updated",s:`${S.mins} min per free day${f?` · finish ${pd(f).getDate()} ${MON[pd(f).getMonth()]}`:""}`,k:"ok"})})()}
 });
@@ -886,6 +975,8 @@ window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}else if(route()==="today")render()});
 applyTheme();
+if(syncOn()&&(SY.dirty||SY.lastDay!==T))setTimeout(pushSync,1500);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&syncOn()&&(SY.dirty||SY.lastDay!==ds(new Date())))setTimeout(pushSync,800)});
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(!S.theme)applyTheme()});
 render();
 (function(){const sp=document.getElementById("splash");if(!sp)return;if(S.splash===false){sp.remove();render(true);return}
