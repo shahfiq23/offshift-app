@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="1.9">
+<meta name="app-version" content="2.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -215,6 +215,28 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 /* HUD toast */
 /* notifications: a capsule that drops from the top like the Dynamic Island */
+/* Study Mode capsule: compact countdown that expands for controls */
+.sess{position:fixed;left:0;right:0;margin:0 auto;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:110;background:#000;color:#fff;cursor:pointer;
+  width:136px;height:38px;border-radius:20px;display:flex;align-items:center;justify-content:space-between;padding:0 14px 0 12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25),0 0 0 .5px rgba(255,255,255,.14) inset;overflow:hidden;
+  transition:width .45s cubic-bezier(.2,1.2,.35,1),height .45s cubic-bezier(.2,1.2,.35,1),border-radius .45s,padding .3s;animation:sessin .5s cubic-bezier(.2,1.35,.35,1)}
+.sess .sx-time{font:600 14px/1 var(--font);font-variant-numeric:tabular-nums;color:#30D158;letter-spacing:0}
+.sess .eq{display:flex;gap:2.5px;align-items:flex-end;height:15px}
+.sess .eq i{width:3px;border-radius:2px;background:#30D158;height:100%;animation:eq 1s ease-in-out infinite}
+.sess .eq i:nth-child(2){animation-delay:-.35s}.sess .eq i:nth-child(3){animation-delay:-.7s}
+.sess.paused .eq i{animation:none;height:35%}
+.sess.open{width:min(92vw,360px);height:auto;border-radius:30px;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:12px;padding:14px 16px 14px}
+.sess .sx-top{display:flex;align-items:center;gap:12px}
+.sess .sx-t{flex:1;display:grid;min-width:0;line-height:1.2}
+.sess .sx-t b{font-size:15px;font-weight:600}
+.sess .sx-t span{font-size:13px;color:rgba(235,235,245,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sess .sx-btns{display:flex;gap:8px}
+.sess .sx-btns button{flex:1;border-radius:14px;padding:10px 0;background:rgba(255,255,255,.14);color:#fff;font-size:14px;font-weight:600}
+.sess .sx-btns button.end{background:#FF453A}
+body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
+@keyframes sessin{from{transform:translateY(-120%) scale(.6);opacity:0}}
+@keyframes eq{0%,100%{height:30%}50%{height:100%}}
+@media (prefers-reduced-motion:reduce){.sess,.sess .eq i{animation:none;transition:none}}
 .island{position:fixed;left:0;right:0;margin:0 auto;width:fit-content;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:120;display:flex;align-items:center;gap:11px;
   max-width:min(92vw,380px);min-width:200px;padding:9px 18px 9px 9px;border-radius:30px;background:#000;color:#fff;
   box-shadow:0 10px 30px rgba(0,0,0,.28),0 0 0 .5px rgba(255,255,255,.14) inset;transform:translateY(-140%) scale(.6);opacity:0;cursor:pointer;
@@ -260,6 +282,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   <a href="#secplus"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M14 3.5l9 3.5v6.5c0 5.6-3.8 9.6-9 11-5.2-1.4-9-5.4-9-11V7z"/><path d="M10 14l3 3 5.5-6"/></svg>Sec+</a>
   <a href="#settings"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12.2 3.5h3.6l.6 2.9 2 .9 2.5-1.6 2.5 2.5-1.6 2.5.9 2 2.9.6v3.6l-2.9.6-.9 2 1.6 2.5-2.5 2.5-2.5-1.6-2 .9-.6 2.9h-3.6l-.6-2.9-2-.9-2.5 1.6-2.5-2.5 1.6-2.5-.9-2-2.9-.6v-3.6l2.9-.6.9-2-1.6-2.5 2.5-2.5 2.5 1.6 2-.9z"/><circle cx="14" cy="14" r="3.6"/></svg>Settings</a>
 </nav>
+<div class="sess" id="sess" role="status" aria-label="Study Mode session" hidden></div>
 <div class="island" id="toast" role="status" aria-live="polite" hidden><span class="iico" id="toastIco"></span><span class="itxt"><b id="toastT"></b><span id="toastS"></span></span></div>
 <script>
 // ---------- data ----------
@@ -874,40 +897,88 @@ async function spFindDevices(){
     toast(spDevices.length?{t:`${spDevices.length} speaker${spDevices.length>1?"s":""} found`,s:spDevices.map(d=>d.name).join(" · "),k:"ok"}:{t:"No speakers found",s:"Open Spotify and play something on your Nest once",k:"warn"})}
   catch(e){toast({t:"Couldn't list speakers",s:e.message,k:"warn"})}
 }
-async function startStudyMode(){
-  if(!spOn()||!spPlaylist()){location.hash="#settings";toast({t:"Set up Spotify first",s:"Settings › Spotify",k:"warn"});return}
-  toast({t:"Starting Study Mode…",s:"Talking to Spotify",k:"video"});
-  try{
-    const list=(await sp("/me/player/devices")).devices||[];
-    let dev=list.find(d=>S.spDevice&&d.name===S.spDevice),fallback=false;
-    if(!dev){dev=list.find(d=>d.is_active)||list[0];fallback=true}
-    if(!dev){toast({t:"No speaker available",s:"Open Spotify once so it can see your devices, then try again",k:"warn"});return}
-    const q="?device_id="+encodeURIComponent(dev.id);
-    await sp("/me/player/play"+q,{method:"PUT",body:JSON.stringify({context_uri:"spotify:playlist:"+spPlaylist()})});
-    await sp("/me/player/shuffle"+q+"&state=true",{method:"PUT"});
-    await sp("/me/player/next"+q,{method:"POST"}).catch(()=>{});
-    toast(fallback&&S.spDevice?{t:`Playing on ${dev.name}`,s:`${S.spDevice} wasn't available. Pick it in Spotify once to wake it`,k:"warn"}
-      :{t:"Study Mode on",s:`Shuffling on ${dev.name}`,k:"video"});
-  }catch(e){
-    toast(e.reason==="PREMIUM_REQUIRED"?{t:"Spotify Premium needed",k:"warn"}
-      :e.status===401||e.status===400?{t:"Spotify needs reconnecting",s:"Settings › Spotify › Connect",k:"warn"}
-      :e.status===404?{t:"Speaker went to sleep",s:"Pick it in Spotify once, then try again",k:"warn"}
-      :{t:"Couldn't start music",s:e.message,k:"warn"});
-  }
+// ---------- Study Mode session: Spotify + Focus/timer Shortcut + an in-app countdown capsule ----------
+const focusOn=()=>!!S.focusShortcut;
+// Two plain Shortcuts, no input needed: "Study On" and "Study Off".
+const smReady=()=>(spOn()&&spPlaylist())||focusOn();
+const spErr=e=>e.reason==="PREMIUM_REQUIRED"?{t:"Spotify Premium needed",k:"warn"}
+  :e.status===401||e.status===400?{t:"Spotify needs reconnecting",s:"Settings › Study Mode › Connect",k:"warn"}
+  :e.status===404?{t:"Speaker went to sleep",s:"Pick it in Spotify once, then try again",k:"warn"}
+  :{t:"Couldn't control music",s:e.message,k:"warn"};
+async function spPlayStudy(){
+  const list=(await sp("/me/player/devices")).devices||[];
+  let dev=list.find(d=>S.spDevice&&d.name===S.spDevice),fallback=false;
+  if(!dev){dev=list.find(d=>d.is_active)||list[0];fallback=true}
+  if(!dev)throw Object.assign(new Error("No speaker available. Open Spotify once, then try again"),{status:0});
+  const q="?device_id="+encodeURIComponent(dev.id);
+  await sp("/me/player/play"+q,{method:"PUT",body:JSON.stringify({context_uri:"spotify:playlist:"+spPlaylist()})});
+  await sp("/me/player/shuffle"+q+"&state=true",{method:"PUT"});
+  await sp("/me/player/next"+q,{method:"POST"}).catch(()=>{});
+  return {name:dev.name,id:dev.id,fallback:fallback&&!!S.spDevice};
 }
-const studyModeBtn=(cls="btn tint block")=>spOn()&&spPlaylist()?`<button class="${cls}" data-act="studymode"><svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3.5v9.2A2.8 2.8 0 106 15.3V7.6l8-1.8v5a2.8 2.8 0 102 2.6V2z"/></svg> Start Study Mode</button>`:"";
+const runFocus=arg=>{if(focusOn())location.href="shortcuts://run-shortcut?name="+encodeURIComponent(arg==="on"?"Study On":"Study Off")};
+async function startStudyMode(){
+  if(!smReady()){location.hash="#settings";toast({t:"Set up Study Mode first",s:"Settings › Study Mode",k:"warn"});return}
+  if(S.session){islandOpen(true);return}
+  let music=null;
+  if(spOn()&&spPlaylist()){
+    toast({t:"Starting Study Mode…",s:"Talking to Spotify",k:"video"});
+    try{music=await spPlayStudy()}catch(e){toast(spErr(e));if(!focusOn())return}
+  }
+  S.session={start:Date.now(),dev:music&&music.id,devName:music&&music.name,paused:false};save();renderIsland();
+  toast(music&&music.fallback?{t:`Playing on ${music.name}`,s:`${S.spDevice} wasn't available. Pick it in Spotify once to wake it`,k:"warn"}
+    :{t:"Study Mode on",s:music?"Shuffling on "+music.name:"Study Focus on",k:"video"});
+  render();
+  if(focusOn())setTimeout(()=>runFocus("on"),music?900:200);
+}
+async function toggleMusic(){
+  const s=S.session;if(!s||!spOn())return;
+  try{const q=s.dev?"?device_id="+encodeURIComponent(s.dev):"";
+    await sp("/me/player/"+(s.paused?"play":"pause")+q,{method:"PUT"});
+    s.paused=!s.paused;save();renderIsland();toast({t:s.paused?"Music paused":"Music playing",k:"video"})}
+  catch(e){toast(spErr(e))}
+}
+async function endStudyMode(){
+  const s=S.session;if(!s)return;
+  const mins=Math.max(1,Math.round((Date.now()-s.start)/60000));
+  if(spOn()&&s.devName&&!s.paused){try{await sp("/me/player/pause"+(s.dev?"?device_id="+encodeURIComponent(s.dev):""),{method:"PUT"})}catch(e){}}
+  delete S.session;save();renderIsland();
+  toast({t:"Study Mode ended",s:`${mins} min studied. Nice work`,k:"ok"});
+  if(focusOn())setTimeout(()=>runFocus("off"),700);
+}
+// Persistent capsule at the top while studying: tap to expand for controls.
+let islandExpanded=false,islandCollapseT=null;
+function islandOpen(v){islandExpanded=v;clearTimeout(islandCollapseT);if(v)islandCollapseT=setTimeout(()=>islandOpen(false),6000);renderIsland()}
+function renderIsland(){
+  const el=document.getElementById("sess"),s=S.session;
+  document.body.classList.toggle("sessing",!!s);
+  if(!s){el.hidden=true;el.className="sess";return}
+  el.hidden=false;el.className="sess"+(islandExpanded?" open":"")+(s.paused?" paused":"");
+  const bars=`<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>`;
+  el.innerHTML=islandExpanded
+    ?`<div class="sx-top">${bars}<div class="sx-t"><b>Study Mode</b><span>${s.devName?(s.paused?"Paused · ":"")+"Jazz on "+esc(s.devName):"Study Focus on"}</span></div></div>
+      <div class="sx-btns">${s.devName&&spOn()?`<button data-act="sessmusic">${s.paused?"Play Music":"Pause Music"}</button>`:""}<button class="end" data-act="sessend">End Session</button></div>`
+    :`${bars}<span class="sx-time">Studying</span>`;
+}
+document.addEventListener("click",e=>{const el=document.getElementById("sess");if(!el||el.hidden||!el.contains(e.target)||e.target.closest("[data-act]"))return;islandOpen(!islandExpanded)});
+const studyModeBtn=(cls="btn tint block")=>smReady()?(S.session
+  ?`<button class="${cls}" data-act="sessend"><svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><rect x="4.5" y="4.5" width="11" height="11" rx="2.5"/></svg> End Study Mode</button>`
+  :`<button class="${cls}" data-act="studymode"><svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3.5v9.2A2.8 2.8 0 106 15.3V7.6l8-1.8v5a2.8 2.8 0 102 2.6V2z"/></svg> Start Study Mode</button>`):"";
 function spotifySection(){
   const chev=IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"');
   const devs=spDevices||[],opts=[...new Set([S.spDevice,...devs.map(d=>d.name)].filter(Boolean))];
-  return `<div class="sec"><div class="sh">Spotify Study Mode</div><div class="grp">
+  return `<div class="sec"><div class="sh">Study Mode</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-focus">Study Focus shortcut</label><input class="sw" type="checkbox" id="set-focus" data-act="focustoggle" ${focusOn()?"checked":""}></div>
+  </div><div class="sf">${focusOn()?`Starting runs your "Study On" shortcut and ending runs "Study Off".`:"Turn on to also switch your Study Focus on and off through a Shortcut, so notifications are silenced while you study."}</div></div>
+  <div class="sec"><div class="sh">Spotify</div><div class="grp">
     <div class="cell"><label class="grow" for="set-spid">Client ID</label><input id="set-spid" type="text" value="${esc(S.spClient||"")}" placeholder="32 characters" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
     <div class="cell"><label class="grow" for="set-sppl">Playlist link</label><input id="set-sppl" type="text" value="${esc(S.spPlaylist||"")}" placeholder="open.spotify.com/playlist/…" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
     ${spOn()?`<div class="cell"><label class="grow" for="set-spdev">Speaker</label><select id="set-spdev" data-act="spdev"><option value="">${opts.length?"Choose…":"Tap Find Speakers"}</option>${opts.map(n=>`<option ${n===S.spDevice?"selected":""}>${esc(n)}</option>`).join("")}</select>${chev}</div>
       <button class="cell btnrow" data-act="spfind">Find Speakers</button>
-      ${spPlaylist()?`<button class="cell btnrow" data-act="studymode" style="font-weight:600">Test Study Mode</button>`:""}
+      
       <button class="cell btnrow destructive" data-act="spoff">Disconnect Spotify</button>`
     :`<button class="cell btnrow" data-act="splogin" style="font-weight:600">Connect Spotify</button>`}
-  </div><div class="sf">${spOn()?(spPlaylist()?"Start Study Mode shows under Watch Now and on the Sec+ tab. If your speaker isn't listed, play anything on it from Spotify once, then tap Find Speakers.":"Paste your playlist's share link above to finish."):`Needs Spotify Premium and a free Spotify developer app. Redirect URI to use: ${esc(SP_REDIRECT)}`}</div></div>`;
+  </div><div class="sf">${spOn()?(spPlaylist()?"If your speaker isn't listed, play anything on it from Spotify once, then tap Find Speakers.":"Paste your playlist's share link above to finish."):`Needs Spotify Premium and a free Spotify developer app. Redirect URI to use: ${esc(SP_REDIRECT)}`}</div></div>`;
 }
 
 // ---------- Settings ----------
@@ -1026,6 +1097,9 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Animation on":"Animation off",s:el.checked?"Plays when the app opens":"The app opens straight to Today",k:"ok"});return}
   else if(a==="calexport"){exportCalendar();return}
   else if(a==="studymode"){startStudyMode();return}
+  else if(a==="sessend"){endStudyMode().then(render);return}
+  else if(a==="sessmusic"){toggleMusic();return}
+  else if(a==="focustoggle"){if(el.checked)S.focusShortcut=true;else delete S.focusShortcutsave();render();return}
   else if(a==="splogin"){const v=document.getElementById("set-spid").value.trim();S.spClient=v;save();spLogin();return}
   else if(a==="spfind"){spFindDevices();return}
   else if(a==="spoff"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Disconnect";return}lsSet(SP_KEY,null);SP=null;spDevices=null;render();toast({t:"Spotify disconnected",k:"undo"});return}
@@ -1078,6 +1152,8 @@ window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}else if(route()==="today")render()});
 applyTheme();
 spFinishLogin();
+renderIsland();
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)renderIsland()});
 if(syncOn()&&(SY.dirty||SY.lastDay!==T))setTimeout(pushSync,1500);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&syncOn()&&(SY.dirty||SY.lastDay!==ds(new Date())))setTimeout(pushSync,800)});
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(!S.theme)applyTheme()});
