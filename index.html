@@ -908,8 +908,12 @@ const spErr=e=>e.reason==="PREMIUM_REQUIRED"?{t:"Spotify Premium needed",k:"warn
 async function spPlayStudy(){
   const list=(await sp("/me/player/devices")).devices||[];
   let dev=list.find(d=>S.spDevice&&d.name===S.spDevice),fallback=false;
+  // Spotify often hides an idle speaker while the phone is playing. Try the speaker's last known ID anyway.
+  if(!dev&&S.spDevId){try{await sp("/me/player",{method:"PUT",body:JSON.stringify({device_ids:[S.spDevId],play:false})});dev={id:S.spDevId,name:S.spDevice}}catch(e){}}
+  if(dev&&!dev.is_active&&list.some(d=>d.id===dev.id)){try{await sp("/me/player",{method:"PUT",body:JSON.stringify({device_ids:[dev.id],play:false})});await new Promise(r=>setTimeout(r,700))}catch(e){}}
   if(!dev){dev=list.find(d=>d.is_active)||list[0];fallback=true}
   if(!dev)throw Object.assign(new Error("No speaker available. Open Spotify once, then try again"),{status:0});
+  if(!fallback&&dev.id&&S.spDevId!==dev.id){S.spDevId=dev.id;save()}
   const q="?device_id="+encodeURIComponent(dev.id);
   await sp("/me/player/play"+q,{method:"PUT",body:JSON.stringify({context_uri:"spotify:playlist:"+spPlaylist()})});
   await sp("/me/player/shuffle"+q+"&state=true",{method:"PUT"});
@@ -1139,7 +1143,7 @@ document.addEventListener("change",e=>{
   else if(el.dataset.act==="calset"){if(el.id==="set-runat")S.runAt=el.value;else if(el.id==="set-studyat")S.studyAt=el.value;else S.calSpan=el.value;save();if(syncOn()&&el.type==="time")toast({t:"Reminder time saved",s:"Your live calendar will update",k:"ok"})}
   else if(el.id==="set-spid"){S.spClient=el.value.trim();save()}
   else if(el.id==="set-sppl"){S.spPlaylist=el.value.trim();save();render();toast(spPlaylist()?{t:"Playlist saved",k:"ok"}:{t:"That's not a playlist link",s:"Spotify › playlist › Share › Copy link",k:"warn"})}
-  else if(el.dataset.act==="spdev"){S.spDevice=el.value||undefined;save();toast({t:"Speaker saved",s:el.value||"None",k:"ok"})}
+  else if(el.dataset.act==="spdev"){S.spDevice=el.value||undefined;const d=(spDevices||[]).find(x=>x.name===el.value);if(d)S.spDevId=d.id;save();toast({t:"Speaker saved",s:el.value||"None",k:"ok"})}
   else if(el.id==="set-name"){S.name=el.value.trim();save();toast({t:"Name saved",s:`${greeting()}, ${nameOf()}`,k:"ok"})}
   else if(el.dataset.act==="mins"){S.mins=+el.value;(()=>{changed(null);const f=schedule().last;toast({t:"Plan updated",s:`${S.mins} min per free day${f?` · finish ${pd(f).getDate()} ${MON[pd(f).getMonth()]}`:""}`,k:"ok"})})()}
 });
