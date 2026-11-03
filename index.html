@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="1.8">
+<meta name="app-version" content="1.9">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -461,11 +461,11 @@ function viewDay(D){
     else next={c:"var(--green)",i:IC.check,e:"Free day",h:"Nothing planned.",p:"Enjoy it."};
   }
   else if(nextVid&&r&&!runDone&&(()=>{const [h,m]=(S.runAt||"20:15").split(":").map(Number),at=new Date();at.setHours(h,m,0,0);return new Date()<at})())
-    next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}. Study first, while you're fresh. Your run is later tonight.`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
+    next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}. Study first, while you're fresh. Your run is later tonight.`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>${studyModeBtn()}`};
   else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:(()=>{const [h,m]=(S.runAt||"20:15").split(":").map(Number),now=new Date(),at=new Date();at.setHours(h,m,0,0);
       const lbl=at.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
       return now<at?`Planned for tonight at ${lbl}. Log your time on the 2.4 km tab after.`:"Time to run. Log your time on the 2.4 km tab after."})(),btn:`<button class="btn orange block" data-act="rundone" data-d="${D}">Mark Run as Done</button>`};
-  else if(nextVid)next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>`};
+  else if(nextVid)next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>${studyModeBtn()}`};
   else next={c:"var(--green)",i:IC.check,e:"All done",h:"Today's plan is finished.",p:"Put the phone in another room and do something offline."};
   const optional=(isToday&&t==="shift")?VID.find(v=>!S.done[v.i]):null;
   const prev=ds(add(dd,-1)),nxt=ds(add(dd,1));
@@ -651,7 +651,7 @@ function viewSec(){
     <div class="pad"><div class="bar" role="progressbar" aria-valuenow="${done.length}" aria-valuemin="0" aria-valuemax="121"><i style="width:${done.length/121*100}%"></i></div></div>
     <div class="cell"><label class="grow" for="mins">Study per free day</label><select id="mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">Shift days have no study target. The day a night shift ends gets half. After the videos, do two weeks of practice exams before you book. Domain 4 is the biggest slice and overlaps your SOC work.</div></div>
-  ${(()=>{const n=VID.find(v=>!S.done[v.i]);return n?`<button class="btn tint block" data-act="jumpnext">Continue: ${n.i+1}. ${esc(n.title)}</button>`:""})()}
+  ${(()=>{const n=VID.find(v=>!S.done[v.i]);return n?`<button class="btn tint block" data-act="jumpnext">Continue: ${n.i+1}. ${esc(n.title)}</button>${studyModeBtn("btn fill block")}`:""})()}
   <div class="sec"><div class="sh">Course · in playlist order</div><div class="grp">${courseList()}</div></div>`;
 }
 
@@ -830,6 +830,86 @@ function syncSection(){
 }
 window.addEventListener("online",()=>{if(syncOn()&&SY.dirty)pushSync()});
 
+// ---------- Spotify (Premium): start the study playlist on shuffle on a chosen speaker ----------
+// Uses Spotify's PKCE login (no secret needed). Tokens live only on this phone, outside app data and backups.
+const SP_KEY="rhythm-spotify",SP_PKCE="rhythm-spotify-pkce";
+const SP_REDIRECT=location.origin+location.pathname;
+const SP_SCOPES="user-read-playback-state user-modify-playback-state";
+let SP=lsGet(SP_KEY,null);
+const spOn=()=>!!(SP&&SP.refresh&&S.spClient);
+const spPlaylist=()=>{const m=(S.spPlaylist||"").match(/playlist[/:]([A-Za-z0-9]{10,})/);return m?m[1]:null};
+const b64url=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+async function spLogin(){
+  const id=(S.spClient||"").trim();if(!/^[0-9a-f]{32}$/i.test(id)){toast({t:"Add your Client ID first",s:"From your Spotify developer app",k:"warn"});return}
+  const ver=b64url(crypto.getRandomValues(new Uint8Array(48))),state=b64url(crypto.getRandomValues(new Uint8Array(12)));
+  const chal=b64url(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(ver)));
+  lsSet(SP_PKCE,{ver,state});
+  location.href="https://accounts.spotify.com/authorize?"+new URLSearchParams({client_id:id,response_type:"code",redirect_uri:SP_REDIRECT,code_challenge_method:"S256",code_challenge:chal,state,scope:SP_SCOPES});
+}
+async function spToken(body){
+  const r=await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:S.spClient,...body})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error_description||j.error||"token"),{status:r.status});
+  SP={access:j.access_token,refresh:j.refresh_token||(SP&&SP.refresh),exp:Date.now()+(j.expires_in-60)*1000};lsSet(SP_KEY,SP);
+}
+async function spFinishLogin(){
+  const q=new URLSearchParams(location.search);if(!q.has("code")&&!q.has("error"))return;
+  const pk=lsGet(SP_PKCE,null);history.replaceState(null,"",location.pathname+"#settings");lsSet(SP_PKCE,null);
+  if(q.has("error")||!pk||q.get("state")!==pk.state){toast({t:"Spotify not connected",s:q.get("error")==="access_denied"?"You cancelled the login":"Login didn't finish. Try again",k:"warn"});return}
+  try{await spToken({grant_type:"authorization_code",code:q.get("code"),redirect_uri:SP_REDIRECT,code_verifier:pk.ver});
+    toast({t:"Spotify connected",s:"Now pick your speaker",k:"ok"});render()}
+  catch(e){toast({t:"Spotify login failed",s:"Check the Redirect URI in your Spotify app",k:"warn"})}
+}
+async function sp(path,opt={}){
+  if(!SP||!SP.refresh)throw Object.assign(new Error("not connected"),{status:401});
+  if(Date.now()>SP.exp)await spToken({grant_type:"refresh_token",refresh_token:SP.refresh});
+  const go=()=>fetch("https://api.spotify.com/v1"+path,{...opt,headers:{"Authorization":"Bearer "+SP.access,...(opt.body?{"Content-Type":"application/json"}:{})}});
+  let r=await go();
+  if(r.status===401){await spToken({grant_type:"refresh_token",refresh_token:SP.refresh});r=await go()}
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw Object.assign(new Error((j.error&&j.error.message)||"spotify "+r.status),{status:r.status,reason:j.error&&j.error.reason})}
+  return r.status===204||r.status===202?null:r.json().catch(()=>null);
+}
+let spDevices=null;
+async function spFindDevices(){
+  try{const j=await sp("/me/player/devices");spDevices=j.devices||[];render();
+    toast(spDevices.length?{t:`${spDevices.length} speaker${spDevices.length>1?"s":""} found`,s:spDevices.map(d=>d.name).join(" · "),k:"ok"}:{t:"No speakers found",s:"Open Spotify and play something on your Nest once",k:"warn"})}
+  catch(e){toast({t:"Couldn't list speakers",s:e.message,k:"warn"})}
+}
+async function startStudyMode(){
+  if(!spOn()||!spPlaylist()){location.hash="#settings";toast({t:"Set up Spotify first",s:"Settings › Spotify",k:"warn"});return}
+  toast({t:"Starting Study Mode…",s:"Talking to Spotify",k:"video"});
+  try{
+    const list=(await sp("/me/player/devices")).devices||[];
+    let dev=list.find(d=>S.spDevice&&d.name===S.spDevice),fallback=false;
+    if(!dev){dev=list.find(d=>d.is_active)||list[0];fallback=true}
+    if(!dev){toast({t:"No speaker available",s:"Open Spotify once so it can see your devices, then try again",k:"warn"});return}
+    const q="?device_id="+encodeURIComponent(dev.id);
+    await sp("/me/player/play"+q,{method:"PUT",body:JSON.stringify({context_uri:"spotify:playlist:"+spPlaylist()})});
+    await sp("/me/player/shuffle"+q+"&state=true",{method:"PUT"});
+    await sp("/me/player/next"+q,{method:"POST"}).catch(()=>{});
+    toast(fallback&&S.spDevice?{t:`Playing on ${dev.name}`,s:`${S.spDevice} wasn't available. Pick it in Spotify once to wake it`,k:"warn"}
+      :{t:"Study Mode on",s:`Shuffling on ${dev.name}`,k:"video"});
+  }catch(e){
+    toast(e.reason==="PREMIUM_REQUIRED"?{t:"Spotify Premium needed",k:"warn"}
+      :e.status===401||e.status===400?{t:"Spotify needs reconnecting",s:"Settings › Spotify › Connect",k:"warn"}
+      :e.status===404?{t:"Speaker went to sleep",s:"Pick it in Spotify once, then try again",k:"warn"}
+      :{t:"Couldn't start music",s:e.message,k:"warn"});
+  }
+}
+const studyModeBtn=(cls="btn tint block")=>spOn()&&spPlaylist()?`<button class="${cls}" data-act="studymode"><svg width="17" height="17" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3.5v9.2A2.8 2.8 0 106 15.3V7.6l8-1.8v5a2.8 2.8 0 102 2.6V2z"/></svg> Start Study Mode</button>`:"";
+function spotifySection(){
+  const chev=IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"');
+  const devs=spDevices||[],opts=[...new Set([S.spDevice,...devs.map(d=>d.name)].filter(Boolean))];
+  return `<div class="sec"><div class="sh">Spotify Study Mode</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-spid">Client ID</label><input id="set-spid" type="text" value="${esc(S.spClient||"")}" placeholder="32 characters" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
+    <div class="cell"><label class="grow" for="set-sppl">Playlist link</label><input id="set-sppl" type="text" value="${esc(S.spPlaylist||"")}" placeholder="open.spotify.com/playlist/…" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
+    ${spOn()?`<div class="cell"><label class="grow" for="set-spdev">Speaker</label><select id="set-spdev" data-act="spdev"><option value="">${opts.length?"Choose…":"Tap Find Speakers"}</option>${opts.map(n=>`<option ${n===S.spDevice?"selected":""}>${esc(n)}</option>`).join("")}</select>${chev}</div>
+      <button class="cell btnrow" data-act="spfind">Find Speakers</button>
+      ${spPlaylist()?`<button class="cell btnrow" data-act="studymode" style="font-weight:600">Test Study Mode</button>`:""}
+      <button class="cell btnrow destructive" data-act="spoff">Disconnect Spotify</button>`
+    :`<button class="cell btnrow" data-act="splogin" style="font-weight:600">Connect Spotify</button>`}
+  </div><div class="sf">${spOn()?(spPlaylist()?"Start Study Mode shows under Watch Now and on the Sec+ tab. If your speaker isn't listed, play anything on it from Spotify once, then tap Find Speakers.":"Paste your playlist's share link above to finish."):`Needs Spotify Premium and a free Spotify developer app. Redirect URI to use: ${esc(SP_REDIRECT)}`}</div></div>`;
+}
+
 // ---------- Settings ----------
 function applyTheme(){
   const t=S.theme==="light"||S.theme==="dark"?S.theme:null,root=document.documentElement;
@@ -863,6 +943,7 @@ function viewSettings(){
     ${syncOn()?"":`<div class="cell"><label class="grow" for="set-span">Add</label><select id="set-span" data-act="calset">${[["week","Next 7 days"],["month","Next 4 weeks"],["all","Until 3 Jan"]].map(([v,l])=>`<option value="${v}" ${(S.calSpan||"week")===v?"selected":""}>${l}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <button class="cell btnrow" data-act="calexport" style="font-weight:600">Add to Calendar</button>`}
   </div><div class="sf">${syncOn()?"Your live calendar has your shifts, runs and study in one place. Changes show up next time your iPhone refreshes it.":"Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday. Turn on Automatic Sync above to have it update by itself."}</div></div>
+  ${spotifySection()}
   <div class="sec"><div class="sh">Study</div><div class="grp">
     <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>
@@ -944,6 +1025,10 @@ document.addEventListener("click",e=>{
   else if(a==="splash"){S.splash=el.checked?undefined:false;if(S.splash===undefined)delete S.splash;save();
     toast({t:el.checked?"Animation on":"Animation off",s:el.checked?"Plays when the app opens":"The app opens straight to Today",k:"ok"});return}
   else if(a==="calexport"){exportCalendar();return}
+  else if(a==="studymode"){startStudyMode();return}
+  else if(a==="splogin"){const v=document.getElementById("set-spid").value.trim();S.spClient=v;save();spLogin();return}
+  else if(a==="spfind"){spFindDevices();return}
+  else if(a==="spoff"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Disconnect";return}lsSet(SP_KEY,null);SP=null;spDevices=null;render();toast({t:"Spotify disconnected",k:"undo"});return}
   else if(a==="calshifts"){if(el.checked)delete S.calShifts;else S.calShifts=false;save();
     toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
@@ -978,6 +1063,9 @@ document.addEventListener("change",e=>{
   else if(el.dataset.act==="tw"){const tw=[...testWeeks()];tw[+el.dataset.n]=+el.value;S.testWeeks=tw;
     changed({t:"Test weeks updated",s:`Week ${tw[0]+1} and week ${tw[1]+1}`,k:"run"})}
   else if(el.dataset.act==="calset"){if(el.id==="set-runat")S.runAt=el.value;else if(el.id==="set-studyat")S.studyAt=el.value;else S.calSpan=el.value;save();if(syncOn()&&el.type==="time")toast({t:"Reminder time saved",s:"Your live calendar will update",k:"ok"})}
+  else if(el.id==="set-spid"){S.spClient=el.value.trim();save()}
+  else if(el.id==="set-sppl"){S.spPlaylist=el.value.trim();save();render();toast(spPlaylist()?{t:"Playlist saved",k:"ok"}:{t:"That's not a playlist link",s:"Spotify › playlist › Share › Copy link",k:"warn"})}
+  else if(el.dataset.act==="spdev"){S.spDevice=el.value||undefined;save();toast({t:"Speaker saved",s:el.value||"None",k:"ok"})}
   else if(el.id==="set-name"){S.name=el.value.trim();save();toast({t:"Name saved",s:`${greeting()}, ${nameOf()}`,k:"ok"})}
   else if(el.dataset.act==="mins"){S.mins=+el.value;(()=>{changed(null);const f=schedule().last;toast({t:"Plan updated",s:`${S.mins} min per free day${f?` · finish ${pd(f).getDate()} ${MON[pd(f).getMonth()]}`:""}`,k:"ok"})})()}
 });
@@ -989,6 +1077,7 @@ window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}else if(route()==="today")render()});
 applyTheme();
+spFinishLogin();
 if(syncOn()&&(SY.dirty||SY.lastDay!==T))setTimeout(pushSync,1500);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&syncOn()&&(SY.dirty||SY.lastDay!==ds(new Date())))setTimeout(pushSync,800)});
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(!S.theme)applyTheme()});
