@@ -322,7 +322,10 @@ const isShift=s=>!!S.shifts[s];
 const shiftTime=s=>typeof S.shifts[s]==="string"&&/^\d\d:\d\d-\d\d:\d\d$/.test(S.shifts[s])?S.shifts[s]:null;
 const isNight=s=>{const t=shiftTime(s);return !!t&&+t.slice(0,2)>=19};
 const shortTime=s=>{const t=shiftTime(s);return t?(isNight(s)?"N ":"")+t.slice(0,2)+"–"+t.slice(6,8):"SHIFT"};
-const isBusy=s=>!!(S.busy&&S.busy[s]);
+// Per-day skips: S.busy[date] = {run:1} / {study:1} / both (older saves used 1 for both).
+const skipOf=s=>{const b=S.busy&&S.busy[s];return b===1||b===true?{run:1,study:1}:(b||{})};
+const skipRun=s=>!!skipOf(s).run, skipStudy=s=>!!skipOf(s).study;
+const isBusy=s=>skipRun(s)&&skipStudy(s);
 const dayType=s=>{if(isShift(s))return "shift";if(isBusy(s))return "busy";const p=ds(add(pd(s),-1));return isShift(p)&&isNight(p)?"rec":"off"};
 function schedule(){
   if(cache.sch)return cache.sch;
@@ -348,8 +351,8 @@ function weekRuns(w){
   if(cache["w"+w])return cache["w"+w];
   const days=[...Array(7)].map((_,i)=>ds(add(START,w*7+i)));
   // When a day in this week is marked busy, its run moves to another free day from today on (past days keep only runs already done).
-  const hasBusy=days.some(isBusy);
-  const free=days.filter(s=>dayType(s)==="off"&&(!hasBusy||s>=T||S.runDone[s]));
+  const hasBusy=days.some(skipRun);
+  const free=days.filter(s=>dayType(s)==="off"&&!skipRun(s)&&(!hasBusy||s>=T||S.runDone[s]));
   const testWk=w===3||w===8;
   const val={A:10,B:4,C:testWk?12:8};
   const combos=(arr,k,st=0,cur=[])=>k===0?[cur]:arr.slice(st).flatMap((_,j)=>combos(arr,k-1,st+j+1,[...cur,arr[st+j]]));
@@ -366,7 +369,7 @@ function weekRuns(w){
   cache["w"+w]=out;return out;
 }
 function runOn(s){const w=Math.floor(diff(pd(s),START)/7);if(w<0||w>8)return null;const k=weekRuns(w)[s];return k?{w,k,text:PLAN[w][k],focus:PLAN[w].focus,test:k==="C"&&(w===3||w===8)}:null}
-const budget=s=>{const t=dayType(s);return t==="off"?S.mins*60:t==="rec"?Math.round(S.mins/2)*60:0};
+const budget=s=>{if(skipStudy(s))return 0;const t=dayType(s);return t==="off"?S.mins*60:t==="rec"?Math.round(S.mins/2)*60:0};
 
 // ---------- icons (SF Symbols-style line icons) ----------
 const IC={
@@ -413,7 +416,7 @@ function viewDay(D){
   let next;
   if(t==="shift")next=isNight(D)?{c:"var(--indigo)",i:IC.moon,e:`Night shift · ${shiftTime(D)}`,h:isToday?"Rest before tonight.":"Night shift. Nothing planned.",p:"Nap in the afternoon instead of scrolling. No run, no study."}
     :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(D)?" · "+shiftTime(D):""}`,h:`Nothing planned ${when}.`,p:"You'll be tired after work, so there's no run and no study. Get home, rest and recharge for tomorrow."};
-  else if(t==="busy")next={c:"var(--label2)",i:IC.cal,e:"Busy",h:isToday?"Day off from the plan.":"Busy. Nothing planned.",p:"No run and no study. The run and videos moved to your other free days, so go enjoy it."};
+  else if(t==="busy")next={c:"var(--label2)",i:IC.cal,e:"Busy",h:isToday?"Day off from the plan.":"Busy. Nothing planned.",p:"No run and no study. Both moved to your other free days, so go enjoy it."};
   else if(t==="rec")next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:vids.length?"Sleep first, then one or two videos.":"Sleep first.",p:`The night shift ends that morning, so no run.${vids.length?` Videos: ${vidMin}.`:""}`};
   else if(!isToday){
     if(r)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:`${future?"Planned":"Was planned"}${vids.length?`, plus ${vids.length} video${vids.length>1?"s":""} (${vidMin})`:""}.`};
@@ -433,7 +436,12 @@ function viewDay(D){
   ${isToday&&TODAY<START?`<p class="sf" style="padding:0 2px;margin:-10px 0 0">The 9-week run plan starts Monday, 2 November.</p>`:""}
   <div class="sec"><div class="sh big">${isToday?"Up Next":"Plan"}</div>
     <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>
-  ${!future&&!isToday||t==="shift"?"":`<div class="sec"><div class="grp"><button class="cell btnrow" data-act="busy" data-d="${D}">${t==="busy"?"Undo Busy":"Can't Make It? Mark as Busy"}</button></div>${t==="busy"?"":`<div class="sf">Going out or something came up? This clears the day and moves its run and videos to your other free days.</div>`}</div>`}
+  ${(!future&&!isToday)||t==="shift"?"":(()=>{
+    const showRun=!!r||skipRun(D), runOn_=!skipRun(D), studyOn=!skipStudy(D);
+    return `<div class="sec"><div class="sh">What can you do ${isToday?"today":"that day"}?</div><div class="grp">
+      ${showRun?`<div class="cell ind"><span class="ico" style="background:${runOn_?"var(--orange)":"var(--label3)"}">${IC.run}</span><label class="grow" for="sk-run"><div>Run</div><div class="t2">${runOn_?(r?KIND[r.k]+" planned":"Planned"):"Skipped · moved to another free day"}</div></label><input class="sw" type="checkbox" id="sk-run" data-act="skip" data-k="run" data-d="${D}" ${runOn_?"checked":""}></div>`:""}
+      <div class="cell ind"><span class="ico" style="background:${studyOn?"var(--blue)":"var(--label3)"}">${IC.play}</span><label class="grow" for="sk-study"><div>Security+</div><div class="t2">${studyOn?(vids.length?`${vids.length} video${vids.length>1?"s":""} · ${vidMin}`:"Nothing planned"):"Skipped · videos moved to your next free days"}</div></label><input class="sw" type="checkbox" id="sk-study" data-act="skip" data-k="study" data-d="${D}" ${studyOn?"checked":""}></div>
+    </div><div class="sf">Too tired or out? Switch off what you can't do and it moves to your next free days. Switch it back on to undo.</div></div>`})()}
   ${isToday?`<div class="sec"><div class="grp"><div class="rings">
     <svg viewBox="0 0 132 132" role="img" aria-label="Weekly rings">${ring(58,runsPlanned?runsDone/runsPlanned:0,"var(--orange)")}${ring(41,studyGoal?studyDone/studyGoal:0,"var(--green)")}${ring(24,todayPlanned?todayDone/todayPlanned:1,"var(--teal)")}</svg>
     <div class="rl">
@@ -696,7 +704,10 @@ document.addEventListener("click",e=>{
   else if(a==="jumpnext"){const n=VID.find(v=>!S.done[v.i]);if(!n)return;const box=document.querySelector(`.acc[data-dom="${n.dom}"]`);
     const go=()=>{const r=document.getElementById("nextvid");if(r)r.scrollIntoView({behavior:"smooth",block:"center"})};
     if(box&&!box.classList.contains("open")){box.classList.add("open");openDoms.add(n.dom);box.querySelector(".acch").setAttribute("aria-expanded","true");setTimeout(go,380)}else go();return}
-  else if(a==="busy"){const d=el.dataset.d;S.busy=S.busy||{};if(S.busy[d])delete S.busy[d];else S.busy[d]=1;changed(S.busy[d]?"Marked Busy · Plan Moved":"Back on the Plan");return}
+  else if(a==="skip"){const d=el.dataset.d,k=el.dataset.k;S.busy=S.busy||{};const o={...skipOf(d)};
+    if(el.checked)delete o[k];else o[k]=1;
+    if(o.run||o.study)S.busy[d]=o;else delete S.busy[d];
+    changed(el.checked?"Back on the Plan":k==="run"?"Run Moved":"Videos Moved");return}
   else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;changed("Nice Work")}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
