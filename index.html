@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.0.1">
+<meta name="app-version" content="2.0.2">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -234,6 +234,20 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .sess .sx-btns button{flex:1;border-radius:14px;padding:10px 0;background:rgba(255,255,255,.14);color:#fff;font-size:14px;font-weight:600}
 .sess .sx-btns button.end{background:#FF453A}
 body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
+/* iOS-style action sheet */
+.sheet{position:fixed;inset:0;z-index:130;background:rgba(0,0,0,0);display:flex;flex-direction:column;justify-content:flex-end;gap:8px;
+  padding:0 max(10px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));transition:background .3s}
+.sheet.on{background:rgba(0,0,0,.4)}
+.sheet .sh-card,.sheet .sh-cancel{transform:translateY(120%);transition:transform .38s cubic-bezier(.2,1,.3,1);max-width:500px;width:100%;margin:0 auto}
+.sheet.on .sh-card,.sheet.on .sh-cancel{transform:none}
+.sh-card{background:var(--bar);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);border-radius:14px;overflow:hidden;display:grid}
+.sh-msg{display:grid;gap:4px;text-align:center;padding:16px 18px 14px;border-bottom:.5px solid var(--sep)}
+.sh-msg b{font-size:13px;font-weight:600;color:var(--label2)}
+.sh-msg span{font-size:13px;color:var(--label2);line-height:1.35}
+.sh-card button{padding:16px;font-size:19px;color:var(--blue);border-top:.5px solid var(--sep)}
+.sh-card button:first-of-type{border-top:0}
+.sh-card button.pri{font-weight:600}
+.sh-cancel{background:var(--cell);border-radius:14px;padding:16px;font-size:19px;font-weight:600;color:var(--blue)}
 @keyframes sessin{from{transform:translateY(-120%) scale(.6);opacity:0}}
 @keyframes eq{0%,100%{height:30%}50%{height:100%}}
 @media (prefers-reduced-motion:reduce){.sess,.sess .eq i{animation:none;transition:none}}
@@ -282,6 +296,7 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
   <a href="#secplus"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M14 3.5l9 3.5v6.5c0 5.6-3.8 9.6-9 11-5.2-1.4-9-5.4-9-11V7z"/><path d="M10 14l3 3 5.5-6"/></svg>Sec+</a>
   <a href="#settings"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12.2 3.5h3.6l.6 2.9 2 .9 2.5-1.6 2.5 2.5-1.6 2.5.9 2 2.9.6v3.6l-2.9.6-.9 2 1.6 2.5-2.5 2.5-2.5-1.6-2 .9-.6 2.9h-3.6l-.6-2.9-2-.9-2.5 1.6-2.5-2.5 1.6-2.5-.9-2-2.9-.6v-3.6l2.9-.6.9-2-1.6-2.5 2.5-2.5 2.5 1.6 2-.9z"/><circle cx="14" cy="14" r="3.6"/></svg>Settings</a>
 </nav>
+<div class="sheet" id="sheet" hidden></div>
 <div class="sess" id="sess" role="status" aria-label="Study Mode session" hidden></div>
 <div class="island" id="toast" role="status" aria-live="polite" hidden><span class="iico" id="toastIco"></span><span class="itxt"><b id="toastT"></b><span id="toastS"></span></span></div>
 <script>
@@ -905,36 +920,62 @@ const spErr=e=>e.reason==="PREMIUM_REQUIRED"?{t:"Spotify Premium needed",k:"warn
   :e.status===401||e.status===400?{t:"Spotify needs reconnecting",s:"Settings › Study Mode › Connect",k:"warn"}
   :e.status===404?{t:"Speaker went to sleep",s:"Pick it in Spotify once, then try again",k:"warn"}
   :{t:"Couldn't control music",s:e.message,k:"warn"};
-async function spPlayStudy(){
+async function spPlayStudy(opt={}){
   const list=(await sp("/me/player/devices")).devices||[];
   let dev=list.find(d=>S.spDevice&&d.name===S.spDevice),fallback=false;
   // Spotify often hides an idle speaker while the phone is playing. Try the speaker's last known ID anyway.
   if(!dev&&S.spDevId){try{await sp("/me/player",{method:"PUT",body:JSON.stringify({device_ids:[S.spDevId],play:false})});dev={id:S.spDevId,name:S.spDevice}}catch(e){}}
   if(dev&&!dev.is_active&&list.some(d=>d.id===dev.id)){try{await sp("/me/player",{method:"PUT",body:JSON.stringify({device_ids:[dev.id],play:false})});await new Promise(r=>setTimeout(r,700))}catch(e){}}
-  if(!dev){dev=list.find(d=>d.is_active)||list[0];fallback=true}
+  // The chosen speaker has dropped off Spotify: ask instead of quietly playing on the phone.
+  if(!dev&&S.spDevice&&!opt.allowPhone)throw Object.assign(new Error("asleep"),{code:"ASLEEP"});
+  if(!dev){dev=list.find(d=>d.is_active)||list.find(d=>d.type==="Smartphone")||list[0];fallback=true}
   if(!dev)throw Object.assign(new Error("No speaker available. Open Spotify once, then try again"),{status:0});
   if(!fallback&&dev.id&&S.spDevId!==dev.id){S.spDevId=dev.id;save()}
   const q="?device_id="+encodeURIComponent(dev.id);
-  await sp("/me/player/play"+q,{method:"PUT",body:JSON.stringify({context_uri:"spotify:playlist:"+spPlaylist()})});
+  try{await sp("/me/player/play"+q,{method:"PUT",body:JSON.stringify({context_uri:"spotify:playlist:"+spPlaylist()})})}
+  catch(e){if(e.status===404&&!fallback&&!opt.allowPhone)throw Object.assign(new Error("asleep"),{code:"ASLEEP"});throw e}
   await sp("/me/player/shuffle"+q+"&state=true",{method:"PUT"});
   await sp("/me/player/next"+q,{method:"POST"}).catch(()=>{});
   return {name:dev.name,id:dev.id,fallback:fallback&&!!S.spDevice};
 }
 const runFocus=arg=>{if(focusOn())location.href="shortcuts://run-shortcut?name="+encodeURIComponent(arg==="on"?"Study On":"Study Off")};
-async function startStudyMode(){
+let wakePending=null;
+async function startStudyMode(opt={}){
   if(!smReady()){location.hash="#settings";toast({t:"Set up Study Mode first",s:"Settings › Study Mode",k:"warn"});return}
   if(S.session){islandOpen(true);return}
   let music=null;
   if(spOn()&&spPlaylist()){
-    toast({t:"Starting Study Mode…",s:"Talking to Spotify",k:"video"});
-    try{music=await spPlayStudy()}catch(e){toast(spErr(e));if(!focusOn())return}
+    toast({t:opt.retry?"Reconnecting…":"Starting Study Mode…",s:opt.retry?`Looking for ${S.spDevice}`:"Talking to Spotify",k:"video"});
+    const tries=opt.retry?4:1;
+    for(let i=0;i<tries;i++){
+      try{music=await spPlayStudy(opt);break}
+      catch(e){
+        if(e.code==="ASLEEP"){if(i<tries-1){await new Promise(r=>setTimeout(r,1500));continue}dismissToast();showWakeSheet(!!opt.retry);return}
+        toast(spErr(e));if(!focusOn())return;break}
+    }
   }
   S.session={start:Date.now(),dev:music&&music.id,devName:music&&music.name,paused:false};save();renderIsland();
-  toast(music&&music.fallback?{t:`Playing on ${music.name}`,s:`${S.spDevice} wasn't available. Pick it in Spotify once to wake it`,k:"warn"}
+  toast(music&&music.fallback?{t:`Study Mode on`,s:`Shuffling on ${music.name}`,k:"video"}
     :{t:"Study Mode on",s:music?"Shuffling on "+music.name:"Study Focus on",k:"video"});
   render();
   if(focusOn())setTimeout(()=>runFocus("on"),music?900:200);
 }
+function showWakeSheet(again){
+  const sh=document.getElementById("sheet");
+  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <div class="sh-msg"><b id="sh-t">Can't reach ${esc(S.spDevice)}</b><span>${again?`Spotify still can't see it. In Spotify, tap the speaker icon and pick ${esc(S.spDevice)}, then come back.`:`Spotify can't see it right now. This happens after your phone plays music. Open Spotify for a second to reconnect it, and Rhythm will start the music there when you come back.`}</span></div>
+    <button data-act="smwake" class="pri">Open Spotify</button>
+    <button data-act="smphone">Play on iPhone Instead</button>
+  </div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
+  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+}
+document.addEventListener("click",e=>{if(e.target&&e.target.id==="sheet")hideSheet()});
+function hideSheet(){const sh=document.getElementById("sheet");sh.classList.remove("on");setTimeout(()=>{sh.hidden=true},300)}
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden||!wakePending)return;
+  const ok=Date.now()-wakePending<180000;wakePending=null;
+  if(ok&&!S.session)setTimeout(()=>startStudyMode({retry:true}),1200);
+});
 async function toggleMusic(){
   const s=S.session;if(!s||!spOn())return;
   try{const q=s.dev?"?device_id="+encodeURIComponent(s.dev):"";
@@ -1101,6 +1142,9 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Animation on":"Animation off",s:el.checked?"Plays when the app opens":"The app opens straight to Today",k:"ok"});return}
   else if(a==="calexport"){exportCalendar();return}
   else if(a==="studymode"){startStudyMode();return}
+  else if(a==="smwake"){hideSheet();wakePending=Date.now();location.href="spotify:";return}
+  else if(a==="smphone"){hideSheet();startStudyMode({allowPhone:true});return}
+  else if(a==="smcancel"){hideSheet();return}
   else if(a==="sessend"){endStudyMode().then(render);return}
   else if(a==="sessmusic"){toggleMusic();return}
   else if(a==="focustoggle"){if(el.checked)S.focusShortcut=true;else delete S.focusShortcutsave();render();return}
