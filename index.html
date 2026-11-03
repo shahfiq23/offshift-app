@@ -6,10 +6,10 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="1.6">
+<meta name="app-version" content="1.7">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
+<script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
@@ -76,6 +76,7 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 #splash{position:fixed;inset:0;z-index:100;background:#000;display:grid;place-content:center;
   padding:env(safe-area-inset-top,0px) 24px env(safe-area-inset-bottom,0px);transition:opacity .45s ease;cursor:pointer}
 #splash.out{opacity:0;pointer-events:none}
+.nosplash #splash{display:none}
 #splash .stage{width:min(78vw,340px)}
 #splash .beat{width:100%;height:auto;overflow:visible;filter:drop-shadow(0 0 5px rgba(255,255,255,.35))}
 #splash .beatline{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.15s cubic-bezier(.45,.05,.35,1) forwards .15s}
@@ -145,7 +146,7 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .sw:checked::after{transform:translateX(20px)}
 
 /* inputs inside cells */
-.cell input[type=number],.cell input[type=text],.cell input[type=date],.cell select{font:inherit;letter-spacing:inherit;color:var(--label2);background:transparent;border:0;text-align:right;min-width:0;width:120px;padding:0}
+.cell input[type=number],.cell input[type=text],.cell input[type=date],.cell input[type=time],.cell select{font:inherit;letter-spacing:inherit;color:var(--label2);background:transparent;border:0;text-align:right;min-width:0;width:120px;padding:0}
 .cell select{appearance:none;-webkit-appearance:none;color:var(--blue);width:auto;cursor:pointer}
 .cell input:focus{color:var(--label);outline:none}
 #voice{font:17px/1.3 var(--font)!important;letter-spacing:-.022em}
@@ -311,7 +312,21 @@ const PLAN=[
  {focus:"Sharpen",A:"3 × 1 km in 4:35 each, 3 min rest",B:"Easy 3.5 km",C:"1.6 km at 4:35/km, then 800 m easy"},
  {focus:"Taper + test",A:"4 × 400 m in 1:48, full rest (short and sharp)",B:"Easy 2.5 km, legs fresh",C:"TIME TRIAL: 2.4 km all-out. Target 11:00"}];
 const KIND={A:"Intervals",B:"Easy run",C:"Tempo"};
-const BASE_SEC=780, GOAL_SEC=660;
+const BASE_SEC=780;
+// Settings-driven goal and test weeks (0-based week numbers; default weeks 4 and 9).
+const goalSec=()=>S.goal||660;
+const testWeeks=()=>S.testWeeks||[3,8];
+const isTestWk=w=>testWeeks().includes(w);
+const aimAt=w=>Math.round((BASE_SEC-(BASE_SEC-goalSec())*((w*7+6)/diff(END,START)))/15)*15;
+const ALT_C={3:"Tempo: 2 km at 5:00/km",8:"Tempo: 2 km at 4:40/km"};
+function planFocus(w){const f=PLAN[w].focus,t=isTestWk(w);
+  if(t&&(w===3||w===8))return f;if(t)return f+" + test";return w===3?"Build":w===8?"Taper":f}
+function planText(w,k){
+  if(k!=="C")return PLAN[w][k];
+  const tw=testWeeks();
+  if(isTestWk(w))return w===Math.max(...tw)?`TIME TRIAL: 2.4 km all-out. Target ${fmt(goalSec())}`:`TIME TRIAL: 2.4 km all-out. Log it. Aim: about ${fmt(aimAt(w))}`;
+  return ALT_C[w]||PLAN[w].C;
+}
 
 // ---------- dates ----------
 const pad=n=>String(n).padStart(2,"0");
@@ -375,7 +390,7 @@ function weekRuns(w){
   // When a day in this week is marked busy, its run moves to another free day from today on (past days keep only runs already done).
   const hasBusy=days.some(skipRun);
   const free=days.filter(s=>dayType(s)==="off"&&!skipRun(s)&&(!hasBusy||s>=T||S.runDone[s]));
-  const testWk=w===3||w===8;
+  const testWk=isTestWk(w);
   const val={A:10,B:4,C:testWk?12:8};
   const combos=(arr,k,st=0,cur=[])=>k===0?[cur]:arr.slice(st).flatMap((_,j)=>combos(arr,k-1,st+j+1,[...cur,arr[st+j]]));
   const perms=a=>a.length<2?[a]:a.flatMap((x,i)=>perms([...a.slice(0,i),...a.slice(i+1)]).map(r=>[x,...r]));
@@ -390,7 +405,7 @@ function weekRuns(w){
   const out={};(best||[]).forEach(([d,k])=>out[d]=k);
   cache["w"+w]=out;return out;
 }
-function runOn(s){const w=Math.floor(diff(pd(s),START)/7);if(w<0||w>8)return null;const k=weekRuns(w)[s];return k?{w,k,text:PLAN[w][k],focus:PLAN[w].focus,test:k==="C"&&(w===3||w===8)}:null}
+function runOn(s){const w=Math.floor(diff(pd(s),START)/7);if(w<0||w>8)return null;const k=weekRuns(w)[s];return k?{w,k,text:planText(w,k),focus:planFocus(w),test:k==="C"&&isTestWk(w)}:null}
 const budget=s=>{if(skipStudy(s))return 0;const t=dayType(s);return t==="off"?S.mins*60:t==="rec"?Math.round(S.mins/2)*60:0};
 
 // ---------- icons (SF Symbols-style line icons) ----------
@@ -517,12 +532,12 @@ function testChart(){
   const tests=S.runs.filter(r=>r.tt).sort((a,b)=>a.d<b.d?-1:1);
   const W=340,H=190,L=40,R=12,Tp=14,B=26,span=diff(END,START);
   const xs=d=>L+Math.max(0,Math.min(1,diff(pd(d),START)/span))*(W-L-R);
-  const lo=Math.min(GOAL_SEC-30,...tests.map(t=>t.sec)),hi=Math.max(BASE_SEC+30,...tests.map(t=>t.sec));
+  const lo=Math.min(goalSec()-30,...tests.map(t=>t.sec)),hi=Math.max(BASE_SEC+30,...tests.map(t=>t.sec));
   const ys=sec=>Tp+(sec-lo)/(hi-lo)*(H-Tp-B);
   const ticks=[];for(let t=Math.ceil(lo/60)*60;t<=hi;t+=60)ticks.push(t);
   let g=ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${ys(t)}" y2="${ys(t)}" stroke="var(--sep)"/><text x="${L-6}" y="${ys(t)+3.5}" text-anchor="end">${fmt(t)}</text>`).join("");
-  g+=`<line x1="${L}" x2="${W-R}" y1="${ys(GOAL_SEC)}" y2="${ys(GOAL_SEC)}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(GOAL_SEC)-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal 11:00</text>`;
-  const target=`<line x1="${xs(ds(START))}" y1="${ys(BASE_SEC)}" x2="${xs(ds(END))}" y2="${ys(GOAL_SEC)}" stroke="var(--label2)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${ys(goalSec())}" y2="${ys(goalSec())}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(goalSec())-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal ${fmt(goalSec())}</text>`;
+  const target=`<line x1="${xs(ds(START))}" y1="${ys(BASE_SEC)}" x2="${xs(ds(END))}" y2="${ys(goalSec())}" stroke="var(--label2)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
   const months=[[2026,10,1],[2026,11,1],[2027,0,1]].map(([y,m,d])=>{const dd=new Date(y,m,d);if(dd<START)dd.setTime(START.getTime());return `<text x="${xs(ds(dd))}" y="${H-8}" text-anchor="${m===10?"start":"middle"}">${MON[m]}</text>`}).join("");
   const today=TODAY>=START&&TODAY<=END?`<line x1="${xs(T)}" x2="${xs(T)}" y1="${Tp}" y2="${H-B}" stroke="var(--blue)" stroke-opacity=".5" stroke-dasharray="2 3"/>`:"";
   const line=tests.length>1?`<polyline points="${tests.map(t=>`${xs(t.d)},${ys(t.sec)}`).join(" ")}" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`:"";
@@ -536,12 +551,12 @@ function paceChart(){
   const runs=[...S.runs].sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0).slice(-14);
   if(!runs.length)return "";
   const W=340,H=150,L=40,R=12,Tp=14,B=22;
-  const paces=runs.map(r=>r.sec/r.km),goalP=GOAL_SEC/2.4;
+  const paces=runs.map(r=>r.sec/r.km),goalP=goalSec()/2.4;
   const lo=Math.min(goalP-10,...paces),hi=Math.max(goalP+60,...paces)+30;
   const n=runs.length,bw=Math.min(18,(W-L-R)/n-6),xs=i=>L+((i+.5)/n)*(W-L-R),ys=p=>Tp+(p-lo)/(hi-lo)*(H-Tp-B);
   const ticks=[];for(let t=Math.ceil(lo/30)*30;t<=hi;t+=30)ticks.push(t);
   let g=ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${ys(t)}" y2="${ys(t)}" stroke="var(--sep)"/><text x="${L-6}" y="${ys(t)+3.5}" text-anchor="end">${fmt(t)}</text>`).join("");
-  g+=`<line x1="${L}" x2="${W-R}" y1="${ys(goalP)}" y2="${ys(goalP)}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(goalP)-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal pace 4:35</text>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${ys(goalP)}" y2="${ys(goalP)}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(goalP)-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal pace ${fmt(goalSec()/2.4)}</text>`;
   const bars=runs.map((r,i)=>{const p=paces[i];return `<rect x="${xs(i)-bw/2}" y="${ys(p)}" width="${bw}" height="${Math.max(3,H-B-ys(p))}" rx="4" fill="${r.tt?"var(--orange)":"var(--teal)"}"><title>${nice(pd(r.d))}: ${r.km} km, ${fmt(p)}/km</title></rect>`}).join("");
   const lab=runs.map((r,i)=>(n<=7||(n-1-i)%2===0)?`<text x="${xs(i)}" y="${H-6}" text-anchor="middle">${pd(r.d).getDate()}/${pd(r.d).getMonth()+1}</text>`:"").join("");
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Pace per km for recent runs">${g}${bars}${lab}</svg>`;
@@ -577,20 +592,20 @@ function weekRecap(){
 }
 
 function viewRun(){
-  const b=best24(),cur=b??BASE_SEC,pct=Math.max(0,Math.min(100,(BASE_SEC-cur)/(BASE_SEC-GOAL_SEC)*100));
+  const b=best24(),cur=b??BASE_SEC,pct=Math.max(0,Math.min(100,(BASE_SEC-cur)/(BASE_SEC-goalSec())*100));
   const w=Math.floor(diff(TODAY,START)/7);
-  const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${p.focus}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
-    <dl><dt>Intervals</dt><dd>${esc(p.A)}</dd><dt>Easy</dt><dd>${esc(p.B)}</dd><dt>${i===3||i===8?"Test":"Tempo"}</dt><dd>${esc(p.C)}</dd></dl></div></div>`}).join("");
+  const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
+    <dl><dt>Intervals</dt><dd>${esc(p.A)}</dd><dt>Easy</dt><dd>${esc(p.B)}</dd><dt>${isTestWk(i)?"Test":"Tempo"}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
   const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${r.km} km${r.tt?' <span class="badge">2.4 Test</span>':""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(r.sec/r.km)} /km</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
   return `<div class="lt"><div class="sub">IPPT 2.4 km · 2 Nov – 3 Jan</div><h1>2.4 km</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":"starting ~13:00"}</span></div>
-    <div class="stat"><span class="k">Goal</span><span class="v o">11:00</span><span class="s">4:35 /km</span></div>
-    <div class="stat"><span class="k">To Cut</span><span class="v g">${fmt(Math.max(0,cur-GOAL_SEC))}</span><span class="s">${Math.round(pct)}% there</span></div></div>
+    <div class="stat"><span class="k">Goal</span><span class="v o">${fmt(goalSec())}</span><span class="s">${fmt(goalSec()/2.4)} /km</span></div>
+    <div class="stat"><span class="k">To Cut</span><span class="v g">${fmt(Math.max(0,cur-goalSec()))}</span><span class="s">${Math.round(pct)}% there</span></div></div>
     <div class="pad"><div class="bar o" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div>
-  </div><div class="sf">Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that. The week 4 test should come in near 12:00. If it does, 11:00 in week 9 is realistic.</div></div>
+  </div><div class="sf">Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that. The week ${testWeeks()[0]+1} test should come in near ${fmt(aimAt(testWeeks()[0]))}. If it does, ${fmt(goalSec())} in week ${testWeeks()[1]+1} is realistic.</div></div>
   <div class="sec"><div class="sh">2.4 km Tests</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${testChart()}</div></div>
-    <div class="sf">${S.runs.some(r=>r.tt)?"Orange is your logged tests. Stay on or above the dashed target line to reach 11:00 by 3 January.":"The dashed line is your target path from 13:00 to 11:00. Your 2.4 tests appear here as you log them; the first is on 29 November."}</div></div>
+    <div class="sf">${S.runs.some(r=>r.tt)?`Orange is your logged tests. Stay on or above the dashed target line to reach ${fmt(goalSec())} by 3 January.`:`The dashed line is your target path from 13:00 to ${fmt(goalSec())}. Your 2.4 tests appear here as you log them${(()=>{const d=Object.entries(weekRuns(testWeeks()[0])).find(([,k])=>k==="C");return d?`; the first is on ${nice(pd(d[0]))}`:""})()}.`}</div></div>
   ${S.runs.length?`<div class="sec"><div class="sh">Pace per Run</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${paceChart()}</div></div><div class="sf">Your last ${Math.min(14,S.runs.length)} runs. Taller is faster; orange bars are 2.4 tests. Easy runs should sit well below the goal pace.</div></div>`:""}
   <div class="sec"><div class="sh">Log a Run</div><div class="grp">
     <div class="cell" style="display:grid;gap:6px;align-items:start"><label for="voice" class="t2" style="display:flex;gap:6px;align-items:center;color:var(--blue);font-weight:600;font-size:15px">${IC.mic} Say it</label>
@@ -692,6 +707,36 @@ document.addEventListener("input",e=>{if(e.target.id==="voice"){clearTimeout(voi
 
 // ---------- render + events ----------
 let DAYSEL=null;
+// ---------- Calendar export (.ics) ----------
+function icsText(days){
+  const st=(S.runAt||"07:30").split(":").map(Number),sd=(S.studyAt||"20:00").split(":").map(Number);
+  const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+  const esc_=t=>String(t).replace(/\\/g,"\\\\").replace(/[,;]/g,m=>"\\"+m).replace(/\n/g,"\\n");
+  const dt=(d,h,m,add_=0)=>{const x=new Date(pd(d).getTime());x.setHours(h,m+add_,0,0);return `${x.getFullYear()}${pad(x.getMonth()+1)}${pad(x.getDate())}T${pad(x.getHours())}${pad(x.getMinutes())}00`};
+  const ev=(uid,d,h,m,mins,title,desc)=>["BEGIN:VEVENT",`UID:${uid}@rhythm-shahfiq23`,`DTSTAMP:${stamp}`,`DTSTART:${dt(d,h,m)}`,`DTEND:${dt(d,h,m,mins)}`,`SUMMARY:${esc_(title)}`,`DESCRIPTION:${esc_(desc)}`,
+    "BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${esc_(title)}`,"TRIGGER:-PT0M","END:VALARM","END:VEVENT"].join("\r\n");
+  const sch=schedule(),out=[];let nRun=0,nStudy=0;
+  for(const d of days){
+    const r=runOn(d);
+    if(r&&!S.runDone[d]){out.push(ev(`run-${d}`,d,st[0],st[1],45,`Run · ${r.test?"2.4 km test":KIND[r.k]}`,`${r.text}\n${WU}\nWeek ${r.w+1} · ${r.focus}`));nRun++}
+    const vids=(sch.map[d]||[]).filter(v=>!S.done[v.i]);
+    if(vids.length){const mins=Math.max(15,Math.round(vids.reduce((a,v)=>a+v.sec,0)/60));
+      out.push(ev(`study-${d}`,d,sd[0],sd[1],mins,`Security+ · ${vids.length} video${vids.length>1?"s":""}`,vids.map(v=>`${v.i+1}. ${v.title} (${v.len})`).join("\n")));nStudy++}
+  }
+  return {text:["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Rhythm//Planner//EN","CALSCALE:GREGORIAN","X-WR-CALNAME:Rhythm",...out,"END:VCALENDAR"].join("\r\n"),nRun,nStudy};
+}
+function exportCalendar(){
+  const span=S.calSpan||"week",last=span==="week"?add(TODAY,6):span==="month"?add(TODAY,27):END;
+  const days=[];for(let d=new Date(TODAY);d<=last;d=add(d,1))days.push(ds(d));
+  const {text,nRun,nStudy}=icsText(days);
+  if(!nRun&&!nStudy){toast({t:"Nothing to add",s:"No runs or study in that range",k:"warn"});return}
+  const file=new File([text],"rhythm-plan.ics",{type:"text/calendar"});
+  const msg={t:"Calendar ready",s:`${nRun} run${nRun===1?"":"s"} · ${nStudy} study block${nStudy===1?"":"s"}`,k:"ok"};
+  if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:"Rhythm plan"}).then(()=>toast(msg),()=>{});return}
+  const url=URL.createObjectURL(file),a=document.createElement("a");a.href=url;a.download="rhythm-plan.ics";a.target="_blank";document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);toast(msg);
+}
+
 // ---------- Settings ----------
 function applyTheme(){
   const t=S.theme==="light"||S.theme==="dark"?S.theme:null,root=document.documentElement;
@@ -706,9 +751,23 @@ function viewSettings(){
   <div class="sec"><div class="sh">Appearance</div><div class="grp"><div class="cell" style="display:block">
     <div class="seg" role="radiogroup" aria-label="Appearance">${seg("system","System")}${seg("light","Light")}${seg("dark","Dark")}</div></div></div>
     <div class="sf">System follows your iPhone's light and dark setting.</div></div>
+  <div class="sec"><div class="sh">Startup</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-splash">Heartbeat animation</label><input class="sw" type="checkbox" id="set-splash" data-act="splash" ${S.splash===false?"":"checked"}></div>
+  </div><div class="sf">Plays for about 1.7 seconds when the app opens.</div></div>
   <div class="sec"><div class="sh">Profile</div><div class="grp">
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
   </div><div class="sf">Used in your greeting on Today.</div></div>
+  <div class="sec"><div class="sh">2.4 km Goal</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-goal">Goal time</label><select id="set-goal" data-act="goal">${[...Array(13)].map((_,i)=>600+i*15).map(v=>`<option value="${v}" ${goalSec()===v?"selected":""}>${fmt(v)}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+    <div class="cell"><label class="grow" for="set-t1">First test</label><select id="set-t1" data-act="tw" data-n="0">${[...Array(7)].map((_,i)=>i+1).map(w=>`<option value="${w}" ${testWeeks()[0]===w?"selected":""} ${w>=testWeeks()[1]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+    <div class="cell"><label class="grow" for="set-t2">Final test</label><select id="set-t2" data-act="tw" data-n="1">${[...Array(7)].map((_,i)=>i+2).map(w=>`<option value="${w}" ${testWeeks()[1]===w?"selected":""} ${w<=testWeeks()[0]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+  </div><div class="sf">Test runs replace that week's tempo. The goal sets your target pace (${fmt(goalSec()/2.4)}/km) and the target line on your charts. Interval paces in the plan stay set for 11:00.</div></div>
+  <div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-runat">Run reminder</label><input id="set-runat" type="time" value="${S.runAt||"07:30"}" data-act="calset" style="width:110px"></div>
+    <div class="cell"><label class="grow" for="set-studyat">Study reminder</label><input id="set-studyat" type="time" value="${S.studyAt||"20:00"}" data-act="calset" style="width:110px"></div>
+    <div class="cell"><label class="grow" for="set-span">Add</label><select id="set-span" data-act="calset">${[["week","Next 7 days"],["month","Next 4 weeks"],["all","Until 3 Jan"]].map(([v,l])=>`<option value="${v}" ${(S.calSpan||"week")===v?"selected":""}>${l}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+    <button class="cell btnrow" data-act="calexport" style="font-weight:600">Add to Calendar</button>
+  </div><div class="sf">Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday.</div></div>
   <div class="sec"><div class="sh">Study</div><div class="grp">
     <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>
@@ -787,6 +846,9 @@ document.addEventListener("click",e=>{
     else if(k==="run")msg={t:"Run skipped",k:"moved"};
     else msg={t:"Videos moved",s:nv?`${nv} video${nv>1?"s":""} → your next free days`:"Moved to your next free days",k:"moved"};
     changed(msg);return}
+  else if(a==="splash"){S.splash=el.checked?undefined:false;if(S.splash===undefined)delete S.splash;save();
+    toast({t:el.checked?"Animation on":"Animation off",s:el.checked?"Plays when the app opens":"The app opens straight to Today",k:"ok"});return}
+  else if(a==="calexport"){exportCalendar();return}
   else if(a==="theme"){S.theme=el.dataset.v==="system"?null:el.dataset.v;save();applyTheme();render();
     toast({t:"Appearance",s:el.dataset.v==="system"?"Following your iPhone":el.dataset.v==="dark"?"Dark mode on":"Light mode on",k:"ok"});return}
   else if(a==="resetall"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Reset Everything";return}
@@ -801,7 +863,7 @@ document.addEventListener("click",e=>{
     const sec=+m[1]*60+ +m[2],isT=document.getElementById("rtt").checked,prev=best24();
     if(S.runs.some(r=>r.d===d&&r.sec===sec&&r.km===km)){toast({t:"Already logged",s:"That run is in your history",k:"warn"});return}
     S.runs.push({d,km,sec,tt:isT});S.runDone[d]=true;
-    changed(isT&&(prev==null||sec<prev)?{t:"New best 2.4!",s:prev==null?`${fmt(sec)} · ${fmt(Math.max(0,sec-GOAL_SEC))} to go`:`${fmt(sec)} · ${fmt(prev-sec)} faster`,k:"best"}
+    changed(isT&&(prev==null||sec<prev)?{t:"New best 2.4!",s:prev==null?`${fmt(sec)} · ${fmt(Math.max(0,sec-goalSec()))} to go`:`${fmt(sec)} · ${fmt(prev-sec)} faster`,k:"best"}
       :{t:"Run logged",s:`${km} km · ${fmt(sec)} · ${fmt(sec/km)}/km`,k:"run"})}
   else if(a==="delrun"){const k=el.dataset.k;const i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);if(i>-1){S.runs.splice(i,1);changed({t:"Run deleted",k:"undo"})}}
 });
@@ -809,6 +871,10 @@ document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];(()=>{if(!el.checked){changed(null);return}const v=VID[+i];changed(null);const n=VID.find(x=>!S.done[x.i]);
     toast({t:`Video ${v.i+1} watched`,s:n?`Next: ${n.title}`:"All 121 done. Time for practice exams!",k:"video"})})()}
+  else if(el.dataset.act==="goal"){S.goal=+el.value;if(S.goal===660)delete S.goal;changed({t:"Goal updated",s:`${fmt(goalSec())} · ${fmt(goalSec()/2.4)}/km`,k:"run"})}
+  else if(el.dataset.act==="tw"){const tw=[...testWeeks()];tw[+el.dataset.n]=+el.value;S.testWeeks=tw;
+    changed({t:"Test weeks updated",s:`Week ${tw[0]+1} and week ${tw[1]+1}`,k:"run"})}
+  else if(el.dataset.act==="calset"){if(el.id==="set-runat")S.runAt=el.value;else if(el.id==="set-studyat")S.studyAt=el.value;else S.calSpan=el.value;save()}
   else if(el.id==="set-name"){S.name=el.value.trim();save();toast({t:"Name saved",s:`${greeting()}, ${nameOf()}`,k:"ok"})}
   else if(el.dataset.act==="mins"){S.mins=+el.value;(()=>{changed(null);const f=schedule().last;toast({t:"Plan updated",s:`${S.mins} min per free day${f?` · finish ${pd(f).getDate()} ${MON[pd(f).getMonth()]}`:""}`,k:"ok"})})()}
 });
@@ -822,7 +888,7 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)return;cons
 applyTheme();
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(!S.theme)applyTheme()});
 render();
-(function(){const sp=document.getElementById("splash");if(!sp)return;
+(function(){const sp=document.getElementById("splash");if(!sp)return;if(S.splash===false){sp.remove();render(true);return}
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;let done=false;
   const finish=()=>{if(done)return;done=true;sp.classList.add("out");render(true);setTimeout(()=>sp.remove(),550)};
   sp.addEventListener("click",finish);setTimeout(finish,reduced?500:1650)})();
