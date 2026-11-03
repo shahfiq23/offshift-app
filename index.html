@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.0.2">
+<meta name="app-version" content="2.0.3">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -87,6 +87,8 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .seg button[aria-checked="true"]{background:var(--cell);box-shadow:0 3px 8px rgba(0,0,0,.12),0 1px 1px rgba(0,0,0,.08)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg button[aria-checked="true"]{background:#636366}}
 :root[data-theme="dark"] .seg button[aria-checked="true"]{background:#636366}
+.backlink{display:inline-flex;align-items:center;gap:4px;color:var(--blue);font-size:17px;margin:2px 0 2px -4px;width:fit-content}
+.chev.back{transform:rotate(180deg);color:var(--blue);width:10px;height:16px}
 /* grouped sections */
 .sec{display:grid;gap:7px;min-width:0}
 .sh{font-size:13px;color:var(--label2);text-transform:uppercase;padding:0 16px;letter-spacing:-.005em}
@@ -842,6 +844,14 @@ async function restoreSync(){
 }
 function disconnectSync(){lsSet(TOKEN_KEY,null);lsSet(SYNC_KEY,null);SY=null;render();toast({t:"Sync off",s:"Your backup stays on GitHub",k:"undo"})}
 const ago=t=>{if(!t)return "never";const s=(Date.now()-t)/1000;return s<60?"just now":s<3600?`${Math.floor(s/60)} min ago`:s<86400?`${Math.floor(s/3600)} h ago`:nice(new Date(t))};
+function liveCalSection(){
+  if(!syncOn())return `<div class="sec"><div class="sh">Live Calendar</div><div class="grp"><a class="cell" href="#settings-sync"><span class="grow" style="color:var(--label)">Turn on Sync & Backup</span>${IC.chev}</a></div><div class="sf">A live calendar that updates by itself needs Sync & Backup. Without it, use Add to Calendar below for a one-off copy.</div></div>`;
+  const url=calURL();
+  return `  <div class="sec"><div class="sh">Live Calendar</div><div class="grp">
+    <a class="cell btnrow" href="${url.replace(/^https:/,"webcal:")}" style="font-weight:600">Subscribe in Calendar</a>
+    <button class="cell btnrow" data-act="copycal">Copy Calendar Link</button>
+  </div><div class="sf">Subscribe once. Your runs and study blocks then update by themselves, including when you skip something. When iPhone asks, turn off "Remove Alerts" to keep the alerts.</div></div>`;
+}
 function syncSection(){
   const chev=IC.chev;
   if(!syncOn())return `<div class="sec"><div class="sh">Automatic Sync</div><div class="grp">
@@ -860,10 +870,6 @@ function syncSection(){
     <button class="cell btnrow" data-act="syncnow">Back Up Now</button>
     <button class="cell btnrow" data-act="syncrestore">Restore from GitHub</button>
   </div><div class="sf">Every change backs up a few seconds later. If you're offline, it catches up next time you open the app.</div></div>
-  <div class="sec"><div class="sh">Live Calendar</div><div class="grp">
-    <a class="cell btnrow" href="${url.replace(/^https:/,"webcal:")}" style="font-weight:600">Subscribe in Calendar</a>
-    <button class="cell btnrow" data-act="copycal">Copy Calendar Link</button>
-  </div><div class="sf">Subscribe once. Your runs and study blocks then update by themselves, including when you skip something. When iPhone asks, turn off "Remove Alerts" to keep the alerts.</div></div>
   <div class="sec"><div class="grp"><button class="cell btnrow destructive" data-act="syncoff">Disconnect GitHub</button></div></div>`;
 }
 window.addEventListener("online",()=>{if(syncOn()&&SY.dirty)pushSync()});
@@ -891,7 +897,7 @@ async function spToken(body){
 }
 async function spFinishLogin(){
   const q=new URLSearchParams(location.search);if(!q.has("code")&&!q.has("error"))return;
-  const pk=lsGet(SP_PKCE,null);history.replaceState(null,"",location.pathname+"#settings");lsSet(SP_PKCE,null);
+  const pk=lsGet(SP_PKCE,null);history.replaceState(null,"",location.pathname+"#settings-studymode");lsSet(SP_PKCE,null);
   if(q.has("error")||!pk||q.get("state")!==pk.state){toast({t:"Spotify not connected",s:q.get("error")==="access_denied"?"You cancelled the login":"Login didn't finish. Try again",k:"warn"});return}
   try{await spToken({grant_type:"authorization_code",code:q.get("code"),redirect_uri:SP_REDIRECT,code_verifier:pk.ver});
     toast({t:"Spotify connected",s:"Now pick your speaker",k:"ok"});render()}
@@ -917,7 +923,7 @@ const focusOn=()=>!!S.focusShortcut;
 // Two plain Shortcuts, no input needed: "Study On" and "Study Off".
 const smReady=()=>(spOn()&&spPlaylist())||focusOn();
 const spErr=e=>e.reason==="PREMIUM_REQUIRED"?{t:"Spotify Premium needed",k:"warn"}
-  :e.status===401||e.status===400?{t:"Spotify needs reconnecting",s:"Settings › Study Mode › Connect",k:"warn"}
+  :e.status===401||e.status===400?{t:"Spotify needs reconnecting",s:"Settings › Study Mode › Connect Spotify",k:"warn"}
   :e.status===404?{t:"Speaker went to sleep",s:"Pick it in Spotify once, then try again",k:"warn"}
   :{t:"Couldn't control music",s:e.message,k:"warn"};
 async function spPlayStudy(opt={}){
@@ -941,7 +947,7 @@ async function spPlayStudy(opt={}){
 const runFocus=arg=>{if(focusOn())location.href="shortcuts://run-shortcut?name="+encodeURIComponent(arg==="on"?"Study On":"Study Off")};
 let wakePending=null;
 async function startStudyMode(opt={}){
-  if(!smReady()){location.hash="#settings";toast({t:"Set up Study Mode first",s:"Settings › Study Mode",k:"warn"});return}
+  if(!smReady()){location.hash="#settings-studymode";toast({t:"Set up Study Mode first",s:"Settings › Study Mode",k:"warn"});return}
   if(S.session){islandOpen(true);return}
   let music=null;
   if(spOn()&&spPlaylist()){
@@ -1033,53 +1039,75 @@ function applyTheme(){
   const dark=t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
   document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{m.setAttribute("content",dark?"#000000":"#F2F2F7");if(t)m.removeAttribute("media")});
 }
+// Settings: an iOS-style main list; each row opens its own page (#settings-<page>).
+const SET_ICO={
+ appearance:["#5E5CE6",'<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 3.5a6.5 6.5 0 010 13z" fill="currentColor"/>'],
+ profile:["#8E8E93",'<circle cx="10" cy="7" r="3.2" fill="currentColor"/><path d="M3.8 16.5c.8-3 3.3-4.8 6.2-4.8s5.4 1.8 6.2 4.8z" fill="currentColor"/>'],
+ goal:["#FF9500",null],
+ study:["#34C759",'<path d="M3 5.2c2.4-.9 4.8-.6 7 .9 2.2-1.5 4.6-1.8 7-.9v10c-2.4-.9-4.8-.6-7 .9-2.2-1.5-4.6-1.8-7-.9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 6.1v10" stroke="currentColor" stroke-width="1.8"/>'],
+ studymode:["#FF2D55",'<path d="M8 3.5v9.2A2.8 2.8 0 106 15.3V7.6l8-1.8v5a2.8 2.8 0 102 2.6V2z" fill="currentColor"/>'],
+ calendar:["#FF3B30",null],
+ sync:["#007AFF",'<path d="M15.5 8A5.8 5.8 0 005 6.6M4.5 12a5.8 5.8 0 0010.5 1.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 3v4h4M15 17v-4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'],
+ reset:["#8E8E93",'<path d="M4.5 6h11M8 6V4.5h4V6M6 6l.8 10h6.4L14 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'],
+ about:["#8E8E93",'<circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 9v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="6.3" r="1.2" fill="currentColor"/>']};
+const setIco=k=>{const [bg,path]=SET_ICO[k];const svg=path?`<svg viewBox="0 0 20 20">${path}</svg>`:k==="goal"?IC.run:IC.cal;return `<span class="ico" style="background:${bg}">${svg}</span>`};
 function viewSettings(){
   const th=S.theme==="light"||S.theme==="dark"?S.theme:"system";
   const seg=(k,lbl)=>`<button role="radio" aria-checked="${th===k}" data-act="theme" data-v="${k}">${lbl}</button>`;
-  return `<div class="lt"><div class="sub">Rhythm</div><h1>Settings</h1></div>
-  <div class="sec"><div class="sh">Appearance</div><div class="grp"><div class="cell" style="display:block">
+  const ver=(document.querySelector('meta[name="app-version"]')||{}).content||"1.0";
+  const PAGES={
+    appearance:["Appearance",()=>`<div class="sec"><div class="sh">Appearance</div><div class="grp"><div class="cell" style="display:block">
     <div class="seg" role="radiogroup" aria-label="Appearance">${seg("system","System")}${seg("light","Light")}${seg("dark","Dark")}</div></div></div>
     <div class="sf">System follows your iPhone's light and dark setting.</div></div>
   <div class="sec"><div class="sh">Startup</div><div class="grp">
     <div class="cell"><label class="grow" for="set-splash">Heartbeat animation</label><input class="sw" type="checkbox" id="set-splash" data-act="splash" ${S.splash===false?"":"checked"}></div>
-  </div></div>
-  <div class="sec"><div class="sh">Profile</div><div class="grp">
+  </div></div>`],
+    profile:["Name",()=>`<div class="sec"><div class="grp">
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
-  </div></div>
-  <div class="sec"><div class="sh">2.4 km Goal</div><div class="grp">
+  </div></div>`],
+    goal:["2.4 km Goal",()=>`<div class="sec"><div class="sh">2.4 km Goal</div><div class="grp">
     <div class="cell"><label class="grow" for="set-goal">Goal time</label><select id="set-goal" data-act="goal">${[...Array(13)].map((_,i)=>600+i*15).map(v=>`<option value="${v}" ${goalSec()===v?"selected":""}>${fmt(v)}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t1">First test</label><select id="set-t1" data-act="tw" data-n="0">${[...Array(7)].map((_,i)=>i+1).map(w=>`<option value="${w}" ${testWeeks()[0]===w?"selected":""} ${w>=testWeeks()[1]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t2">Final test</label><select id="set-t2" data-act="tw" data-n="1">${[...Array(7)].map((_,i)=>i+2).map(w=>`<option value="${w}" ${testWeeks()[1]===w?"selected":""} ${w<=testWeeks()[0]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
-  </div><div class="sf">Test runs replace that week's tempo. The goal sets your target pace (${fmt(goalSec()/2.4)}/km) and the target line on your charts. Interval paces in the plan stay set for 11:00.</div></div>
-  ${syncSection()}
-  <div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
+  </div><div class="sf">Test runs replace that week's tempo. The goal sets your target pace (${fmt(goalSec()/2.4)}/km) and the target line on your charts. Interval paces in the plan stay set for 11:00.</div></div>`],
+    study:["Study",()=>`<div class="sec"><div class="sh">Study</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+  </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>`],
+    studymode:["Study Mode",()=>spotifySection()],
+    calendar:["Calendar",()=>liveCalSection()+`<div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
     <div class="cell"><label class="grow" for="set-calshifts">Include shifts</label><input class="sw" type="checkbox" id="set-calshifts" data-act="calshifts" ${S.calShifts===false?"":"checked"}></div>
     <div class="cell"><label class="grow" for="set-runat">Run reminder</label><input id="set-runat" type="time" value="${S.runAt||"20:15"}" data-act="calset" style="width:110px"></div>
     <div class="cell"><label class="grow" for="set-studyat">Study reminder</label><input id="set-studyat" type="time" value="${S.studyAt||"17:30"}" data-act="calset" style="width:110px"></div>
     ${syncOn()?"":`<div class="cell"><label class="grow" for="set-span">Add</label><select id="set-span" data-act="calset">${[["week","Next 7 days"],["month","Next 4 weeks"],["all","Until 3 Jan"]].map(([v,l])=>`<option value="${v}" ${(S.calSpan||"week")===v?"selected":""}>${l}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <button class="cell btnrow" data-act="calexport" style="font-weight:600">Add to Calendar</button>`}
-  </div><div class="sf">${syncOn()?"Your live calendar has your shifts, runs and study in one place. Changes show up next time your iPhone refreshes it.":"Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday. Turn on Automatic Sync above to have it update by itself."}</div></div>
-  ${spotifySection()}
-  <div class="sec"><div class="sh">Study</div><div class="grp">
-    <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
-  </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>
-  <div class="sec"><div class="sh">Backup</div><div class="grp">
+  </div><div class="sf">${syncOn()?"Your live calendar has your shifts, runs and study in one place. Changes show up next time your iPhone refreshes it.":"Adds your runs and study blocks to your iPhone Calendar with an alert at each time. It's a snapshot, so if your plan changes, add the next 7 days again each Sunday. Turn on Automatic Sync above to have it update by itself."}</div></div>`],
+    sync:["Sync & Backup",()=>syncSection()+`<div class="sec"><div class="sh">Backup</div><div class="grp">
     <button class="cell btnrow" data-act="export">Copy Backup</button>
     <div class="cell"><textarea id="imp" rows="2" placeholder="Paste a backup here to restore"></textarea></div>
     <button class="cell btnrow" data-act="import">Restore from Backup</button>
-  </div><div class="sf">${syncOn()?"Automatic Sync already backs up to GitHub. This is a manual copy if you want one.":"Your progress is saved on this phone only. Copy a backup into Notes every week or two, or turn on Automatic Sync."}</div></div>
-  <div class="sec"><div class="grp">
+  </div><div class="sf">${syncOn()?"Automatic Sync already backs up to GitHub. This is a manual copy if you want one.":"Your progress is saved on this phone only. Copy a backup into Notes every week or two, or turn on Automatic Sync."}</div></div>`],
+    reset:["Reset",()=>`<div class="sec"><div class="grp">
     <button class="cell btnrow destructive" data-act="clearshifts">Clear All Shifts</button>
     <button class="cell btnrow destructive" data-act="resetall">Reset All Progress</button>
-  </div><div class="sf">Reset clears your runs, watched videos and skipped days. Your shifts and settings stay.</div></div>
-  <div class="sec"><div class="grp">
+  </div><div class="sf">Reset clears your runs, watched videos and skipped days. Your shifts and settings stay.</div></div>`],
+    about:["About",()=>`<div class="sec"><div class="grp">
     <div class="cell"><span class="grow">Version</span><span class="trail">${(document.querySelector('meta[name="app-version"]')||{}).content||"1.0"}</span></div>
     <a class="cell" href="https://shahfiq23.github.io/offshift-app/" target="_blank" rel="noopener"><span class="grow" style="color:var(--label)">Website</span><span class="trail">shahfiq23.github.io</span></a>
-  </div></div>`;
+  </div></div>`]};
+  const sub=(location.hash.match(/^#settings-([a-z]+)$/)||[])[1];
+  if(sub&&PAGES[sub])return `<div class="lt"><a class="backlink" href="#settings">${IC.chev.replace('class="chev"','class="chev back"')}Settings</a><h1>${PAGES[sub][0]}</h1></div>${PAGES[sub][1]()}`;
+  const row=(k,label,val)=>`<a class="cell ind" href="#settings-${k}">${setIco(k)}<span class="grow" style="color:var(--label)">${label}</span>${val?`<span class="trail">${val}</span>`:""}${IC.chev}</a>`;
+  const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):focusOn()?"Focus only":"Off";
+  const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
+  return `<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>
+  <div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("profile","Name",esc(nameOf()))}</div></div>
+  <div class="sec"><div class="grp">${row("goal","2.4 km Goal",fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}</div></div>
+  <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
+  <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>`;
 }
 const VIEWS={today:()=>viewDay(T),day:()=>viewDay(DAYSEL),plan:viewPlan,run:viewRun,secplus:viewSec,settings:viewSettings};
 function route(){const h=location.hash.slice(1);const m=h.match(/^day-(\d{4}-\d{2}-\d{2})$/);
-  if(m){if(m[1]===T)return "today";DAYSEL=m[1];return "day"}return VIEWS[h]&&h!=="day"?h:"today"}
+  if(m){if(m[1]===T)return "today";DAYSEL=m[1];return "day"}if(/^settings-[a-z]+$/.test(h))return "settings";return VIEWS[h]&&h!=="day"?h:"today"}
 const goDay=d=>{location.hash=d===T?"#today":"#day-"+d};
 let enterT;
 function render(animate){
