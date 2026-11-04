@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.0.3">
+<meta name="app-version" content="2.0.4">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -1110,10 +1110,27 @@ function route(){const h=location.hash.slice(1);const m=h.match(/^day-(\d{4}-\d{
   if(m){if(m[1]===T)return "today";DAYSEL=m[1];return "day"}if(/^settings-[a-z]+$/.test(h))return "settings";return VIEWS[h]&&h!=="day"?h:"today"}
 const goDay=d=>{location.hash=d===T?"#today":"#day-"+d};
 let enterT;
+let lastView=null;
 function render(animate){
   const r=route(),app=document.getElementById("app");
+  // On an in-place redraw (e.g. ticking a video), remember where each ring and bar was so it can slide to its new value.
+  const same=!animate&&lastView===r+location.hash;
+  const oldRings=same?[...app.querySelectorAll("circle.ring")].map(c=>getComputedStyle(c).strokeDashoffset):[];
+  const oldBars=same?[...app.querySelectorAll(".bar i")].map(b=>b.style.width):[];
   app.classList.remove("enter");
   app.innerHTML=VIEWS[r]();
+  lastView=r+location.hash;
+  if(same&&!matchMedia("(prefers-reduced-motion: reduce)").matches){
+    const rings=[...app.querySelectorAll("circle.ring")],bars=[...app.querySelectorAll(".bar i")];
+    const tgtR=rings.map(c=>c.getAttribute("stroke-dashoffset")),tgtB=bars.map(b=>b.style.width);
+    rings.forEach((c,i)=>{if(oldRings[i]!=null){c.style.transition="none";c.style.strokeDashoffset=oldRings[i];
+      // an empty ring is hidden (its round cap would show a dot); keep it visible while it empties, then hide it
+      if(c.getAttribute("stroke-opacity")==="0"){c.removeAttribute("stroke-opacity");setTimeout(()=>{if(c.isConnected)c.setAttribute("stroke-opacity","0")},850)}}});
+    bars.forEach((b,i)=>{if(oldBars[i]!=null){b.style.transition="none";b.style.width=oldBars[i]}});
+    void app.offsetWidth;
+    rings.forEach((c,i)=>{if(oldRings[i]!=null){c.style.transition="stroke-dashoffset .8s cubic-bezier(.3,.7,.2,1)";c.style.strokeDashoffset=tgtR[i]}});
+    bars.forEach((b,i)=>{if(oldBars[i]!=null){b.style.transition="width .6s cubic-bezier(.3,.7,.2,1)";b.style.width=tgtB[i]}});
+  }
   if(animate){[...app.children].forEach((el,i)=>el.style.setProperty("--i",Math.min(i,8)));void app.offsetWidth;app.classList.add("enter");
     clearTimeout(enterT);enterT=setTimeout(()=>app.classList.remove("enter"),1800)}
   const tab=r==="day"?"today":r;document.querySelectorAll(".tabbar a").forEach(a=>a.getAttribute("href")==="#"+tab?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
