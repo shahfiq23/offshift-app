@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.3.1">
+<meta name="app-version" content="2.3.2">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -1080,7 +1080,7 @@ async function restoreSync(){
   try{const g=await gh("/gists/"+SY.gist);const f=g.files["rhythm-backup.json"];
     const txt=f.truncated?await (await fetch(f.raw_url)).text():f.content;const o=JSON.parse(txt);
     if(!o||typeof o.shifts!=="object")throw new Error("bad backup");
-    S=Object.assign({},DEF,o);S.welcomed=true;setSY({pending:null,rm:o.mtime||0});applyTheme();cache={};save(true);renderIsland();render(true);toast({t:"Restored from GitHub",s:"Your progress is back",k:"ok"})}
+    S=Object.assign({},DEF,o);S.welcomed=true;setSY({pending:null,rm:o.mtime||0});applyTheme();cache={};save(true);renderIsland();render(true);toast({t:nameOf()?`Welcome back, ${nameOf()}`:"Welcome back",s:"Progress restored",k:"ok"})}
   catch(e){toast({t:"Restore failed",s:e.status?syncErr(e):"The backup file couldn't be read",k:"warn"})}
 }
 // Log out: save anything not yet backed up, then wipe this device and go back to the login screen.
