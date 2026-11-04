@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.1.0">
+<meta name="app-version" content="2.2.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -115,6 +115,8 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .btn.small{padding:7px 14px;font-size:15px;border-radius:20px}
 .btn.block{width:100%}
 /* first-open login screen */
+.months{display:grid;gap:22px}
+.cols>.col,.cols .stack{display:grid;gap:22px;align-content:start;min-width:0}
 body.gate .tabbar{display:none}
 .gate-top{display:grid;justify-items:center;gap:8px;text-align:center;padding:12vh 16px 8px}
 .gate-top h1{font-size:30px;margin:6px 0 0}
@@ -223,6 +225,54 @@ svg text{fill:var(--label2);font:10px var(--font)}
 .tabbar a[aria-current="page"]{color:var(--orange)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 
+/* ---------- iPad and desktop ---------- */
+.side-title{display:none}
+@media (min-width:768px){
+  .page{max-width:1080px;padding-left:max(28px,env(safe-area-inset-left,0px));padding-right:max(28px,env(safe-area-inset-right,0px));gap:24px}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+  .cols.sticky-l>.col:first-child,.cols.split>.col:first-child{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+  .cols.split{grid-template-columns:minmax(0,320px) minmax(0,1fr)}
+  .cols.split .cell.sel{background:var(--blue)}
+  .cols.split .cell.sel .grow,.cols.split .cell.sel .trail{color:#fff!important}
+  .cols.split .cell.sel .chev{color:#fff;opacity:.8}
+  .pageh{margin:0 0 -8px;font-size:22px;font-weight:700;letter-spacing:.01em;padding-top:2px}
+  .months{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));align-items:start}
+  .ws-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+  .ws-day{background:var(--cell);border-radius:12px;padding:10px 9px 12px;display:grid;gap:7px;align-content:start;text-align:left;min-height:132px;
+    transition:transform .15s}
+  .ws-day:active{transform:scale(.97)}
+  .ws-day.past{opacity:.6}
+  .ws-day.sel{box-shadow:0 0 0 2px var(--blue) inset}
+  .ws-h{display:flex;align-items:baseline;justify-content:space-between;gap:4px}
+  .ws-dow{font-size:13px;font-weight:600;color:var(--label2);text-transform:uppercase}
+  .ws-n{font:600 20px/1 var(--round);min-width:30px;height:30px;display:grid;place-items:center;border-radius:15px;margin:-5px -4px 0 0}
+  .ws-day.today .ws-n{background:var(--red);color:#fff}
+  .ws-tag{justify-self:start;font-size:11px;font-weight:600;color:#fff;background:var(--indigo);border-radius:5px;padding:2px 6px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .ws-tag.hollow{background:transparent;color:var(--indigo);box-shadow:0 0 0 1.2px var(--indigo) inset}
+  .ws-tag.grey{background:var(--label3)}
+  .ws-tag.free{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+  .ws-l{display:flex;align-items:center;gap:5px;font-size:12.5px;line-height:1.25;color:var(--label);min-width:0}
+  .ws-l i{flex:none;width:7px;height:7px;border-radius:50%}
+  .ws-l.done{color:var(--label2)}
+  .ws-l.muted{color:var(--label2)}
+  .tabbar a{max-width:150px}
+  body.gate .page{max-width:520px}
+}
+/* Landscape iPad and desktop: tabs become a sidebar on the left, like iPad apps. */
+@media (min-width:1100px){
+  body{padding-left:248px}
+  .tabbar{top:0;right:auto;width:248px;flex-direction:column;justify-content:flex-start;gap:2px;border-top:0;border-right:.5px solid var(--sep);
+    padding:calc(env(safe-area-inset-top,0px) + 20px) 12px 20px max(12px,env(safe-area-inset-left,0px))}
+  .tabbar .side-title{display:block;font-size:28px;font-weight:700;letter-spacing:.01em;padding:4px 10px 14px;color:var(--label)}
+  .tabbar a{flex:none;max-width:none;display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:10px;font-size:17px;font-weight:500;color:var(--label)}
+  .tabbar a svg{width:24px;height:24px;color:var(--orange)}
+  .tabbar a[aria-current="page"]{background:var(--orange);color:#fff}
+  .tabbar a[aria-current="page"] svg{color:#fff}
+  .page{padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+  body.gate{padding-left:0}
+  .sess,.island{left:248px}
+}
+
 /* HUD toast */
 /* notifications: a capsule that drops from the top like the Dynamic Island */
 /* Study Mode capsule: compact countdown that expands for controls */
@@ -299,7 +349,7 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 </div>
 </div>
 <main class="page" id="app"></main>
-<nav class="tabbar" aria-label="Tabs">
+<nav class="tabbar" aria-label="Tabs"><div class="side-title">Rhythm</div>
   <a href="#today"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="14" cy="14" r="11"/><circle cx="14" cy="14" r="6.6"/><circle cx="14" cy="14" r="2.4"/></svg>Today</a>
   <a href="#plan"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="6" width="20" height="18" rx="4"/><path d="M4 11.5h20M9.5 3.5v5M18.5 3.5v5" stroke-linecap="round"/><circle cx="10" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="18" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="20.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="20.5" r="1.3" fill="currentColor" stroke="none"/></svg>Roster</a>
   <a href="#run"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="14" cy="15.5" r="9.5"/><path d="M14 15.5V10M11 3.5h6M21.5 7.5l1.6-1.6"/></svg>2.4 km</a>
@@ -518,37 +568,52 @@ function viewDay(D){
   else next={c:"var(--green)",i:IC.check,e:"All done",h:"Today's plan is finished.",p:"Put the phone in another room and do something offline."};
   const optional=(isToday&&t==="shift")?VID.find(v=>!S.done[v.i]):null;
   const prev=ds(add(dd,-1)),nxt=ds(add(dd,1));
-  return `
+  const head=`
   ${isToday?`<div class="greet">${greeting()}, ${esc(nameOf())}</div>`:""}
   <div class="lt"><div class="sub">${longDate(dd)}</div><div class="row"><h1>${dayTitle(D)}</h1>
     <div class="daynav">${!isToday?`<button class="btn tint small" data-act="go" data-d="${T}">Today</button>`:""}
     <button class="navb" data-act="go" data-d="${prev}" aria-label="Previous day">‹</button><button class="navb" data-act="go" data-d="${nxt}" aria-label="Next day">›</button></div></div></div>
-  ${isToday&&TODAY<START?`<p class="sf" style="padding:0 2px;margin:-10px 0 0">The 9-week run plan starts Monday, 2 November.</p>`:""}
-  <div class="sec"><div class="sh big">${isToday?"Up Next":"Plan"}</div>
-    <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>
-  ${(!future&&!isToday)||t==="shift"?"":(()=>{
+  ${isToday&&TODAY<START?`<p class="sf" style="padding:0 2px;margin:-10px 0 0">The 9-week run plan starts Monday, 2 November.</p>`:""}`;
+  const upnext=`<div class="sec"><div class="sh big">${isToday?"Up Next":"Plan"}</div>
+    <div class="next"><div class="tag" style="color:${next.c}"><i style="background:${next.c}">${next.i}</i>${esc(next.e)}</div><h2>${esc(next.h)}</h2><p>${esc(next.p)}</p>${next.btn||""}</div></div>`;
+  const cando=`${(!future&&!isToday)||t==="shift"?"":(()=>{
     const showRun=!!r||skipRun(D), runOn_=!skipRun(D), studyOn=!skipStudy(D);
     return `<div class="sec"><div class="sh">What can you do ${isToday?"today":"that day"}?</div><div class="grp">
       ${showRun?`<div class="cell ind"><span class="ico" style="background:${runOn_?"var(--orange)":"var(--label3)"}">${IC.run}</span><label class="grow" for="sk-run"><div>Run</div><div class="t2">${runOn_?(r?KIND[r.k]+" planned":"Planned"):"Skipped · moved to another free day"}</div></label><input class="sw" type="checkbox" id="sk-run" data-act="skip" data-k="run" data-d="${D}" ${runOn_?"checked":""}></div>`:""}
       <div class="cell ind"><span class="ico" style="background:${studyOn?"var(--blue)":"var(--label3)"}">${IC.play}</span><label class="grow" for="sk-study"><div>Security+</div><div class="t2">${studyOn?(vids.length?`${vids.length} video${vids.length>1?"s":""} · ${vidMin}`:"Nothing planned"):"Skipped · videos moved to your next free days"}</div></label><input class="sw" type="checkbox" id="sk-study" data-act="skip" data-k="study" data-d="${D}" ${studyOn?"checked":""}></div>
-    </div><div class="sf">Too tired or out? Switch off what you can't do and it moves to your next free days.</div></div>`})()}
-  ${isToday?`<div class="sec"><div class="grp"><div class="rings">
+    </div><div class="sf">Too tired or out? Switch off what you can't do and it moves to your next free days.</div></div>`})()}`;
+  const rings=`${isToday?`<div class="sec"><div class="grp"><div class="rings">
     <svg viewBox="0 0 132 132" role="img" aria-label="Weekly rings">${ring(58,runsPlanned?runsDone/runsPlanned:0,"var(--orange)")}${ring(41,studyGoal?studyDone/studyGoal:0,"var(--green)")}${ring(24,todayPlanned?todayDone/todayPlanned:1,"var(--teal)")}</svg>
     <div class="rl">
       <div><span class="k" style="color:var(--orange)">Runs this week</span><span class="v">${runsDone}<small>/${runsPlanned}</small></span></div>
       <div><span class="k" style="color:var(--green)">Study this week</span><span class="v">${Math.round(studyDone)}<small>/${Math.round(studyGoal)} min</small></span></div>
       <div><span class="k" style="color:var(--teal)">Today's plan</span><span class="v">${todayPlanned?`${todayDone}<small>/${todayPlanned} done</small>`:`<small>Rest day</small>`}</span></div>
-    </div></div></div></div>`:""}
-  ${isToday&&dd.getDay()===0?weekRecap():""}
-  ${r?`<div class="sec"><div class="sh">Run · Week ${r.w+1} · ${r.focus}</div><div class="grp">
+    </div></div></div></div>`:""}`;
+  const recap=isToday&&dd.getDay()===0?weekRecap():"";
+  const runSec=`${r?`<div class="sec"><div class="sh">Run · Week ${r.w+1} · ${r.focus}</div><div class="grp">
       <div class="cell ind"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${KIND[r.k]}</div><div class="t2">${esc(r.text)}</div></div></div>
       ${runDone?`<div class="cell" style="color:var(--green)">${IC.check.replace("<svg",'<svg width="20" height="20"')} Done</div>`:future?"":`<button class="cell btnrow" data-act="rundone" data-d="${D}">Mark as Done</button>`}
-    </div><div class="sf">${WU}</div></div>`:""}
-  <div class="sec"><div class="sh">Security+${vids.length?` · ${vidMin}`:""}</div>
+    </div><div class="sf">${WU}</div></div>`:""}`;
+  const secSec=`<div class="sec"><div class="sh">Security+${vids.length?` · ${vidMin}`:""}</div>
     ${vids.length?`<div class="grp">${vids.map(vrow).join("")}</div>${future?'<div class="sf">Projected from your current pace. It shifts if you watch more or less before then.</div>':""}`
       :optional?`<div class="grp">${vrow(optional)}</div><div class="sf">Only if you feel like it on the commute. Shift days have no study target. This is your next video in order.</div>`
       :`<div class="grp"><div class="cell" style="color:var(--label2)">${!future&&!isToday?"No videos watched that day.":t==="shift"?"No study on shift days.":"No videos planned."}</div></div>`}
   </div>`;
+  return wide()?head+cols(upnext+cando+runSec,rings+recap+secSec)+weekStrip(dd):head+upnext+cando+rings+recap+runSec+secSec;
+}
+// iPad/desktop: the whole week at a glance under Today. Tap a day to open it.
+function weekStrip(dd){
+  const sch=schedule(),wd=weekDays(dd);
+  const cards=wd.map(d=>{const x=pd(d),t=dayType(d),r=runOn(d),past=d<T;
+    const vids=past?VID.filter(v=>S.done[v.i]===d):(sch.map[d]||[]);
+    const vDone=vids.filter(v=>S.done[v.i]).length,vSec=vids.reduce((a,v)=>a+v.sec,0);
+    const top=t==="shift"?`<span class="ws-tag">${shortTime(d)}</span>`:t==="rec"?`<span class="ws-tag hollow">After night</span>`:t==="busy"?`<span class="ws-tag grey">Busy</span>`:`<span class="ws-tag free">Free</span>`;
+    const run=r?`<div class="ws-l${S.runDone[d]?" done":""}"><i style="background:var(--orange)"></i>${r.test?"2.4 test":KIND[r.k]}${S.runDone[d]?" ✓":""}</div>`:"";
+    const study=vids.length?`<div class="ws-l${vDone===vids.length?" done":""}"><i style="background:var(--green)"></i>${past||vDone===vids.length?`${vids.length} video${vids.length>1?"s":""} ✓`:vDone?`${vDone}/${vids.length} done`:hm(vSec)}</div>`:"";
+    const none=!run&&!study?`<div class="ws-l muted">${t==="shift"?"Rest":t==="rec"?"Sleep":"Nothing planned"}</div>`:"";
+    return `<button class="ws-day${d===T?" today":""}${d===(DAYSEL||T)&&route()==="day"?" sel":""}${past?" past":""}" data-act="go" data-d="${d}" aria-label="${nice(x)}">
+      <div class="ws-h"><span class="ws-dow">${DOW[x.getDay()]}</span><span class="ws-n">${x.getDate()}</span></div>${top}${run}${study}${none}</button>`}).join("");
+  return `<div class="sec ws"><div class="sh">This Week · ${nice(pd(wd[0]))} – ${nice(pd(wd[6]))}</div><div class="ws-row">${cards}</div></div>`;
 }
 function screenChart(){
   const days=[...Array(14)].map((_,i)=>ds(add(TODAY,i-14)));
@@ -575,7 +640,7 @@ function viewPlan(){
   return `<div class="lt"><div class="sub">Cyber Shift roster</div><div class="row"><h1>Roster</h1><button class="btn ${editShifts?"fill":"tint"} small" data-act="editshifts">${editShifts?"Done":"Edit Shifts"}</button></div></div>
   ${editShifts?'<div class="sf" style="margin-top:-10px;color:var(--blue)">Tap days to add or remove a shift. Tap Done when finished.</div>':""}
   <div class="legend"><span><i style="background:var(--indigo)"></i>Shift (N = night)</span><span><i style="background:transparent;border:1.5px solid var(--indigo)"></i>After a night shift</span><span><i style="background:var(--label3)"></i>Busy</span><span><i style="background:var(--orange)"></i>Run</span><span><i style="background:var(--green)"></i>Sec+ videos</span></div>
-  ${month(2026,10)}${month(2026,11)}${month(2027,0)}
+  <div class="months">${month(2026,10)}${month(2026,11)}${month(2027,0)}</div>
   <div class="sf" style="margin-top:-12px">Tap any day to see its plan. Use Edit Shifts to change your roster; runs and videos move around it automatically.</div>`;
 }
 
@@ -650,17 +715,17 @@ function viewRun(){
   const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
     <dl><dt>Intervals</dt><dd>${esc(p.A)}</dd><dt>Easy</dt><dd>${esc(p.B)}</dd><dt>${isTestWk(i)?"Test":"Tempo"}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
   const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${r.km} km${r.tt?' <span class="badge">2.4 Test</span>':""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(r.sec/r.km)} /km</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
-  return `<div class="lt"><div class="sub">IPPT 2.4 km · 2 Nov – 3 Jan</div><h1>2.4 km</h1></div>
+  const head=`<div class="lt"><div class="sub">IPPT 2.4 km · 2 Nov – 3 Jan</div><h1>2.4 km</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":"starting ~13:00"}</span></div>
     <div class="stat"><span class="k">Goal</span><span class="v o">${fmt(goalSec())}</span><span class="s">${fmt(goalSec()/2.4)} /km</span></div>
     <div class="stat"><span class="k">To Cut</span><span class="v g">${fmt(Math.max(0,cur-goalSec()))}</span><span class="s">${Math.round(pct)}% there</span></div></div>
     <div class="pad"><div class="bar o" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div>
-  </div><div class="sf">Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that. The week ${testWeeks()[0]+1} test should come in near ${fmt(aimAt(testWeeks()[0]))}. If it does, ${fmt(goalSec())} in week ${testWeeks()[1]+1} is realistic.</div></div>
-  <div class="sec"><div class="sh">2.4 km Tests</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${testChart()}</div></div>
+  </div><div class="sf">Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that. The week ${testWeeks()[0]+1} test should come in near ${fmt(aimAt(testWeeks()[0]))}. If it does, ${fmt(goalSec())} in week ${testWeeks()[1]+1} is realistic.</div></div>`;
+  const charts=`<div class="sec"><div class="sh">2.4 km Tests</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${testChart()}</div></div>
     <div class="sf">${S.runs.some(r=>r.tt)?`Orange is your logged tests. Stay on or above the dashed target line to reach ${fmt(goalSec())} by 3 January.`:`The dashed line is your target path from 13:00 to ${fmt(goalSec())}. Your 2.4 tests appear here as you log them${(()=>{const d=Object.entries(weekRuns(testWeeks()[0])).find(([,k])=>k==="C");return d?`; the first is on ${nice(pd(d[0]))}`:""})()}.`}</div></div>
-  ${S.runs.length?`<div class="sec"><div class="sh">Pace per Run</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${paceChart()}</div></div><div class="sf">Your last ${Math.min(14,S.runs.length)} runs. Taller is faster; orange bars are 2.4 tests. Easy runs should sit well below the goal pace.</div></div>`:""}
-  <div class="sec"><div class="sh">Log a Run</div><div class="grp">
+  ${S.runs.length?`<div class="sec"><div class="sh">Pace per Run</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${paceChart()}</div></div><div class="sf">Your last ${Math.min(14,S.runs.length)} runs. Taller is faster; orange bars are 2.4 tests. Easy runs should sit well below the goal pace.</div></div>`:""}`;
+  const logSec=`<div class="sec"><div class="sh">Log a Run</div><div class="grp">
     <div class="cell" style="display:grid;gap:6px;align-items:start"><label for="voice" class="t2" style="display:flex;gap:6px;align-items:center;color:var(--blue);font-weight:600;font-size:15px">${IC.mic} Say it</label>
       <textarea id="voice" rows="2" placeholder="Tap here, then the mic on your keyboard. Try “2.4 in 12 minutes 45”."></textarea><div id="voiceout" class="t2" aria-live="polite"></div></div>
     <div class="cell"><label class="grow" for="rd">Date</label><input id="rd" type="date" value="${T}" style="width:150px"></div>
@@ -669,9 +734,10 @@ function viewRun(){
     <div class="cell"><label class="grow" for="rtt">Full-effort 2.4 km test</label><input class="sw" id="rtt" type="checkbox"></div>
     <button class="cell btnrow" data-act="logrun" style="font-weight:600">Log Run</button>
   </div><div class="sf">Say it fills in the form below. You can also say “yesterday”, a day like “Tuesday”, or “test” for a full-effort 2.4. Logging a run also ticks off that day's session.</div></div>
-  ${log?`<div class="sec"><div class="sh">History</div><div class="grp">${log}</div></div>`:""}
-  <div class="sec"><div class="sh">The Plan</div><div class="grp">${wkRows}</div>
+  ${log?`<div class="sec"><div class="sh">History</div><div class="grp">${log}</div></div>`:""}`;
+  const planSec=`<div class="sec"><div class="sh">The Plan</div><div class="grp">${wkRows}</div>
   <div class="sf">Up to three runs a week, only on free days. Never on a shift day, never the morning a night shift ends, and never two hard sessions back to back. ${WU}</div></div>`;
+  return wide()?head+cols(charts+planSec,logSec):head+charts+logSec+planSec;
 }
 
 // Course list: domain dropdowns, videos numbered 1-121 in playlist order, next video marked.
@@ -692,16 +758,17 @@ function courseList(){
 function viewSec(){
   const sch=schedule();const done=VID.filter(v=>S.done[v.i]);const dsec=done.reduce((a,v)=>a+v.sec,0);
   const fin=sch.last?pd(sch.last):null;
-  return `<div class="lt"><div class="sub">CompTIA SY0-701 · Professor Messer</div><h1>Security+</h1></div>
-  <div class="sec"><div class="grp">
+  const head=`<div class="lt"><div class="sub">CompTIA SY0-701 · Professor Messer</div><h1>Security+</h1></div>`;
+  const side=`<div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Watched</span><span class="v">${done.length}<span style="font-size:17px;color:var(--label2)">/121</span></span></div>
     <div class="stat"><span class="k">Time Left</span><span class="v">${hm(TOTAL_SEC-dsec)}</span></div>
     <div class="stat"><span class="k">Finish</span><span class="v g">${fin?`${fin.getDate()} ${MON[fin.getMonth()]}`:"Done"}</span></div></div>
     <div class="pad"><div class="bar" role="progressbar" aria-valuenow="${done.length}" aria-valuemin="0" aria-valuemax="121"><i style="width:${done.length/121*100}%"></i></div></div>
     <div class="cell"><label class="grow" for="mins">Study per free day</label><select id="mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">Shift days have no study target. The day a night shift ends gets half. After the videos, do two weeks of practice exams before you book. Domain 4 is the biggest slice and overlaps your SOC work.</div></div>
-  ${(()=>{const n=VID.find(v=>!S.done[v.i]);return n?`<button class="btn tint block" data-act="jumpnext">Continue: ${n.i+1}. ${esc(n.title)}</button>${studyModeBtn("btn fill block")}`:""})()}
-  <div class="sec"><div class="sh">Course · in playlist order</div><div class="grp">${courseList()}</div></div>`;
+  ${(()=>{const n=VID.find(v=>!S.done[v.i]);return n?`<button class="btn tint block" data-act="jumpnext">Continue: ${n.i+1}. ${esc(n.title)}</button>${studyModeBtn("btn fill block")}`:""})()}`;
+  const course=`<div class="sec"><div class="sh">Course · in playlist order</div><div class="grp">${courseList()}</div></div>`;
+  return wide()?head+cols(`<div class="stack">${side}</div>`,course,"sticky-l"):head+side+course;
 }
 
 // ---------- Spoken run entry (iPhone keyboard dictation) ----------
@@ -1208,17 +1275,24 @@ function viewSettings(){
     <div class="cell"><span class="grow">Version</span><span class="trail">${(document.querySelector('meta[name="app-version"]')||{}).content||"1.0"}</span></div>
     <a class="cell" href="https://shahfiq23.github.io/offshift-app/" target="_blank" rel="noopener"><span class="grow" style="color:var(--label)">Website</span><span class="trail">shahfiq23.github.io</span></a>
   </div></div>`]};
-  const sub=(location.hash.match(/^#settings-([a-z]+)$/)||[])[1];
-  if(sub&&PAGES[sub])return `<div class="lt"><a class="backlink" href="#settings">${IC.chev.replace('class="chev"','class="chev back"')}Settings</a><h1>${PAGES[sub][0]}</h1></div>${PAGES[sub][1]()}`;
-  const row=(k,label,val)=>`<a class="cell ind" href="#settings-${k}">${setIco(k)}<span class="grow" style="color:var(--label)">${label}</span>${val?`<span class="trail">${val}</span>`:""}${IC.chev}</a>`;
+  let sub=(location.hash.match(/^#settings-([a-z]+)$/)||[])[1];
+  if(wide()&&!PAGES[sub])sub="appearance";
+  if(sub&&PAGES[sub]&&!wide())return `<div class="lt"><a class="backlink" href="#settings">${IC.chev.replace('class="chev"','class="chev back"')}Settings</a><h1>${PAGES[sub][0]}</h1></div>${PAGES[sub][1]()}`;
+  const row=(k,label,val)=>`<a class="cell ind${wide()&&k===sub?" sel":""}" href="#settings-${k}"${wide()&&k===sub?' aria-current="true"':""}>${setIco(k)}<span class="grow" style="color:var(--label)">${label}</span>${val?`<span class="trail">${val}</span>`:""}${IC.chev}</a>`;
   const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):"Off";
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
-  return `<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>
-  <div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("profile","Name",esc(nameOf()))}</div></div>
+  const head=`<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>`;
+  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("profile","Name",esc(nameOf()))}</div></div>
   <div class="sec"><div class="grp">${row("goal","2.4 km Goal",fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>`;
+  if(wide())return head+cols(`<div class="stack">${list}</div>`,`<h2 class="pageh">${PAGES[sub][0]}</h2>${PAGES[sub][1]()}`,"split");
+  return head+list;
 }
+// Wide screens (iPad, desktop): views lay their sections out in two columns.
+const WIDE=matchMedia("(min-width: 768px)");
+const wide=()=>WIDE.matches;
+const cols=(l,r,cls="")=>`<div class="cols${cls?" "+cls:""}"><div class="col">${l}</div><div class="col">${r}</div></div>`;
 const VIEWS={today:()=>viewDay(T),day:()=>viewDay(DAYSEL),plan:viewPlan,run:viewRun,secplus:viewSec,settings:viewSettings};
 function route(){const h=location.hash.slice(1);const m=h.match(/^day-(\d{4}-\d{2}-\d{2})$/);
   if(m){if(m[1]===T)return "today";DAYSEL=m[1];return "day"}if(/^settings-[a-z]+$/.test(h))return "settings";return VIEWS[h]&&h!=="day"?h:"today"}
@@ -1382,6 +1456,7 @@ if(syncOn())setTimeout(pullSync,600);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&syncOn())setTimeout(pullSync,300)});
 setInterval(()=>{if(!document.hidden)pullSync()},60000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(!S.theme)applyTheme()});
+WIDE.addEventListener?.("change",()=>render());
 render();
 (function(){const sp=document.getElementById("splash");if(!sp)return;if(S.splash===false){sp.remove();render(true);return}
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;let done=false;
