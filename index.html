@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.2.4">
+<meta name="app-version" content="2.3.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -114,6 +114,11 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .btn.tint{background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--blue)}
 .btn.small{padding:7px 14px;font-size:15px;border-radius:20px}
 .btn.block{width:100%}
+/* demo banner */
+.demo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--label);
+  border-radius:12px;padding:10px 12px 10px 14px;font-size:15px;margin-top:6px}
+.demo-bar b{color:var(--blue)}
+.demo-bar button{background:var(--blue);color:#fff;font-weight:600;font-size:15px;border-radius:16px;padding:6px 14px;flex:none}
 /* first-open login screen */
 .months{display:grid;gap:22px}
 .cols>.col,.cols .stack{display:grid;gap:22px;align-content:start;min-width:0}
@@ -446,7 +451,9 @@ const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45,busy:{}};
 let S=JSON.parse(JSON.stringify(DEF));
 try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
 // S.mtime = when this device last changed something. Sync uses it to tell which copy is newer.
-function save(quiet){if(!quiet)S.mtime=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}try{scheduleSync()}catch(e){/* sync code not loaded yet during startup */}}
+// Demo mode: sample data held in memory only. Nothing is saved or synced, and the real data is never loaded.
+let DEMO=localStorage.getItem("rhythm-demo")==="1"&&!localStorage.getItem("rhythm-gh-token");
+function save(quiet){if(!quiet)S.mtime=Date.now();if(DEMO)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}try{scheduleSync()}catch(e){/* sync code not loaded yet during startup */}}
 
 // ---------- planning ----------
 let cache={};
@@ -532,8 +539,8 @@ function ring(r,frac,color){const c=2*Math.PI*r,f=Math.max(0,Math.min(1,frac));
   <circle class="ring" style="--c:${c}" cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-f)+(f===0?0:0)}" transform="rotate(-90 66 66)" ${f===0?'stroke-opacity="0"':""}/>`}
 
 const nameOf=()=>(S.name||"").trim();
-// Before 2.2.4 the name defaulted to Shahfiq on devices that had the built-in roster. Keep it there.
-if(S.seeded&&S.name==null){S.name="Shahfiq";save(true)}
+// Before 2.2.4 the name defaulted to Shahfiq on devices that had the built-in roster. Keep it on logged-in devices.
+if(S.seeded&&S.name==null&&localStorage.getItem("rhythm-gh-token")){S.name="Shahfiq";save(true)}
 function greeting(){const h=new Date().getHours();return h>=5&&h<12?"Good morning":h>=12&&h<18?"Good afternoon":"Good evening"}
 function dayTitle(D){const n=diff(pd(D),TODAY);return n===0?"Today":n===1?"Tomorrow":n===-1?"Yesterday":LONGDOW[pd(D).getDay()]}
 function viewDay(D){
@@ -991,6 +998,7 @@ document.addEventListener("submit",e=>{
 });
 async function connectSync(token){
   token=(token||"").trim();if(!/^(github_pat_|ghp_)\w{20,}$/.test(token)){toast({t:"That doesn't look like a key",s:"It starts with github_pat_ or ghp_",k:"warn"});return}
+  if(DEMO)exitDemo(false);
   lsSet(TOKEN_KEY,token);toast({t:"Connecting…",s:"Checking your key with GitHub",k:"copy"});
   try{
     const me=await gh("/user");
@@ -1322,29 +1330,56 @@ function route(){const h=location.hash.slice(1);const m=h.match(/^day-(\d{4}-\d{
 const goDay=d=>{location.hash=d===T?"#today":"#day-"+d};
 let enterT;
 let lastView=null;
-// A new device (never connected, never skipped) opens on a login screen.
-const needLogin=()=>!syncOn()&&!S.welcomed&&!(SY&&SY.pending);
+// A device that isn't logged in opens on the login screen, unless it's showing the demo.
+const needLogin=()=>!syncOn()&&!DEMO&&!(SY&&SY.pending);
+// Made-up person, roster and progress for the demo. Dates are relative to today so it always looks lived-in.
+function demoState(){
+  const o=JSON.parse(JSON.stringify(DEF));o.name="Alex";o.splash=false;
+  // 2 day shifts, 2 nights, 4 off, lined up so today is a free day with a run and videos.
+  const cyc=["08:00-20:00","08:00-20:00","20:00-08:00","20:00-08:00",null,null,null,null];
+  const from=add(TODAY,-70),off=((6-diff(TODAY,from))%8+8)%8;
+  for(let d=from,i=0;d<=add(END,14);d=add(d,1),i++){const t=cyc[(i+off)%8];if(t)o.shifts[ds(d)]=t}
+  const free=[];for(let d=add(TODAY,-1);d>=add(TODAY,-20)&&free.length<8;d=add(d,-1)){const k=ds(d),p=ds(add(d,-1));if(!o.shifts[k]&&!(o.shifts[p]&&+o.shifts[p].slice(0,2)>=19))free.push(k)}
+  free.reverse();
+  VID.slice(0,Math.min(16,free.length*2)).forEach((v,i)=>{o.done[v.i]=free[Math.floor(i/2)]});
+  const nxt=VID.find(v=>!o.done[v.i]);if(nxt)o.done[nxt.i]=T;
+  const pick=k=>free[free.length-k];
+  const runs=[[pick(7),3,1150,0],[pick(5),2.4,778,1],[pick(3),3.5,1310,0],[pick(1),2.4,1220,0]].filter(r=>r[0]);
+  o.runs=runs.map(([d,km,sec,tt])=>tt?{d,km,sec,tt:1}:{d,km,sec});runs.forEach(([d])=>o.runDone[d]=true);
+  return o;
+}
+function startDemo(){
+  try{localStorage.removeItem(KEY);localStorage.setItem("rhythm-demo","1")}catch(e){}
+  DEMO=true;S=demoState();cache={};openDoms=null;applyTheme();location.hash="#today";render(true);
+  toast({t:"Demo mode",s:"Sample data. Nothing you do here is saved",k:"copy"});
+}
+function exitDemo(show=true){
+  try{localStorage.removeItem("rhythm-demo")}catch(e){}
+  DEMO=false;S=JSON.parse(JSON.stringify(DEF));cache={};openDoms=null;applyTheme();
+  if(show){location.hash="#today";render(true)}
+}
 function viewLogin(){
   return `<div class="gate-top"><svg viewBox="0 0 120 40" width="96" height="32" aria-hidden="true"><defs><linearGradient id="gw" x1="0" x2="1"><stop offset="0" stop-color="#5E5CE6"/><stop offset=".55" stop-color="#FF375F"/><stop offset="1" stop-color="#FF9F0A"/></linearGradient></defs><path d="M4 20h26l7-13 10 26 9-19 6 6h54" fill="none" stroke="url(#gw)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <h1>Welcome to Rhythm</h1><div class="t2">Log in to bring your plan and progress onto this device.</div></div>
+    <h1>Welcome to Rhythm</h1><div class="t2">Log in to bring your plan and progress onto this device, or try the demo to see what Rhythm can do.</div></div>
   <div class="sec"><form class="grp" id="loginform" autocomplete="on">
     <div class="cell"><label class="grow" for="lg-user">Username</label><input id="lg-user" name="username" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="GitHub username" style="width:170px"></div>
     <div class="cell"><label class="grow" for="lg-pw">Password</label><input id="lg-pw" name="password" type="password" autocomplete="current-password" placeholder="Required" style="width:170px"></div>
   </form></div>
   <div class="sec"><button class="btn fill block" type="submit" form="loginform">Log In</button></div>
-  <div class="sec gate-alt"><a href="#settings-sync" data-act="gatekey">Use GitHub Key Instead</a><button data-act="gateskip">Continue Without Logging In</button></div>`;
+  <div class="sec gate-alt"><a href="#settings-sync" data-act="gatekey">Use GitHub Key Instead</a><button data-act="gateskip">Try the Demo</button></div>`;
 }
 function render(animate){
   const r=route(),app=document.getElementById("app");
   const gate=needLogin()&&!(r==="settings"&&location.hash==="#settings-sync");
   document.body.classList.toggle("gate",gate);
   if(gate){app.classList.remove("enter");app.innerHTML=viewLogin();lastView="gate";return}
+  document.body.classList.toggle("demo",DEMO);
   // On an in-place redraw (e.g. ticking a video), remember where each ring and bar was so it can slide to its new value.
   const same=!animate&&lastView===r+location.hash;
   const oldRings=same?[...app.querySelectorAll("circle.ring")].map(c=>getComputedStyle(c).strokeDashoffset):[];
   const oldBars=same?[...app.querySelectorAll(".bar i")].map(b=>b.style.width):[];
   app.classList.remove("enter");
-  app.innerHTML=VIEWS[r]();
+  app.innerHTML=(DEMO?`<div class="demo-bar"><span><b>Demo</b> · sample data</span><button data-act="demoexit">Log In</button></div>`:"")+VIEWS[r]();
   lastView=r+location.hash;
   if(same&&!matchMedia("(prefers-reduced-motion: reduce)").matches){
     const rings=[...app.querySelectorAll("circle.ring")],bars=[...app.querySelectorAll(".bar i")];
@@ -1427,7 +1462,8 @@ document.addEventListener("click",e=>{
   else if(a==="syncnow"){pushSync(true);return}
   else if(a==="logout"){showLogoutSheet();return}
   else if(a==="logoutyes"){hideSheet();logOut();return}
-  else if(a==="gateskip"){S.welcomed=true;save(true);render(true);return}
+  else if(a==="gateskip"){startDemo();return}
+  else if(a==="demoexit"){exitDemo();return}
   else if(a==="gatekey"){return}
   else if(a==="pwremove"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Remove";return}removeLoginPassword();return}
   else if(a==="syncrestore"){restoreSync();return}
@@ -1473,6 +1509,7 @@ document.addEventListener("touchend",e=>{if(sx==null)return;const dx=e.changedTo
 window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}else if(route()==="today")render()});
+if(DEMO)S=demoState();
 applyTheme();
 spFinishLogin();
 renderIsland();
