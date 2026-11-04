@@ -366,6 +366,43 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 <div class="sess" id="sess" role="status" aria-label="Study Mode session" hidden></div>
 <div class="island" id="toast" role="status" aria-live="polite" hidden><span class="iico" id="toastIco"></span><span class="itxt"><b id="toastT"></b><span id="toastS"></span></span></div>
 <script>
+// Demo mode: a made-up person with different goals (swimming + Japanese), held in memory only.
+// Nothing is saved or synced, and the real data is never loaded.
+let DEMO=false;try{DEMO=localStorage.getItem("rhythm-demo")==="1"&&!localStorage.getItem("rhythm-gh-token")}catch(e){}
+// Wording and numbers for the two goals. The real app is IPPT 2.4 km + Security+; the demo is a 400 m swim + Japanese.
+const C=DEMO?{
+  fitTab:"Swim",fitTitle:"400 m Swim",fitSub:"400 m swim · 2 Nov – 3 Jan",dist:0.4,meters:true,pu:0.1,paceU:"/100 m",
+  testName:"400 m test",testShort:"400 m test",testBadge:"Test",testsHdr:"400 m Tests",bestLbl:"400 m",goalLbl:"400 m Goal",testDist:"400 m",
+  base:600,goal:480,goalFrom:420,run:"swim",Run:"Swim",runs:"swims",Runs:"Swims",legs:"Arms rest.",
+  note:"Losing form in the last 100 m is normal at this stage. The intervals build exactly that endurance.",
+  courseTab:"Japanese",courseTitle:"Japanese",courseSub:"Japanese for Beginners · 60 lessons",
+  courseNote:"Shift days have no study target. The day a night shift ends gets half. Say each new phrase out loud a few times before moving on.",
+  doneMsg:"Time to practise with a speaking partner!",voice:false
+}:{
+  fitTab:"2.4 km",fitTitle:"2.4 km",fitSub:"IPPT 2.4 km · 2 Nov – 3 Jan",dist:2.4,meters:false,pu:1,paceU:"/km",
+  testName:"2.4 km test",testShort:"2.4 test",testBadge:"2.4 Test",testsHdr:"2.4 km Tests",bestLbl:"2.4",goalLbl:"2.4 km Goal",testDist:"2.4 km",
+  base:780,goal:660,goalFrom:600,run:"run",Run:"Run",runs:"runs",Runs:"Runs",legs:"Legs rest.",
+  note:"Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that.",
+  courseTab:"Sec+",courseTitle:"Security+",courseSub:"CompTIA SY0-701 · Professor Messer",
+  courseNote:"Shift days have no study target. The day a night shift ends gets half. After the videos, do two weeks of practice exams before you book. Domain 4 is the biggest slice and overlaps your SOC work.",
+  doneMsg:"Time for practice exams!",voice:true
+};
+const paceOf=(sec,km)=>sec/km*C.pu;
+const distTxt=km=>C.meters?`${Math.round(km*1000)} m`:`${km} km`;
+const JP_V=[["1.1","Welcome to Japanese","6:12"],["1.1","The Five Vowels","8:40"],["1.1","K and S Rows","9:15"],["1.1","T and N Rows","9:02"],["1.1","H and M Rows","8:48"],
+["1.2","Y, R and W Rows","8:30"],["1.2","Dakuten and Handakuten","7:55"],["1.2","Small Ya, Yu and Yo","7:20"],["1.2","Double Consonants","6:45"],["1.2","Hiragana Review","11:10"],
+["2.1","Why Katakana Exists","5:50"],["2.1","A to N Rows","10:20"],["2.1","H to N Rows","10:05"],["2.1","Long Vowels in Katakana","6:30"],["2.1","Writing Your Name","7:40"],
+["2.2","Food and Drink Words","8:15"],["2.2","Tech and Everyday Words","8:05"],["2.2","Tricky Look-Alikes","7:10"],["2.2","Reading Menus","9:30"],["2.2","Katakana Review","10:45"],
+["3.1","Hello and Goodbye","7:05"],["3.1","Polite Self-Introduction","9:40"],["3.1","Thank You and Sorry","6:55"],["3.1","Numbers 1 to 10","8:20"],["3.1","Numbers to 10,000","9:50"],
+["3.2","Telling the Time","10:15"],["3.2","Days of the Week","7:30"],["3.2","Months and Dates","9:05"],["3.2","Asking When","7:45"],["3.2","Unit 3 Review","12:00"],
+["4.1","How Much Is This?","8:35"],["4.1","Counting Things","10:40"],["4.1","At the Convenience Store","9:10"],["4.1","Paying and Receipts","7:15"],["4.1","Sizes and Colours","8:25"],
+["4.2","Ordering at a Restaurant","10:30"],["4.2","Likes and Dislikes","8:00"],["4.2","Allergies and Requests","7:35"],["4.2","At a Café","8:50"],["4.2","Unit 4 Review","11:40"],
+["5.1","Particles は and が","12:10"],["5.1","Particles を, に and で","12:45"],["5.1","Polite Verbs (-masu)","11:20"],["5.1","Past and Negative","11:55"],["5.1","Asking Questions","9:25"],
+["5.2","い-Adjectives","10:05"],["5.2","な-Adjectives","9:40"],["5.2","The Te-Form","13:15"],["5.2","Wanting and Liking","9:10"],["5.2","Unit 5 Review","12:30"],
+["6.1","Trains and Tickets","10:20"],["6.1","Asking for Directions","9:35"],["6.1","At the Hotel","8:45"],["6.1","Talking About the Weather","7:25"],["6.1","Making Plans","9:55"],
+["6.2","Small Talk","8:40"],["6.2","Talking About Work","9:15"],["6.2","Hobbies","8:10"],["6.2","Phone and Messages","7:50"],["6.2","Final Review","14:20"]];
+const JP_OBJ={"1.1":"Hiragana Basics","1.2":"Hiragana Complete","2.1":"Katakana Basics","2.2":"Loanwords","3.1":"Greetings","3.2":"Time and Dates","4.1":"Shopping","4.2":"Food","5.1":"Sentence Building","5.2":"Describing Things","6.1":"Travel","6.2":"Conversation"};
+const JP_DOM=[["1","Hiragana",""],["2","Katakana",""],["3","Greetings and Basics",""],["4","Everyday Phrases",""],["5","Grammar Foundations",""],["6","Out and About",""]];
 // ---------- data ----------
 const V=[["0.1","How to Pass Your SY0-701 Security+ Exam","10:06"],
 ["1.1","Security Controls","11:48"],
@@ -396,16 +433,27 @@ const V=[["0.1","How to Pass Your SY0-701 Security+ Exam","10:06"],
 ["5.4","Compliance","8:06"],["5.4","Privacy","5:21"],
 ["5.5","Audits and Assessments","2:49"],["5.5","Penetration Tests","5:29"],
 ["5.6","Security Awareness","6:45"],["5.6","User Training","4:31"]];
-const OBJ={"0.1":"Introduction","1.1":"Security Controls","1.2":"Security Concepts","1.3":"Change Management","1.4":"Cryptographic Solutions","2.1":"Threat Actors","2.2":"Threat Vectors and Attack Surfaces","2.3":"Types of Vulnerabilities","2.4":"Indicators of Malicious Activity","2.5":"Mitigation Techniques","3.1":"Architecture Models","3.2":"Applying Security Principles","3.3":"Protecting Data","3.4":"Resiliency and Recovery","4.1":"Security Techniques","4.2":"Asset Management","4.3":"Vulnerability Management","4.4":"Security Monitoring","4.5":"Enterprise Security","4.6":"Identity and Access Management","4.7":"Automation and Orchestration","4.8":"Incident Response","4.9":"Security Data Sources","5.1":"Security Governance","5.2":"Risk Management","5.3":"Third-party Risk","5.4":"Security Compliance","5.5":"Audits and Assessments","5.6":"Security Awareness"};
-const DOM=[["0","The exam",""],["1","General Security Concepts","12%"],["2","Threats, Vulnerabilities, and Mitigations","22%"],["3","Security Architecture","18%"],["4","Security Operations","28%"],["5","Security Program Management and Oversight","20%"]];
+const OBJ_SEC={"0.1":"Introduction","1.1":"Security Controls","1.2":"Security Concepts","1.3":"Change Management","1.4":"Cryptographic Solutions","2.1":"Threat Actors","2.2":"Threat Vectors and Attack Surfaces","2.3":"Types of Vulnerabilities","2.4":"Indicators of Malicious Activity","2.5":"Mitigation Techniques","3.1":"Architecture Models","3.2":"Applying Security Principles","3.3":"Protecting Data","3.4":"Resiliency and Recovery","4.1":"Security Techniques","4.2":"Asset Management","4.3":"Vulnerability Management","4.4":"Security Monitoring","4.5":"Enterprise Security","4.6":"Identity and Access Management","4.7":"Automation and Orchestration","4.8":"Incident Response","4.9":"Security Data Sources","5.1":"Security Governance","5.2":"Risk Management","5.3":"Third-party Risk","5.4":"Security Compliance","5.5":"Audits and Assessments","5.6":"Security Awareness"};
+const DOM_SEC=[["0","The exam",""],["1","General Security Concepts","12%"],["2","Threats, Vulnerabilities, and Mitigations","22%"],["3","Security Architecture","18%"],["4","Security Operations","28%"],["5","Security Program Management and Oversight","20%"]];
+const OBJ=DEMO?JP_OBJ:OBJ_SEC,DOM=DEMO?JP_DOM:DOM_SEC;
 const secOf=t=>{const[m,s]=t.split(":").map(Number);return m*60+s};
-const VID=V.map((v,i)=>({i,obj:v[0],dom:v[0][0],title:v[1],len:v[2],sec:secOf(v[2]),
-  url:"https://www.youtube.com/results?search_query="+encodeURIComponent(i===0?"Professor Messer How to Pass Your SY0-701 Security+ Exam":`Professor Messer SY0-701 ${v[0]} ${v[1]}`)}));
+const VID=(DEMO?JP_V:V).map((v,i)=>({i,obj:v[0],dom:v[0][0],title:v[1],len:v[2],sec:secOf(v[2]),
+  url:"https://www.youtube.com/results?search_query="+encodeURIComponent(DEMO?"Japanese for beginners "+v[1]:i===0?"Professor Messer How to Pass Your SY0-701 Security+ Exam":`Professor Messer SY0-701 ${v[0]} ${v[1]}`)}));
 const TOTAL_SEC=VID.reduce((a,v)=>a+v.sec,0);
 
 // 9-week 2.4 km block: Mon 2 Nov to Sun 3 Jan. Target 11:00 = 4:35/km = 1:50 per 400 m.
-const WU="Warm-up: 10 min easy jog + leg swings. Cool-down: 5–10 min walk.";
-const PLAN=[
+const WU=DEMO?"Warm-up: 200 m easy + 4 × 25 m drills. Cool-down: 100 m easy.":"Warm-up: 10 min easy jog + leg swings. Cool-down: 5–10 min walk.";
+const SWIM_PLAN=[
+ {focus:"Base",A:"8 × 50 m in 1:05 each, 30 s rest",B:"Easy 600 m. Rest at the wall whenever you need.",C:"Threshold: 4 × 100 m in 2:20, 30 s rest"},
+ {focus:"Base",A:"10 × 50 m in 1:04 each, 30 s rest",B:"Easy 700 m, fewer rests than last week",C:"Threshold: 4 × 100 m in 2:16, 30 s rest"},
+ {focus:"Build",A:"6 × 75 m in 1:35 each, 40 s rest",B:"Easy 800 m",C:"Threshold: 300 m at 2:15/100 m, then 100 m easy"},
+ {focus:"Check-in",A:"8 × 50 m in 1:04, 30 s rest (lighter week)",B:"Easy 600 m",C:"TIME TRIAL: 400 m all-out. Log it. Aim: about 9:00"},
+ {focus:"Build",A:"6 × 100 m in 2:10 each, 30 s rest",B:"Easy 900 m",C:"Threshold: 400 m at 2:10/100 m"},
+ {focus:"Race pace",A:"4 × 100 m in 2:00 each, 45 s rest",B:"Easy 900 m",C:"2 × 200 m at 2:02/100 m, 1 min rest"},
+ {focus:"Race pace",A:"5 × 100 m in 2:00 each, 45 s rest",B:"Easy 1 km",C:"Threshold: 500 m at 2:08/100 m"},
+ {focus:"Sharpen",A:"3 × 150 m in 3:00 each, 1 min rest",B:"Easy 800 m",C:"300 m at 2:00/100 m, then 100 m easy"},
+ {focus:"Taper + test",A:"6 × 50 m in 0:55, full rest (short and sharp)",B:"Easy 500 m, arms fresh",C:"TIME TRIAL: 400 m all-out. Target 8:00"}];
+const RUN_PLAN=[
  {focus:"Base",A:"6 × 400 m in 2:00 each, 90 s walk/jog between",B:"Easy 3 km. Walk breaks are fine. You should be able to talk.",C:"Tempo: 2 × 1.2 km at 5:10/km, 2 min rest"},
  {focus:"Base",A:"8 × 400 m in 1:58 each, 90 s rest",B:"Easy 3 km, fewer walk breaks than last week",C:"Tempo: 2 × 1.2 km at 5:05/km, 2 min rest"},
  {focus:"Build",A:"5 × 600 m in 2:55 each, 2 min rest",B:"Easy 3.5 km",C:"Tempo: 1.6 km at 5:00/km, then 800 m easy"},
@@ -415,20 +463,21 @@ const PLAN=[
  {focus:"Race pace",A:"5 × 800 m in 3:40 each, 2 min rest",B:"Easy 4 km",C:"Tempo: 2.4 km at 4:50/km"},
  {focus:"Sharpen",A:"3 × 1 km in 4:35 each, 3 min rest",B:"Easy 3.5 km",C:"1.6 km at 4:35/km, then 800 m easy"},
  {focus:"Taper + test",A:"4 × 400 m in 1:48, full rest (short and sharp)",B:"Easy 2.5 km, legs fresh",C:"TIME TRIAL: 2.4 km all-out. Target 11:00"}];
-const KIND={A:"Intervals",B:"Easy run",C:"Tempo"};
-const BASE_SEC=780;
+const PLAN=DEMO?SWIM_PLAN:RUN_PLAN;
+const KIND=DEMO?{A:"Intervals",B:"Easy swim",C:"Threshold"}:{A:"Intervals",B:"Easy run",C:"Tempo"};
+const BASE_SEC=C.base;
 // Settings-driven goal and test weeks (0-based week numbers; default weeks 4 and 9).
-const goalSec=()=>S.goal||660;
+const goalSec=()=>S.goal||C.goal;
 const testWeeks=()=>S.testWeeks||[3,8];
 const isTestWk=w=>testWeeks().includes(w);
 const aimAt=w=>Math.round((BASE_SEC-(BASE_SEC-goalSec())*((w*7+6)/diff(END,START)))/15)*15;
-const ALT_C={3:"Tempo: 2 km at 5:00/km",8:"Tempo: 2 km at 4:40/km"};
+const ALT_C=DEMO?{3:"Threshold: 300 m at 2:12/100 m",8:"Threshold: 300 m at 2:02/100 m"}:{3:"Tempo: 2 km at 5:00/km",8:"Tempo: 2 km at 4:40/km"};
 function planFocus(w){const f=PLAN[w].focus,t=isTestWk(w);
   if(t&&(w===3||w===8))return f;if(t)return f+" + test";return w===3?"Build":w===8?"Taper":f}
 function planText(w,k){
   if(k!=="C")return PLAN[w][k];
   const tw=testWeeks();
-  if(isTestWk(w))return w===Math.max(...tw)?`TIME TRIAL: 2.4 km all-out. Target ${fmt(goalSec())}`:`TIME TRIAL: 2.4 km all-out. Log it. Aim: about ${fmt(aimAt(w))}`;
+  if(isTestWk(w))return w===Math.max(...tw)?`TIME TRIAL: ${C.testDist} all-out. Target ${fmt(goalSec())}`:`TIME TRIAL: ${C.testDist} all-out. Log it. Aim: about ${fmt(aimAt(w))}`;
   return ALT_C[w]||PLAN[w].C;
 }
 
@@ -451,8 +500,6 @@ const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45,busy:{}};
 let S=JSON.parse(JSON.stringify(DEF));
 try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
 // S.mtime = when this device last changed something. Sync uses it to tell which copy is newer.
-// Demo mode: sample data held in memory only. Nothing is saved or synced, and the real data is never loaded.
-let DEMO=localStorage.getItem("rhythm-demo")==="1"&&!localStorage.getItem("rhythm-gh-token");
 function save(quiet){if(!quiet)S.mtime=Date.now();if(DEMO)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}try{scheduleSync()}catch(e){/* sync code not loaded yet during startup */}}
 
 // ---------- planning ----------
@@ -555,20 +602,20 @@ function viewDay(D){
   const todayPlanned=(r?1:0)+vids.length,todayDone=(r&&runDone?1:0)+vids.filter(v=>S.done[v.i]).length;
   const when=isToday?"today":future?"that day":"that day";
   let next;
-  if(t==="shift")next=isNight(D)?{c:"var(--indigo)",i:IC.moon,e:`Night shift · ${shiftTime(D)}`,h:isToday?"Rest before tonight.":"Night shift. Nothing planned.",p:"Nap in the afternoon instead of scrolling. No run, no study."}
-    :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(D)?" · "+shiftTime(D):""}`,h:`Nothing planned ${when}.`,p:"You'll be tired after work, so there's no run and no study. Get home, rest and recharge for tomorrow."};
-  else if(t==="busy")next={c:"var(--label2)",i:IC.cal,e:"Busy",h:isToday?"Day off from the plan.":"Busy. Nothing planned.",p:"No run and no study. Both moved to your other free days, so go enjoy it."};
-  else if(t==="rec")next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:vids.length?"Sleep first, then one or two videos.":"Sleep first.",p:`The night shift ends that morning, so no run.${vids.length?` Videos: ${vidMin}.`:""}`};
+  if(t==="shift")next=isNight(D)?{c:"var(--indigo)",i:IC.moon,e:`Night shift · ${shiftTime(D)}`,h:isToday?"Rest before tonight.":"Night shift. Nothing planned.",p:`Nap in the afternoon instead of scrolling. No ${C.run}, no study.`}
+    :{c:"var(--indigo)",i:IC.work,e:`Shift${shiftTime(D)?" · "+shiftTime(D):""}`,h:`Nothing planned ${when}.`,p:`You'll be tired after work, so there's no ${C.run} and no study. Get home, rest and recharge for tomorrow.`};
+  else if(t==="busy")next={c:"var(--label2)",i:IC.cal,e:"Busy",h:isToday?"Day off from the plan.":"Busy. Nothing planned.",p:`No ${C.run} and no study. Both moved to your other free days, so go enjoy it.`};
+  else if(t==="rec")next={c:"var(--teal)",i:IC.bed,e:"After night shift",h:vids.length?"Sleep first, then one or two videos.":"Sleep first.",p:`The night shift ends that morning, so no ${C.run}.${vids.length?` Videos: ${vidMin}.`:""}`};
   else if(!isToday){
-    if(r)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:`${future?"Planned":"Was planned"}${vids.length?`, plus ${vids.length} video${vids.length>1?"s":""} (${vidMin})`:""}.`};
-    else if(vids.length)next={c:"var(--blue)",i:IC.play,e:"Study day",h:`${vids.length} video${vids.length>1?"s":""} · ${vidMin}`,p:future?"No run planned. Legs rest.":"No run was planned."};
+    if(r)next={c:"var(--orange)",i:IC.run,e:r.test?C.testName:KIND[r.k],h:r.text,p:`${future?"Planned":"Was planned"}${vids.length?`, plus ${vids.length} video${vids.length>1?"s":""} (${vidMin})`:""}.`};
+    else if(vids.length)next={c:"var(--blue)",i:IC.play,e:"Study day",h:`${vids.length} video${vids.length>1?"s":""} · ${vidMin}`,p:future?`No ${C.run} planned. ${C.legs}`:`No ${C.run} was planned.`};
     else next={c:"var(--green)",i:IC.check,e:"Free day",h:"Nothing planned.",p:"Enjoy it."};
   }
   else if(nextVid&&r&&!runDone&&(()=>{const [h,m]=(S.runAt||"20:15").split(":").map(Number),at=new Date();at.setHours(h,m,0,0);return new Date()<at})())
-    next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}. Study first, while you're fresh. Your run is later tonight.`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>${studyModeBtn()}`};
-  else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?"2.4 km test":KIND[r.k],h:r.text,p:(()=>{const [h,m]=(S.runAt||"20:15").split(":").map(Number),now=new Date(),at=new Date();at.setHours(h,m,0,0);
+    next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}. Study first, while you're fresh. Your ${C.run} is later tonight.`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>${studyModeBtn()}`};
+  else if(r&&!runDone)next={c:"var(--orange)",i:IC.run,e:r.test?C.testName:KIND[r.k],h:r.text,p:(()=>{const [h,m]=(S.runAt||"20:15").split(":").map(Number),now=new Date(),at=new Date();at.setHours(h,m,0,0);
       const lbl=at.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
-      return now<at?`Planned for tonight at ${lbl}. Log your time on the 2.4 km tab after.`:"Time to run. Log your time on the 2.4 km tab after."})(),btn:`<button class="btn orange block" data-act="rundone" data-d="${D}">Mark Run as Done</button>`};
+      return now<at?`Planned for tonight at ${lbl}. Log your time on the ${C.fitTab} tab after.`:`Time to ${C.run}. Log your time on the ${C.fitTab} tab after.`})(),btn:`<button class="btn orange block" data-act="rundone" data-d="${D}">Mark ${C.Run} as Done</button>`};
   else if(nextVid)next={c:"var(--blue)",i:IC.play,e:"Next video",h:nextVid.title,p:`${nextVid.obj} ${OBJ[nextVid.obj]} · ${nextVid.len}`,btn:`<a class="btn fill block" href="${nextVid.url}" target="_blank" rel="noopener">Watch Now</a>${studyModeBtn()}`};
   else next={c:"var(--green)",i:IC.check,e:"All done",h:"Today's plan is finished.",p:"Put the phone in another room and do something offline."};
   const optional=(isToday&&t==="shift")?VID.find(v=>!S.done[v.i]):null;
@@ -584,22 +631,22 @@ function viewDay(D){
   const cando=`${(!future&&!isToday)||t==="shift"?"":(()=>{
     const showRun=!!r||skipRun(D), runOn_=!skipRun(D), studyOn=!skipStudy(D);
     return `<div class="sec"><div class="sh">What can you do ${isToday?"today":"that day"}?</div><div class="grp">
-      ${showRun?`<div class="cell ind"><span class="ico" style="background:${runOn_?"var(--orange)":"var(--label3)"}">${IC.run}</span><label class="grow" for="sk-run"><div>Run</div><div class="t2">${runOn_?(r?KIND[r.k]+" planned":"Planned"):"Skipped · moved to another free day"}</div></label><input class="sw" type="checkbox" id="sk-run" data-act="skip" data-k="run" data-d="${D}" ${runOn_?"checked":""}></div>`:""}
-      <div class="cell ind"><span class="ico" style="background:${studyOn?"var(--blue)":"var(--label3)"}">${IC.play}</span><label class="grow" for="sk-study"><div>Security+</div><div class="t2">${studyOn?(vids.length?`${vids.length} video${vids.length>1?"s":""} · ${vidMin}`:"Nothing planned"):"Skipped · videos moved to your next free days"}</div></label><input class="sw" type="checkbox" id="sk-study" data-act="skip" data-k="study" data-d="${D}" ${studyOn?"checked":""}></div>
+      ${showRun?`<div class="cell ind"><span class="ico" style="background:${runOn_?"var(--orange)":"var(--label3)"}">${IC.run}</span><label class="grow" for="sk-run"><div>${C.Run}</div><div class="t2">${runOn_?(r?KIND[r.k]+" planned":"Planned"):"Skipped · moved to another free day"}</div></label><input class="sw" type="checkbox" id="sk-run" data-act="skip" data-k="run" data-d="${D}" ${runOn_?"checked":""}></div>`:""}
+      <div class="cell ind"><span class="ico" style="background:${studyOn?"var(--blue)":"var(--label3)"}">${IC.play}</span><label class="grow" for="sk-study"><div>${C.courseTitle}</div><div class="t2">${studyOn?(vids.length?`${vids.length} video${vids.length>1?"s":""} · ${vidMin}`:"Nothing planned"):"Skipped · videos moved to your next free days"}</div></label><input class="sw" type="checkbox" id="sk-study" data-act="skip" data-k="study" data-d="${D}" ${studyOn?"checked":""}></div>
     </div><div class="sf">Too tired or out? Switch off what you can't do and it moves to your next free days.</div></div>`})()}`;
   const rings=`${isToday?`<div class="sec"><div class="grp"><div class="rings">
     <svg viewBox="0 0 132 132" role="img" aria-label="Weekly rings">${ring(58,runsPlanned?runsDone/runsPlanned:0,"var(--orange)")}${ring(41,studyGoal?studyDone/studyGoal:0,"var(--green)")}${ring(24,todayPlanned?todayDone/todayPlanned:1,"var(--teal)")}</svg>
     <div class="rl">
-      <div><span class="k" style="color:var(--orange)">Runs this week</span><span class="v">${runsDone}<small>/${runsPlanned}</small></span></div>
+      <div><span class="k" style="color:var(--orange)">${C.Runs} this week</span><span class="v">${runsDone}<small>/${runsPlanned}</small></span></div>
       <div><span class="k" style="color:var(--green)">Study this week</span><span class="v">${Math.round(studyDone)}<small>/${Math.round(studyGoal)} min</small></span></div>
       <div><span class="k" style="color:var(--teal)">Today's plan</span><span class="v">${todayPlanned?`${todayDone}<small>/${todayPlanned} done</small>`:`<small>Rest day</small>`}</span></div>
     </div></div></div></div>`:""}`;
   const recap=isToday&&dd.getDay()===0?weekRecap():"";
-  const runSec=`${r?`<div class="sec"><div class="sh">Run · Week ${r.w+1} · ${r.focus}</div><div class="grp">
+  const runSec=`${r?`<div class="sec"><div class="sh">${C.Run} · Week ${r.w+1} · ${r.focus}</div><div class="grp">
       <div class="cell ind"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${KIND[r.k]}</div><div class="t2">${esc(r.text)}</div></div></div>
       ${runDone?`<div class="cell" style="color:var(--green)">${IC.check.replace("<svg",'<svg width="20" height="20"')} Done</div>`:future?"":`<button class="cell btnrow" data-act="rundone" data-d="${D}">Mark as Done</button>`}
     </div><div class="sf">${WU}</div></div>`:""}`;
-  const secSec=`<div class="sec"><div class="sh">Security+${vids.length?` · ${vidMin}`:""}</div>
+  const secSec=`<div class="sec"><div class="sh">${C.courseTitle}${vids.length?` · ${vidMin}`:""}</div>
     ${vids.length?`<div class="grp">${vids.map(vrow).join("")}</div>${future?'<div class="sf">Projected from your current pace. It shifts if you watch more or less before then.</div>':""}`
       :optional?`<div class="grp">${vrow(optional)}</div><div class="sf">Only if you feel like it on the commute. Shift days have no study target. This is your next video in order.</div>`
       :`<div class="grp"><div class="cell" style="color:var(--label2)">${!future&&!isToday?"No videos watched that day.":t==="shift"?"No study on shift days.":"No videos planned."}</div></div>`}
@@ -613,7 +660,7 @@ function weekStrip(dd){
     const vids=past?VID.filter(v=>S.done[v.i]===d):(sch.map[d]||[]);
     const vDone=vids.filter(v=>S.done[v.i]).length,vSec=vids.reduce((a,v)=>a+v.sec,0);
     const top=t==="shift"?`<span class="ws-tag">${shortTime(d)}</span>`:t==="rec"?`<span class="ws-tag hollow">After night</span>`:t==="busy"?`<span class="ws-tag grey">Busy</span>`:`<span class="ws-tag free">Free</span>`;
-    const run=r?`<div class="ws-l${S.runDone[d]?" done":""}"><i style="background:var(--orange)"></i>${r.test?"2.4 test":KIND[r.k]}${S.runDone[d]?" ✓":""}</div>`:"";
+    const run=r?`<div class="ws-l${S.runDone[d]?" done":""}"><i style="background:var(--orange)"></i>${r.test?C.testShort:KIND[r.k]}${S.runDone[d]?" ✓":""}</div>`:"";
     const study=vids.length?`<div class="ws-l${vDone===vids.length?" done":""}"><i style="background:var(--green)"></i>${past||vDone===vids.length?`${vids.length} video${vids.length>1?"s":""} ✓`:vDone?`${vDone}/${vids.length} done`:hm(vSec)}</div>`:"";
     const none=!run&&!study?`<div class="ws-l muted">${t==="shift"?"Rest":t==="rec"?"Sleep":"Nothing planned"}</div>`:"";
     return `<button class="ws-day${d===T?" today":""}${d===(DAYSEL||T)&&route()==="day"?" sel":""}${past?" past":""}" data-act="go" data-d="${d}" aria-label="${nice(x)}">
@@ -644,9 +691,9 @@ function viewPlan(){
     return `<div class="month"><div class="mh">${LONGMON[m]} ${y}</div><div class="cal${editShifts?" editing":""}">${cells}</div></div>`};
   return `<div class="lt"><div class="sub">Cyber Shift roster</div><div class="row"><h1>Roster</h1><button class="btn ${editShifts?"fill":"tint"} small" data-act="editshifts">${editShifts?"Done":"Edit Shifts"}</button></div></div>
   ${editShifts?'<div class="sf" style="margin-top:-10px;color:var(--blue)">Tap days to add or remove a shift. Tap Done when finished.</div>':""}
-  <div class="legend"><span><i style="background:var(--indigo)"></i>Shift (N = night)</span><span><i style="background:transparent;border:1.5px solid var(--indigo)"></i>After a night shift</span><span><i style="background:var(--label3)"></i>Busy</span><span><i style="background:var(--orange)"></i>Run</span><span><i style="background:var(--green)"></i>Sec+ videos</span></div>
+  <div class="legend"><span><i style="background:var(--indigo)"></i>Shift (N = night)</span><span><i style="background:transparent;border:1.5px solid var(--indigo)"></i>After a night shift</span><span><i style="background:var(--label3)"></i>Busy</span><span><i style="background:var(--orange)"></i>${C.Run}</span><span><i style="background:var(--green)"></i>${C.courseTab} videos</span></div>
   <div class="months">${month(2026,10)}${month(2026,11)}${month(2027,0)}</div>
-  <div class="sf" style="margin-top:-12px">Tap any day to see its plan. Use Edit Shifts to change your roster; runs and videos move around it automatically.</div>`;
+  <div class="sf" style="margin-top:-12px">Tap any day to see its plan. Use Edit Shifts to change your roster; ${C.runs} and videos move around it automatically.</div>`;
 }
 
 // ---------- 2.4 km progress charts ----------
@@ -674,13 +721,13 @@ function paceChart(){
   const runs=[...S.runs].sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0).slice(-14);
   if(!runs.length)return "";
   const W=340,H=150,L=40,R=12,Tp=14,B=22;
-  const paces=runs.map(r=>r.sec/r.km),goalP=goalSec()/2.4;
+  const paces=runs.map(r=>paceOf(r.sec,r.km)),goalP=paceOf(goalSec(),C.dist);
   const lo=Math.min(goalP-10,...paces),hi=Math.max(goalP+60,...paces)+30;
   const n=runs.length,bw=Math.min(18,(W-L-R)/n-6),xs=i=>L+((i+.5)/n)*(W-L-R),ys=p=>Tp+(p-lo)/(hi-lo)*(H-Tp-B);
   const ticks=[];for(let t=Math.ceil(lo/30)*30;t<=hi;t+=30)ticks.push(t);
   let g=ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${ys(t)}" y2="${ys(t)}" stroke="var(--sep)"/><text x="${L-6}" y="${ys(t)+3.5}" text-anchor="end">${fmt(t)}</text>`).join("");
-  g+=`<line x1="${L}" x2="${W-R}" y1="${ys(goalP)}" y2="${ys(goalP)}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(goalP)-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal pace ${fmt(goalSec()/2.4)}</text>`;
-  const bars=runs.map((r,i)=>{const p=paces[i];return `<rect x="${xs(i)-bw/2}" y="${ys(p)}" width="${bw}" height="${Math.max(3,H-B-ys(p))}" rx="4" fill="${r.tt?"var(--orange)":"var(--teal)"}"><title>${nice(pd(r.d))}: ${r.km} km, ${fmt(p)}/km</title></rect>`}).join("");
+  g+=`<line x1="${L}" x2="${W-R}" y1="${ys(goalP)}" y2="${ys(goalP)}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(goalP)-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal pace ${fmt(paceOf(goalSec(),C.dist))}</text>`;
+  const bars=runs.map((r,i)=>{const p=paces[i];return `<rect x="${xs(i)-bw/2}" y="${ys(p)}" width="${bw}" height="${Math.max(3,H-B-ys(p))}" rx="4" fill="${r.tt?"var(--orange)":"var(--teal)"}"><title>${nice(pd(r.d))}: ${distTxt(r.km)}, ${fmt(p)}${C.paceU}</title></rect>`}).join("");
   const lab=runs.map((r,i)=>(n<=7||(n-1-i)%2===0)?`<text x="${xs(i)}" y="${H-6}" text-anchor="middle">${pd(r.d).getDate()}/${pd(r.d).getMonth()+1}</text>`:"").join("");
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Pace per km for recent runs">${g}${bars}${lab}</svg>`;
 }
@@ -699,18 +746,18 @@ function weekRecap(){
   const nVid=nx.reduce((a,d)=>a+(sch.map[d]||[]).reduce((b,v)=>b+v.sec,0),0);
   const nTest=nRuns.find(([,r])=>r.test);
   const ring=(f,c)=>{const r=13,cc=2*Math.PI*r;return `<svg viewBox="0 0 34 34" width="34" height="34"><circle cx="17" cy="17" r="${r}" fill="none" stroke="${c}" stroke-opacity=".22" stroke-width="5"/><circle cx="17" cy="17" r="${r}" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${cc}" stroke-dashoffset="${cc*(1-Math.max(0,Math.min(1,f)))}" transform="rotate(-90 17 17)" ${f<=0?'stroke-opacity="0"':""}/></svg>`};
-  const msg=runsPlanned.length&&runsDone===runsPlanned.length?"Every run done this week. That's how the 2.4 comes down."
-    :runsDone>0?`${runsDone} of ${runsPlanned.length} runs done. Next week, aim for all of them.`
-    :runsPlanned.length?"No runs logged this week. A fresh week starts tomorrow.":"The run plan starts tomorrow.";
+  const msg=runsPlanned.length&&runsDone===runsPlanned.length?`Every ${C.run} done this week. That's how the ${C.bestLbl} time comes down.`
+    :runsDone>0?`${runsDone} of ${runsPlanned.length} ${C.runs} done. Next week, aim for all of them.`
+    :runsPlanned.length?`No ${C.runs} logged this week. A fresh week starts tomorrow.`:`The ${C.run} plan starts tomorrow.`;
   return `<div class="sec"><div class="sh big">Week in Review</div><div class="grp">
     <div class="cell"><span class="ico" style="background:transparent">${ring(runsPlanned.length?runsDone/runsPlanned.length:0,"var(--orange)")}</span><div class="grow"><div>Runs</div><div class="t2">${runsDone} of ${runsPlanned.length} planned${extra?` · ${extra} extra`:""}</div></div></div>
-    <div class="cell"><span class="ico" style="background:transparent">${ring(vids.length?1:0,"var(--green)")}</span><div class="grow"><div>Security+</div><div class="t2">${vids.length} video${vids.length===1?"":"s"} · ${hm(vmin)}</div></div></div>
-    ${pb?`<div class="cell"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>New best 2.4</div><div class="t2">${fmt(pb.sec)} on ${nice(pd(pb.d))}</div></div></div>`:""}
+    <div class="cell"><span class="ico" style="background:transparent">${ring(vids.length?1:0,"var(--green)")}</span><div class="grow"><div>${C.courseTitle}</div><div class="t2">${vids.length} video${vids.length===1?"":"s"} · ${hm(vmin)}</div></div></div>
+    ${pb?`<div class="cell"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>New best ${C.bestLbl}</div><div class="t2">${fmt(pb.sec)} on ${nice(pd(pb.d))}</div></div></div>`:""}
   </div><div class="sf">${msg}</div></div>
   <div class="sec"><div class="sh">Next Week · ${nice(pd(nx[0]))} – ${nice(pd(nx[6]))}</div><div class="grp">
     <div class="cell"><span class="ico" style="background:var(--indigo)">${IC.work}</span><div class="grow"><div>${nShifts.length} shift${nShifts.length===1?"":"s"}</div><div class="t2">${nNights?`${nNights} night shift${nNights>1?"s":""}`:"All day shifts"}${nShifts.length?` · ${nShifts.map(d=>DOW[pd(d).getDay()]).join(", ")}`:""}</div></div></div>
-    <div class="cell"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${nRuns.length} run${nRuns.length===1?"":"s"}${nTest?' <span class="badge">2.4 Test</span>':""}</div><div class="t2">${nRuns.map(([d,r])=>`${DOW[pd(d).getDay()]} ${r.test?"Test":KIND[r.k]}`).join(" · ")||"Rest week"}</div></div></div>
-    <div class="cell"><span class="ico" style="background:var(--blue)">${IC.play}</span><div class="grow"><div>Security+</div><div class="t2">${nVid?`About ${hm(nVid)} planned`:"Nothing planned"}</div></div></div>
+    <div class="cell"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${nRuns.length} ${nRuns.length===1?C.run:C.runs}${nTest?` <span class="badge">${C.testBadge}</span>`:""}</div><div class="t2">${nRuns.map(([d,r])=>`${DOW[pd(d).getDay()]} ${r.test?"Test":KIND[r.k]}`).join(" · ")||"Rest week"}</div></div></div>
+    <div class="cell"><span class="ico" style="background:var(--blue)">${IC.play}</span><div class="grow"><div>${C.courseTitle}</div><div class="t2">${nVid?`About ${hm(nVid)} planned`:"Nothing planned"}</div></div></div>
   </div></div>`;
 }
 
@@ -718,30 +765,30 @@ function viewRun(){
   const b=best24(),cur=b??BASE_SEC,pct=Math.max(0,Math.min(100,(BASE_SEC-cur)/(BASE_SEC-goalSec())*100));
   const w=Math.floor(diff(TODAY,START)/7);
   const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
-    <dl><dt>Intervals</dt><dd>${esc(p.A)}</dd><dt>Easy</dt><dd>${esc(p.B)}</dd><dt>${isTestWk(i)?"Test":"Tempo"}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
-  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${r.km} km${r.tt?' <span class="badge">2.4 Test</span>':""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(r.sec/r.km)} /km</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
-  const head=`<div class="lt"><div class="sub">IPPT 2.4 km · 2 Nov – 3 Jan</div><h1>2.4 km</h1></div>
+    <dl><dt>Intervals</dt><dd>${esc(p.A)}</dd><dt>Easy</dt><dd>${esc(p.B)}</dd><dt>${isTestWk(i)?"Test":KIND.C}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
+  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
+  const head=`<div class="lt"><div class="sub">${C.fitSub}</div><h1>${C.fitTitle}</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":"starting ~13:00"}</span></div>
-    <div class="stat"><span class="k">Goal</span><span class="v o">${fmt(goalSec())}</span><span class="s">${fmt(goalSec()/2.4)} /km</span></div>
+    <div class="stat"><span class="k">Goal</span><span class="v o">${fmt(goalSec())}</span><span class="s">${fmt(paceOf(goalSec(),C.dist))} ${C.paceU}</span></div>
     <div class="stat"><span class="k">To Cut</span><span class="v g">${fmt(Math.max(0,cur-goalSec()))}</span><span class="s">${Math.round(pct)}% there</span></div></div>
     <div class="pad"><div class="bar o" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div>
-  </div><div class="sf">Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that. The week ${testWeeks()[0]+1} test should come in near ${fmt(aimAt(testWeeks()[0]))}. If it does, ${fmt(goalSec())} in week ${testWeeks()[1]+1} is realistic.</div></div>`;
-  const charts=`<div class="sec"><div class="sh">2.4 km Tests</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${testChart()}</div></div>
-    <div class="sf">${S.runs.some(r=>r.tt)?`Orange is your logged tests. Stay on or above the dashed target line to reach ${fmt(goalSec())} by 3 January.`:`The dashed line is your target path from 13:00 to ${fmt(goalSec())}. Your 2.4 tests appear here as you log them${(()=>{const d=Object.entries(weekRuns(testWeeks()[0])).find(([,k])=>k==="C");return d?`; the first is on ${nice(pd(d[0]))}`:""})()}.`}</div></div>
-  ${S.runs.length?`<div class="sec"><div class="sh">Pace per Run</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${paceChart()}</div></div><div class="sf">Your last ${Math.min(14,S.runs.length)} runs. Taller is faster; orange bars are 2.4 tests. Easy runs should sit well below the goal pace.</div></div>`:""}`;
-  const logSec=`<div class="sec"><div class="sh">Log a Run</div><div class="grp">
-    <div class="cell" style="display:grid;gap:6px;align-items:start"><label for="voice" class="t2" style="display:flex;gap:6px;align-items:center;color:var(--blue);font-weight:600;font-size:15px">${IC.mic} Say it</label>
-      <textarea id="voice" rows="2" placeholder="Tap here, then the mic on your keyboard. Try “2.4 in 12 minutes 45”."></textarea><div id="voiceout" class="t2" aria-live="polite"></div></div>
+  </div><div class="sf">${C.note} The week ${testWeeks()[0]+1} test should come in near ${fmt(aimAt(testWeeks()[0]))}. If it does, ${fmt(goalSec())} in week ${testWeeks()[1]+1} is realistic.</div></div>`;
+  const charts=`<div class="sec"><div class="sh">${C.testsHdr}</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${testChart()}</div></div>
+    <div class="sf">${S.runs.some(r=>r.tt)?`Orange is your logged tests. Stay on or above the dashed target line to reach ${fmt(goalSec())} by 3 January.`:`The dashed line is your target path from ${fmt(BASE_SEC)} to ${fmt(goalSec())}. Your ${C.testShort}s appear here as you log them${(()=>{const d=Object.entries(weekRuns(testWeeks()[0])).find(([,k])=>k==="C");return d?`; the first is on ${nice(pd(d[0]))}`:""})()}.`}</div></div>
+  ${S.runs.length?`<div class="sec"><div class="sh">Pace per ${C.Run}</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${paceChart()}</div></div><div class="sf">Your last ${Math.min(14,S.runs.length)} ${C.runs}. Taller is faster; orange bars are ${C.testShort}s. ${KIND.B}s should sit well below the goal pace.</div></div>`:""}`;
+  const logSec=`<div class="sec"><div class="sh">Log a ${C.Run}</div><div class="grp">
+    ${C.voice?`<div class="cell" style="display:grid;gap:6px;align-items:start"><label for="voice" class="t2" style="display:flex;gap:6px;align-items:center;color:var(--blue);font-weight:600;font-size:15px">${IC.mic} Say it</label>
+      <textarea id="voice" rows="2" placeholder="Tap here, then the mic on your keyboard. Try “2.4 in 12 minutes 45”."></textarea><div id="voiceout" class="t2" aria-live="polite"></div></div>`:""}
     <div class="cell"><label class="grow" for="rd">Date</label><input id="rd" type="date" value="${T}" style="width:150px"></div>
-    <div class="cell"><label class="grow" for="rk">Distance</label><input id="rk" type="number" inputmode="decimal" step="0.1" min="0.4" value="2.4" style="width:60px"><span class="trail">km</span></div>
-    <div class="cell"><label class="grow" for="rt">Time</label><input id="rt" type="text" inputmode="numeric" placeholder="12:45" style="width:80px"></div>
-    <div class="cell"><label class="grow" for="rtt">Full-effort 2.4 km test</label><input class="sw" id="rtt" type="checkbox"></div>
-    <button class="cell btnrow" data-act="logrun" style="font-weight:600">Log Run</button>
-  </div><div class="sf">Say it fills in the form below. You can also say “yesterday”, a day like “Tuesday”, or “test” for a full-effort 2.4. Logging a run also ticks off that day's session.</div></div>
+    <div class="cell"><label class="grow" for="rk">Distance</label>${C.meters?`<input id="rk" type="number" inputmode="numeric" step="25" min="25" value="400" style="width:70px"><span class="trail">m</span>`:`<input id="rk" type="number" inputmode="decimal" step="0.1" min="0.4" value="2.4" style="width:60px"><span class="trail">km</span>`}</div>
+    <div class="cell"><label class="grow" for="rt">Time</label><input id="rt" type="text" inputmode="numeric" placeholder="${fmt(BASE_SEC-15)}" style="width:80px"></div>
+    <div class="cell"><label class="grow" for="rtt">Full-effort ${C.testName}</label><input class="sw" id="rtt" type="checkbox"></div>
+    <button class="cell btnrow" data-act="logrun" style="font-weight:600">Log ${C.Run}</button>
+  </div><div class="sf">${C.voice?"Say it fills in the form below. You can also say “yesterday”, a day like “Tuesday”, or “test” for a full-effort 2.4. ":""}Logging a ${C.run} also ticks off that day's session.</div></div>
   ${log?`<div class="sec"><div class="sh">History</div><div class="grp">${log}</div></div>`:""}`;
   const planSec=`<div class="sec"><div class="sh">The Plan</div><div class="grp">${wkRows}</div>
-  <div class="sf">Up to three runs a week, only on free days. Never on a shift day, never the morning a night shift ends, and never two hard sessions back to back. ${WU}</div></div>`;
+  <div class="sf">Up to three ${C.runs} a week, only on free days. Never on a shift day, never the morning a night shift ends, and never two hard sessions back to back. ${WU}</div></div>`;
   return wide()?head+cols(charts+planSec,logSec):head+charts+logSec+planSec;
 }
 
@@ -756,21 +803,21 @@ function courseList(){
       return `<div class="cell vrow ind${S.done[v.i]?" done":""}${isNext?" nextv":""}"${isNext?' id="nextvid"':""}><span class="num">${v.i+1}</span><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.obj} ${OBJ[v.obj]}${isNext?' · <b style="color:var(--blue)">Up next</b>':""}</span></div><span class="trail">${v.len}</span></div>`}).join("");
     return `<div class="acc${open?" open":""}" data-dom="${k}">
       <button class="cell acch" data-act="acc" data-dom="${k}" aria-expanded="${open}"><div class="grow" style="display:grid;gap:6px">
-        <div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">${k==="0"?"Introduction":k+".0 "+esc(name)}</span><span class="trail">${dn}/${vs.length}</span></div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">${k==="0"?"Introduction":DEMO?`Unit ${k} · ${esc(name)}`:k+".0 "+esc(name)}</span><span class="trail">${dn}/${vs.length}</span></div>
         <div class="bar"><i style="width:${dn/vs.length*100}%"></i></div>${w?`<span class="t2" style="font-size:13px">${w} of the exam · videos ${vs[0].i+1}–${vs[vs.length-1].i+1}</span>`:""}</div>${IC.chev}</button>
       <div class="accb"><div class="accin">${rows}</div></div></div>`}).join("");
 }
 function viewSec(){
   const sch=schedule();const done=VID.filter(v=>S.done[v.i]);const dsec=done.reduce((a,v)=>a+v.sec,0);
   const fin=sch.last?pd(sch.last):null;
-  const head=`<div class="lt"><div class="sub">CompTIA SY0-701 · Professor Messer</div><h1>Security+</h1></div>`;
+  const head=`<div class="lt"><div class="sub">${C.courseSub}</div><h1>${C.courseTitle}</h1></div>`;
   const side=`<div class="sec"><div class="grp">
-    <div class="stats"><div class="stat"><span class="k">Watched</span><span class="v">${done.length}<span style="font-size:17px;color:var(--label2)">/121</span></span></div>
+    <div class="stats"><div class="stat"><span class="k">Watched</span><span class="v">${done.length}<span style="font-size:17px;color:var(--label2)">/${VID.length}</span></span></div>
     <div class="stat"><span class="k">Time Left</span><span class="v">${hm(TOTAL_SEC-dsec)}</span></div>
     <div class="stat"><span class="k">Finish</span><span class="v g">${fin?`${fin.getDate()} ${MON[fin.getMonth()]}`:"Done"}</span></div></div>
-    <div class="pad"><div class="bar" role="progressbar" aria-valuenow="${done.length}" aria-valuemin="0" aria-valuemax="121"><i style="width:${done.length/121*100}%"></i></div></div>
+    <div class="pad"><div class="bar" role="progressbar" aria-valuenow="${done.length}" aria-valuemin="0" aria-valuemax="${VID.length}"><i style="width:${done.length/VID.length*100}%"></i></div></div>
     <div class="cell"><label class="grow" for="mins">Study per free day</label><select id="mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
-  </div><div class="sf">Shift days have no study target. The day a night shift ends gets half. After the videos, do two weeks of practice exams before you book. Domain 4 is the biggest slice and overlaps your SOC work.</div></div>
+  </div><div class="sf">${C.courseNote}</div></div>
   ${(()=>{const n=VID.find(v=>!S.done[v.i]);return n?`<button class="btn tint block" data-act="jumpnext">Continue: ${n.i+1}. ${esc(n.title)}</button>${studyModeBtn("btn fill block")}`:""})()}`;
   const course=`<div class="sec"><div class="sh">Course · in playlist order</div><div class="grp">${courseList()}</div></div>`;
   return wide()?head+cols(`<div class="stack">${side}</div>`,course,"sticky-l"):head+side+course;
@@ -850,10 +897,10 @@ function icsText(days,extra=[]){
         let mins=(h2*60+m2)-(h1*60+m1);if(mins<=0)mins+=1440;
         out.push(ev(`shift-${d}`,d,h1,m1,mins,"Shift @ Univers",`${isNight(d)?"Night shift":"Day shift"} ${tm.replace("-","–")} · nothing else planned`,["-P1D","-PT2H"]));nShift++}}
     const r=runOn(d);
-    if(r&&!S.runDone[d]){out.push(ev(`run-${d}`,d,st[0],st[1],45,`Run · ${r.test?"2.4 km test":KIND[r.k]}`,`${r.text}\n${WU}\nWeek ${r.w+1} · ${r.focus}`));nRun++}
+    if(r&&!S.runDone[d]){out.push(ev(`run-${d}`,d,st[0],st[1],45,`${C.Run} · ${r.test?C.testName:KIND[r.k]}`,`${r.text}\n${WU}\nWeek ${r.w+1} · ${r.focus}`));nRun++}
     const vids=(sch.map[d]||[]).filter(v=>!S.done[v.i]);
     if(vids.length){const mins=Math.max(15,Math.round(vids.reduce((a,v)=>a+v.sec,0)/60));
-      out.push(ev(`study-${d}`,d,sd[0],sd[1],mins,`Security+ · ${vids.length} video${vids.length>1?"s":""}`,vids.map(v=>`${v.i+1}. ${v.title} (${v.len})`).join("\n")));nStudy++}
+      out.push(ev(`study-${d}`,d,sd[0],sd[1],mins,`${C.courseTitle} · ${vids.length} video${vids.length>1?"s":""}`,vids.map(v=>`${v.i+1}. ${v.title} (${v.len})`).join("\n")));nStudy++}
   }
   return {text:["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Rhythm//Planner//EN","CALSCALE:GREGORIAN","X-WR-CALNAME:Rhythm",...extra,...out,"END:VCALENDAR"].join("\r\n"),nRun,nStudy,nShift};
 }
@@ -998,7 +1045,7 @@ document.addEventListener("submit",e=>{
 });
 async function connectSync(token){
   token=(token||"").trim();if(!/^(github_pat_|ghp_)\w{20,}$/.test(token)){toast({t:"That doesn't look like a key",s:"It starts with github_pat_ or ghp_",k:"warn"});return}
-  if(DEMO)exitDemo(false);
+  if(DEMO)return;
   lsSet(TOKEN_KEY,token);toast({t:"Connecting…",s:"Checking your key with GitHub",k:"copy"});
   try{
     const me=await gh("/user");
@@ -1060,6 +1107,7 @@ function liveCalSection(){
 }
 function syncSection(){
   const chev=IC.chev;
+  if(DEMO)return `<div class="sec"><div class="sh">Log In</div><div class="grp"><button class="cell btnrow" data-act="demoexit" style="font-weight:600">Leave Demo and Log In</button></div><div class="sf">This is the demo, with a made-up person and goals. Nothing here is saved.</div></div>`;
   if(!syncOn())return `<div class="sec"><div class="sh">Log In</div><form class="grp" id="loginform" autocomplete="on">
     <div class="cell"><label class="grow" for="lg-user">GitHub username</label><input id="lg-user" name="username" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="username" style="width:150px"></div>
     <div class="cell"><label class="grow" for="lg-pw">Password</label><input id="lg-pw" name="password" type="password" autocomplete="current-password" placeholder="Required" style="width:150px"></div>
@@ -1276,11 +1324,11 @@ function viewSettings(){
     profile:["Name",()=>`<div class="sec"><div class="grp">
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
   </div></div>`],
-    goal:["2.4 km Goal",()=>`<div class="sec"><div class="sh">2.4 km Goal</div><div class="grp">
-    <div class="cell"><label class="grow" for="set-goal">Goal time</label><select id="set-goal" data-act="goal">${[...Array(13)].map((_,i)=>600+i*15).map(v=>`<option value="${v}" ${goalSec()===v?"selected":""}>${fmt(v)}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+    goal:[C.goalLbl,()=>`<div class="sec"><div class="sh">${C.goalLbl}</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-goal">Goal time</label><select id="set-goal" data-act="goal">${[...Array(13)].map((_,i)=>C.goalFrom+i*15).map(v=>`<option value="${v}" ${goalSec()===v?"selected":""}>${fmt(v)}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t1">First test</label><select id="set-t1" data-act="tw" data-n="0">${[...Array(7)].map((_,i)=>i+1).map(w=>`<option value="${w}" ${testWeeks()[0]===w?"selected":""} ${w>=testWeeks()[1]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t2">Final test</label><select id="set-t2" data-act="tw" data-n="1">${[...Array(7)].map((_,i)=>i+2).map(w=>`<option value="${w}" ${testWeeks()[1]===w?"selected":""} ${w<=testWeeks()[0]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
-  </div><div class="sf">Test runs replace that week's tempo. The goal sets your target pace (${fmt(goalSec()/2.4)}/km) and the target line on your charts. Interval paces in the plan stay set for 11:00.</div></div>`],
+  </div><div class="sf">Tests replace that week's ${KIND.C.toLowerCase()}. The goal sets your target pace (${fmt(paceOf(goalSec(),C.dist))}${C.paceU}) and the target line on your charts. Interval paces in the plan stay set for ${fmt(C.goal)}.</div></div>`],
     study:["Study",()=>`<div class="sec"><div class="sh">Study</div><div class="grp">
     <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>`],
@@ -1313,7 +1361,7 @@ function viewSettings(){
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
   const head=`<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>`;
   const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("profile","Name",esc(nameOf()))}</div></div>
-  <div class="sec"><div class="grp">${row("goal","2.4 km Goal",fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}</div></div>
+  <div class="sec"><div class="grp">${row("goal",C.goalLbl,fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
   ${syncOn()?`<div class="sec"><div class="grp"><button class="cell btnrow destructive" data-act="logout">Log Out</button></div></div>`:""}`;
@@ -1344,19 +1392,18 @@ function demoState(){
   VID.slice(0,Math.min(16,free.length*2)).forEach((v,i)=>{o.done[v.i]=free[Math.floor(i/2)]});
   const nxt=VID.find(v=>!o.done[v.i]);if(nxt)o.done[nxt.i]=T;
   const pick=k=>free[free.length-k];
-  const runs=[[pick(7),3,1150,0],[pick(5),2.4,778,1],[pick(3),3.5,1310,0],[pick(1),2.4,1220,0]].filter(r=>r[0]);
+  const runs=[[pick(7),0.8,1290,0],[pick(5),0.4,575,1],[pick(3),1,1590,0],[pick(1),0.6,950,0]].filter(r=>r[0]);
   o.runs=runs.map(([d,km,sec,tt])=>tt?{d,km,sec,tt:1}:{d,km,sec});runs.forEach(([d])=>o.runDone[d]=true);
   return o;
 }
+// Switching in or out of the demo reloads, because the goals themselves change.
 function startDemo(){
-  try{localStorage.removeItem(KEY);localStorage.setItem("rhythm-demo","1")}catch(e){}
-  DEMO=true;S=demoState();cache={};openDoms=null;applyTheme();location.hash="#today";render(true);
-  toast({t:"Demo mode",s:"Sample data. Nothing you do here is saved",k:"copy"});
+  try{localStorage.removeItem(KEY);localStorage.setItem("rhythm-demo","1");sessionStorage.setItem("rhythm-demo-new","1")}catch(e){}
+  location.hash="#today";location.reload();
 }
-function exitDemo(show=true){
+function exitDemo(){
   try{localStorage.removeItem("rhythm-demo")}catch(e){}
-  DEMO=false;S=JSON.parse(JSON.stringify(DEF));cache={};openDoms=null;applyTheme();
-  if(show){location.hash="#today";render(true)}
+  location.hash="#today";location.reload();
 }
 function viewLogin(){
   return `<div class="gate-top"><svg viewBox="0 0 120 40" width="96" height="32" aria-hidden="true"><defs><linearGradient id="gw" x1="0" x2="1"><stop offset="0" stop-color="#5E5CE6"/><stop offset=".55" stop-color="#FF375F"/><stop offset="1" stop-color="#FF9F0A"/></linearGradient></defs><path d="M4 20h26l7-13 10 26 9-19 6 6h54" fill="none" stroke="url(#gw)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1438,10 +1485,10 @@ document.addEventListener("click",e=>{
     if(o.run||o.study)S.busy[d]=o;else delete S.busy[d];
     const before=k==="run"?runOn(d):null,nv=k==="study"?(schedule().map[d]||[]).length:0;
     cache={};let msg;
-    if(el.checked)msg={t:"Back on the plan",s:k==="run"?"Your run is back on "+nice(pd(d)):"Your videos are back on "+nice(pd(d)),k:"undo"};
+    if(el.checked)msg={t:"Back on the plan",s:k==="run"?`Your ${C.run} is back on `+nice(pd(d)):"Your videos are back on "+nice(pd(d)),k:"undo"};
     else if(k==="run"&&before){const w=before.w,to=Object.entries(weekRuns(w)).find(([dd,kk])=>kk===before.k);
-      msg={t:"Run moved",s:to?`${before.test?"2.4 test":KIND[before.k]} → ${nice(pd(to[0]))}`:`${KIND[before.k]} dropped this week to keep hard days apart`,k:"moved"}}
-    else if(k==="run")msg={t:"Run skipped",k:"moved"};
+      msg={t:`${C.Run} moved`,s:to?`${before.test?C.testShort:KIND[before.k]} → ${nice(pd(to[0]))}`:`${KIND[before.k]} dropped this week to keep hard days apart`,k:"moved"}}
+    else if(k==="run")msg={t:`${C.Run} skipped`,k:"moved"};
     else msg={t:"Videos moved",s:nv?`${nv} video${nv>1?"s":""} → your next free days`:"Moved to your next free days",k:"moved"};
     changed(msg);return}
   else if(a==="splash"){S.splash=el.checked?undefined:false;if(S.splash===undefined)delete S.splash;save();
@@ -1475,24 +1522,24 @@ document.addEventListener("click",e=>{
   else if(a==="resetall"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Reset Everything";return}
     S.runs=[];S.done={};S.runDone={};S.busy={};changed({t:"Progress reset",s:"A fresh start. Shifts and settings kept",k:"undo"});return}
   else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;(()=>{const dd=el.dataset.d||T,r=runOn(dd),wd=weekDays(pd(dd)),pl=wd.filter(x=>runOn(x)).length,dn=wd.filter(x=>runOn(x)&&S.runDone[x]).length;
-    changed({t:"Run done. Nice work!",s:`${r?(r.test?"2.4 test":KIND[r.k])+" · ":""}${dn} of ${pl} this week`,k:"run"})})()}
+    changed({t:`${C.Run} done. Nice work!`,s:`${r?(r.test?C.testShort:KIND[r.k])+" · ":""}${dn} of ${pl} this week`,k:"run"})})()}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
-    const d=document.getElementById("rd").value,km=parseFloat(document.getElementById("rk").value),t=document.getElementById("rt").value.trim();
+    const d=document.getElementById("rd").value,km=parseFloat(document.getElementById("rk").value)/(C.meters?1000:1),t=document.getElementById("rt").value.trim();
     const m=t.match(/^(\d{1,2})[:.](\d{2})$/);
     if(!d||!(km>0)||!m){toast({t:"Check the time",s:"Enter it like 12:45",k:"warn"});return}
     const sec=+m[1]*60+ +m[2],isT=document.getElementById("rtt").checked,prev=best24();
     if(S.runs.some(r=>r.d===d&&r.sec===sec&&r.km===km)){toast({t:"Already logged",s:"That run is in your history",k:"warn"});return}
     S.runs.push({d,km,sec,tt:isT});S.runDone[d]=true;
-    changed(isT&&(prev==null||sec<prev)?{t:"New best 2.4!",s:prev==null?`${fmt(sec)} · ${fmt(Math.max(0,sec-goalSec()))} to go`:`${fmt(sec)} · ${fmt(prev-sec)} faster`,k:"best"}
-      :{t:"Run logged",s:`${km} km · ${fmt(sec)} · ${fmt(sec/km)}/km`,k:"run"})}
+    changed(isT&&(prev==null||sec<prev)?{t:`New best ${C.bestLbl}!`,s:prev==null?`${fmt(sec)} · ${fmt(Math.max(0,sec-goalSec()))} to go`:`${fmt(sec)} · ${fmt(prev-sec)} faster`,k:"best"}
+      :{t:`${C.Run} logged`,s:`${distTxt(km)} · ${fmt(sec)} · ${fmt(paceOf(sec,km))}${C.paceU}`,k:"run"})}
   else if(a==="delrun"){const k=el.dataset.k;const i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);if(i>-1){S.runs.splice(i,1);changed({t:"Run deleted",k:"undo"})}}
 });
 document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];(()=>{if(!el.checked){changed(null);return}const v=VID[+i];changed(null);const n=VID.find(x=>!S.done[x.i]);
-    toast({t:`Video ${v.i+1} watched`,s:n?`Next: ${n.title}`:"All 121 done. Time for practice exams!",k:"video"})})()}
-  else if(el.dataset.act==="goal"){S.goal=+el.value;if(S.goal===660)delete S.goal;changed({t:"Goal updated",s:`${fmt(goalSec())} · ${fmt(goalSec()/2.4)}/km`,k:"run"})}
+    toast({t:`Video ${v.i+1} watched`,s:n?`Next: ${n.title}`:`All ${VID.length} done. ${C.doneMsg}`,k:"video"})})()}
+  else if(el.dataset.act==="goal"){S.goal=+el.value;if(S.goal===C.goal)delete S.goal;changed({t:"Goal updated",s:`${fmt(goalSec())} · ${fmt(paceOf(goalSec(),C.dist))}${C.paceU}`,k:"run"})}
   else if(el.dataset.act==="tw"){const tw=[...testWeeks()];tw[+el.dataset.n]=+el.value;S.testWeeks=tw;
     changed({t:"Test weeks updated",s:`Week ${tw[0]+1} and week ${tw[1]+1}`,k:"run"})}
   else if(el.dataset.act==="calset"){if(el.id==="set-runat")S.runAt=el.value;else if(el.id==="set-studyat")S.studyAt=el.value;else S.calSpan=el.value;save();if(syncOn()&&el.type==="time")toast({t:"Reminder time saved",s:"Your live calendar will update",k:"ok"})}
@@ -1509,7 +1556,14 @@ document.addEventListener("touchend",e=>{if(sx==null)return;const dx=e.changedTo
 window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}else if(route()==="today")render()});
-if(DEMO)S=demoState();
+if(DEMO){S=demoState();
+  IC.run='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="4.5" r="1.7" fill="currentColor" stroke="none"/><path d="M4.5 10.5l4-3.5 3.5 3"/><path d="M2 14c1.6 0 1.6-1.2 3.2-1.2s1.6 1.2 3.2 1.2 1.6-1.2 3.2-1.2 1.6 1.2 3.2 1.2 1.6-1.2 3.2-1.2"/><path d="M2 17.5c1.6 0 1.6-1.2 3.2-1.2s1.6 1.2 3.2 1.2 1.6-1.2 3.2-1.2 1.6 1.2 3.2 1.2 1.6-1.2 3.2-1.2"/></svg>';
+  // tab names and the course icon match the demo's goals
+  const a=document.querySelector('.tabbar a[href="#run"]'),b=document.querySelector('.tabbar a[href="#secplus"]');
+  if(a)a.lastChild.textContent=C.fitTab;
+  if(b){b.lastChild.textContent=C.courseTab;b.querySelector("svg").innerHTML='<path d="M4.5 6c3-1.3 6.2-.9 9.5 1.2 3.3-2.1 6.5-2.5 9.5-1.2v15c-3-1.3-6.2-.9-9.5 1.2-3.3-2.1-6.5-2.5-9.5-1.2z"/><path d="M14 7.2v15"/>'}
+  try{if(sessionStorage.getItem("rhythm-demo-new")){sessionStorage.removeItem("rhythm-demo-new");setTimeout(()=>toast({t:"Demo mode",s:"Made-up goals and data. Nothing is saved",k:"copy"}),600)}}catch(e){}
+}
 applyTheme();
 spFinishLogin();
 renderIsland();
