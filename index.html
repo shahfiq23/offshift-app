@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.2.0">
+<meta name="app-version" content="2.2.1">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -1018,6 +1018,21 @@ async function restoreSync(){
     S=Object.assign({},DEF,o);S.welcomed=true;setSY({pending:null,rm:o.mtime||0});applyTheme();cache={};save(true);renderIsland();render(true);toast({t:"Restored from GitHub",s:"Your progress is back",k:"ok"})}
   catch(e){toast({t:"Restore failed",s:e.status?syncErr(e):"The backup file couldn't be read",k:"warn"})}
 }
+// Log out: save anything not yet backed up, then wipe this device and go back to the login screen.
+let loggingOut=false;
+async function logOut(){
+  if(loggingOut)return;loggingOut=true;
+  if(syncOn()){clearTimeout(syncT);
+    if(SY.dirty||SY.pending!=="choose"){toast({t:"Logging out…",s:"Saving your latest changes",k:"copy"});
+      try{await pushSync()}catch(e){}
+      if(SY&&SY.err){loggingOut=false;toast({t:"Couldn't save first",s:"Check your connection, then try again",k:"warn"});render();return}}}
+  if(S.session&&typeof endStudyMode==="function")try{await endStudyMode()}catch(e){}
+  [TOKEN_KEY,SYNC_KEY,SP_KEY,SP_PKCE].forEach(k=>lsSet(k,null));SY=null;SP=null;
+  S=JSON.parse(JSON.stringify(DEF));Object.assign(S.shifts,ROSTER);S.seeded=ROSTER_VER;
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  cache={};openDoms=null;applyTheme();renderIsland();loggingOut=false;
+  location.hash="#today";render(true);toast({t:"Logged out",s:"Your progress is safe on GitHub",k:"ok"});
+}
 function disconnectSync(){lsSet(TOKEN_KEY,null);lsSet(SYNC_KEY,null);SY=null;render();toast({t:"Sync off",s:"Your backup stays on GitHub",k:"undo"})}
 const ago=t=>{if(!t)return "never";const s=(Date.now()-t)/1000;return s<60?"just now":s<3600?`${Math.floor(s/60)} min ago`:s<86400?`${Math.floor(s/3600)} h ago`:nice(new Date(t))};
 function liveCalSection(){
@@ -1285,7 +1300,8 @@ function viewSettings(){
   const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("profile","Name",esc(nameOf()))}</div></div>
   <div class="sec"><div class="grp">${row("goal","2.4 km Goal",fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
-  <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>`;
+  <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
+  ${syncOn()?`<div class="sec"><div class="grp"><button class="cell btnrow destructive" data-act="logout">Log Out</button></div><div class="sf">Logged in as ${esc(SY.user)}. Logging out saves your latest changes, then clears Rhythm from this device.</div></div>`:""}`;
   if(wide())return head+cols(`<div class="stack">${list}</div>`,`<h2 class="pageh">${PAGES[sub][0]}</h2>${PAGES[sub][1]()}`,"split");
   return head+list;
 }
@@ -1402,6 +1418,7 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
+  else if(a==="logout"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Confirm Log Out";return}el.textContent="Logging Out…";logOut();return}
   else if(a==="gateskip"){S.welcomed=true;save(true);render(true);return}
   else if(a==="gatekey"){return}
   else if(a==="pwremove"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Remove";return}removeLoginPassword();return}
