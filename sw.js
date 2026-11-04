@@ -1,5 +1,5 @@
 // Off/Shift offline cache. Bump VERSION whenever index.html changes so phones pick up the update.
-const VERSION = "rhythm-2.2.2";
+const VERSION = "rhythm-2.2.3";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/apple-touch-icon.png", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", e => {

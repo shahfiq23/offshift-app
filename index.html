@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.2.2">
+<meta name="app-version" content="2.2.3">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -307,6 +307,7 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 .sh-card button{padding:16px;font-size:19px;color:var(--blue);border-top:.5px solid var(--sep)}
 .sh-card button:first-of-type{border-top:0}
 .sh-card button.pri{font-weight:600}
+.sh-card button.danger{color:var(--red)}
 .sh-cancel{background:var(--cell);border-radius:14px;padding:16px;font-size:19px;font-weight:600;color:var(--blue)}
 @keyframes sessin{from{transform:translateY(-120%) scale(.6);opacity:0}}
 @keyframes eq{0%,100%{height:30%}50%{height:100%}}
@@ -1033,6 +1034,15 @@ async function logOut(){
   cache={};openDoms=null;applyTheme();renderIsland();loggingOut=false;
   location.hash="#today";render(true);toast({t:"Logged out",s:"Your progress is safe on GitHub",k:"ok"});
 }
+// iOS-style action sheet from the bottom to confirm logging out.
+function showLogoutSheet(){
+  const sh=document.getElementById("sheet");
+  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <div class="sh-msg"><b id="sh-t">Log out as ${esc(SY&&SY.user||"")}?</b><span>Your latest changes are saved to GitHub first. Then your progress, GitHub key and Spotify login are cleared from this device. Log in again any time to get everything back.</span></div>
+    <button data-act="logoutyes" class="danger">Log Out</button>
+  </div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
+  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+}
 function disconnectSync(){lsSet(TOKEN_KEY,null);lsSet(SYNC_KEY,null);SY=null;render();toast({t:"Sync off",s:"Your backup stays on GitHub",k:"undo"})}
 const ago=t=>{if(!t)return "never";const s=(Date.now()-t)/1000;return s<60?"just now":s<3600?`${Math.floor(s/60)} min ago`:s<86400?`${Math.floor(s/3600)} h ago`:nice(new Date(t))};
 function liveCalSection(){
@@ -1301,7 +1311,7 @@ function viewSettings(){
   <div class="sec"><div class="grp">${row("goal","2.4 km Goal",fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
-  ${syncOn()?`<div class="sec"><div class="grp"><button class="cell btnrow destructive" data-act="logout">Log Out</button></div><div class="sf">Logged in as ${esc(SY.user)}. Logging out saves your latest changes, then clears Rhythm from this device.</div></div>`:""}`;
+  ${syncOn()?`<div class="sec"><div class="grp"><button class="cell btnrow destructive" data-act="logout">Log Out</button></div></div>`:""}`;
   if(wide())return head+cols(`<div class="stack">${list}</div>`,`<h2 class="pageh">${PAGES[sub][0]}</h2>${PAGES[sub][1]()}`,"split");
   return head+list;
 }
@@ -1418,7 +1428,8 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
-  else if(a==="logout"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Confirm Log Out";return}el.textContent="Logging Out…";logOut();return}
+  else if(a==="logout"){showLogoutSheet();return}
+  else if(a==="logoutyes"){hideSheet();logOut();return}
   else if(a==="gateskip"){S.welcomed=true;save(true);render(true);return}
   else if(a==="gatekey"){return}
   else if(a==="pwremove"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Remove";return}removeLoginPassword();return}
