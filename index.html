@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.0.4">
+<meta name="app-version" content="2.0.5">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -918,10 +918,8 @@ async function spFindDevices(){
     toast(spDevices.length?{t:`${spDevices.length} speaker${spDevices.length>1?"s":""} found`,s:spDevices.map(d=>d.name).join(" · "),k:"ok"}:{t:"No speakers found",s:"Open Spotify and play something on your Nest once",k:"warn"})}
   catch(e){toast({t:"Couldn't list speakers",s:e.message,k:"warn"})}
 }
-// ---------- Study Mode session: Spotify + Focus/timer Shortcut + an in-app countdown capsule ----------
-const focusOn=()=>!!S.focusShortcut;
-// Two plain Shortcuts, no input needed: "Study On" and "Study Off".
-const smReady=()=>(spOn()&&spPlaylist())||focusOn();
+// ---------- Study Mode session: Spotify jazz + a "Studying" capsule ----------
+const smReady=()=>spOn()&&spPlaylist();
 const spErr=e=>e.reason==="PREMIUM_REQUIRED"?{t:"Spotify Premium needed",k:"warn"}
   :e.status===401||e.status===400?{t:"Spotify needs reconnecting",s:"Settings › Study Mode › Connect Spotify",k:"warn"}
   :e.status===404?{t:"Speaker went to sleep",s:"Pick it in Spotify once, then try again",k:"warn"}
@@ -944,7 +942,6 @@ async function spPlayStudy(opt={}){
   await sp("/me/player/next"+q,{method:"POST"}).catch(()=>{});
   return {name:dev.name,id:dev.id,fallback:fallback&&!!S.spDevice};
 }
-const runFocus=arg=>{if(focusOn())location.href="shortcuts://run-shortcut?name="+encodeURIComponent(arg==="on"?"Study On":"Study Off")};
 let wakePending=null;
 async function startStudyMode(opt={}){
   if(!smReady()){location.hash="#settings-studymode";toast({t:"Set up Study Mode first",s:"Settings › Study Mode",k:"warn"});return}
@@ -957,14 +954,13 @@ async function startStudyMode(opt={}){
       try{music=await spPlayStudy(opt);break}
       catch(e){
         if(e.code==="ASLEEP"){if(i<tries-1){await new Promise(r=>setTimeout(r,1500));continue}dismissToast();showWakeSheet(!!opt.retry);return}
-        toast(spErr(e));if(!focusOn())return;break}
+        toast(spErr(e));return}
     }
   }
   S.session={start:Date.now(),dev:music&&music.id,devName:music&&music.name,paused:false};save();renderIsland();
   toast(music&&music.fallback?{t:`Study Mode on`,s:`Shuffling on ${music.name}`,k:"video"}
-    :{t:"Study Mode on",s:music?"Shuffling on "+music.name:"Study Focus on",k:"video"});
+    :{t:"Study Mode on",s:music?"Shuffling on "+music.name:"",k:"video"});
   render();
-  if(focusOn())setTimeout(()=>runFocus("on"),music?900:200);
 }
 function showWakeSheet(again){
   const sh=document.getElementById("sheet");
@@ -994,8 +990,8 @@ async function endStudyMode(){
   const mins=Math.max(1,Math.round((Date.now()-s.start)/60000));
   if(spOn()&&s.devName&&!s.paused){try{await sp("/me/player/pause"+(s.dev?"?device_id="+encodeURIComponent(s.dev):""),{method:"PUT"})}catch(e){}}
   delete S.session;save();renderIsland();
-  toast({t:"Study Mode ended",s:`${mins} min studied. Nice work`,k:"ok"});
-  if(focusOn())setTimeout(()=>runFocus("off"),700);
+  const dur=mins<60?`${mins} min`:`${Math.floor(mins/60)}h`+(mins%60?` ${mins%60} min`:"");
+  toast({t:"Study Mode ended",s:`${dur} studied. Nice work`,k:"ok"});
 }
 // Persistent capsule at the top while studying: tap to expand for controls.
 let islandExpanded=false,islandCollapseT=null;
@@ -1007,7 +1003,7 @@ function renderIsland(){
   el.hidden=false;el.className="sess"+(islandExpanded?" open":"")+(s.paused?" paused":"");
   const bars=`<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>`;
   el.innerHTML=islandExpanded
-    ?`<div class="sx-top">${bars}<div class="sx-t"><b>Study Mode</b><span>${s.devName?(s.paused?"Paused · ":"")+"Jazz on "+esc(s.devName):"Study Focus on"}</span></div></div>
+    ?`<div class="sx-top">${bars}<div class="sx-t"><b>Study Mode</b><span>${s.devName?(s.paused?"Paused · ":"")+"Jazz on "+esc(s.devName):"Studying"}</span></div></div>
       <div class="sx-btns">${s.devName&&spOn()?`<button data-act="sessmusic">${s.paused?"Play Music":"Pause Music"}</button>`:""}<button class="end" data-act="sessend">End Session</button></div>`
     :`${bars}<span class="sx-time">Studying</span>`;
 }
@@ -1018,10 +1014,7 @@ const studyModeBtn=(cls="btn tint block")=>smReady()?(S.session
 function spotifySection(){
   const chev=IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"');
   const devs=spDevices||[],opts=[...new Set([S.spDevice,...devs.map(d=>d.name)].filter(Boolean))];
-  return `<div class="sec"><div class="sh">Study Mode</div><div class="grp">
-    <div class="cell"><label class="grow" for="set-focus">Study Focus shortcut</label><input class="sw" type="checkbox" id="set-focus" data-act="focustoggle" ${focusOn()?"checked":""}></div>
-  </div><div class="sf">${focusOn()?`Starting runs your "Study On" shortcut and ending runs "Study Off".`:"Turn on to also switch your Study Focus on and off through a Shortcut, so notifications are silenced while you study."}</div></div>
-  <div class="sec"><div class="sh">Spotify</div><div class="grp">
+  return `<div class="sec"><div class="sh">Spotify</div><div class="grp">
     <div class="cell"><label class="grow" for="set-spid">Client ID</label><input id="set-spid" type="text" value="${esc(S.spClient||"")}" placeholder="32 characters" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
     <div class="cell"><label class="grow" for="set-sppl">Playlist link</label><input id="set-sppl" type="text" value="${esc(S.spPlaylist||"")}" placeholder="open.spotify.com/playlist/…" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
     ${spOn()?`<div class="cell"><label class="grow" for="set-spdev">Speaker</label><select id="set-spdev" data-act="spdev"><option value="">${opts.length?"Choose…":"Tap Find Speakers"}</option>${opts.map(n=>`<option ${n===S.spDevice?"selected":""}>${esc(n)}</option>`).join("")}</select>${chev}</div>
@@ -1097,7 +1090,7 @@ function viewSettings(){
   const sub=(location.hash.match(/^#settings-([a-z]+)$/)||[])[1];
   if(sub&&PAGES[sub])return `<div class="lt"><a class="backlink" href="#settings">${IC.chev.replace('class="chev"','class="chev back"')}Settings</a><h1>${PAGES[sub][0]}</h1></div>${PAGES[sub][1]()}`;
   const row=(k,label,val)=>`<a class="cell ind" href="#settings-${k}">${setIco(k)}<span class="grow" style="color:var(--label)">${label}</span>${val?`<span class="trail">${val}</span>`:""}${IC.chev}</a>`;
-  const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):focusOn()?"Focus only":"Off";
+  const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):"Off";
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
   return `<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>
   <div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("profile","Name",esc(nameOf()))}</div></div>
@@ -1192,7 +1185,6 @@ document.addEventListener("click",e=>{
   else if(a==="smcancel"){hideSheet();return}
   else if(a==="sessend"){endStudyMode().then(render);return}
   else if(a==="sessmusic"){toggleMusic();return}
-  else if(a==="focustoggle"){if(el.checked)S.focusShortcut=true;else delete S.focusShortcutsave();render();return}
   else if(a==="splogin"){const v=document.getElementById("set-spid").value.trim();S.spClient=v;save();spLogin();return}
   else if(a==="spfind"){spFindDevices();return}
   else if(a==="spoff"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Disconnect";return}lsSet(SP_KEY,null);SP=null;spDevices=null;render();toast({t:"Spotify disconnected",k:"undo"});return}
