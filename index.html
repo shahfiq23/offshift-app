@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.2.3">
+<meta name="app-version" content="2.2.4">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -447,11 +447,6 @@ let S=JSON.parse(JSON.stringify(DEF));
 try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
 // S.mtime = when this device last changed something. Sync uses it to tell which copy is newer.
 function save(quiet){if(!quiet)S.mtime=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}try{scheduleSync()}catch(e){/* sync code not loaded yet during startup */}}
-// Shift days from the Cyber Shift roster (Nov 2026 to Jan 2027). Applied once per roster version;
-// after that, taps on the Roster tab win.
-const ROSTER_VER="2026-11-01";
-const ROSTER={"2026-11-01":"08:00-19:00","2026-11-02":"08:00-19:00","2026-11-06":"21:00-09:00","2026-11-07":"21:00-09:00","2026-11-08":"21:00-09:00","2026-11-12":"11:00-23:00","2026-11-13":"11:00-23:00","2026-11-14":"11:00-23:00","2026-11-18":"08:00-19:00","2026-11-19":"08:00-19:00","2026-11-20":"08:00-19:00","2026-11-24":"21:00-09:00","2026-11-25":"21:00-09:00","2026-11-26":"21:00-09:00","2026-11-30":"11:00-23:00","2026-12-01":"11:00-23:00","2026-12-02":"11:00-23:00","2026-12-06":"08:00-19:00","2026-12-07":"08:00-19:00","2026-12-08":"08:00-19:00","2026-12-12":"21:00-09:00","2026-12-13":"21:00-09:00","2026-12-14":"21:00-09:00","2026-12-18":"08:00-19:00","2026-12-19":"08:00-19:00","2026-12-20":"08:00-19:00","2026-12-24":"08:00-19:00","2026-12-25":"08:00-19:00","2026-12-26":"08:00-19:00","2026-12-30":"20:00-08:00","2026-12-31":"20:00-08:00","2027-01-01":"20:00-08:00","2027-01-05":"11:00-23:00","2027-01-06":"11:00-23:00","2027-01-07":"11:00-23:00","2027-01-11":"08:00-19:00","2027-01-12":"08:00-19:00","2027-01-13":"08:00-19:00","2027-01-17":"21:00-09:00","2027-01-18":"21:00-09:00","2027-01-19":"21:00-09:00","2027-01-23":"11:00-23:00","2027-01-24":"11:00-23:00","2027-01-25":"11:00-23:00","2027-01-29":"08:00-19:00","2027-01-30":"08:00-19:00","2027-01-31":"08:00-19:00"};
-if(S.seeded!==ROSTER_VER){Object.assign(S.shifts,ROSTER);S.seeded=ROSTER_VER;save(true)}
 
 // ---------- planning ----------
 let cache={};
@@ -536,7 +531,9 @@ function ring(r,frac,color){const c=2*Math.PI*r,f=Math.max(0,Math.min(1,frac));
   return `<circle cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-opacity=".22" stroke-width="15"/>
   <circle class="ring" style="--c:${c}" cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-f)+(f===0?0:0)}" transform="rotate(-90 66 66)" ${f===0?'stroke-opacity="0"':""}/>`}
 
-const nameOf=()=>(S.name||"").trim()||"Shahfiq";
+const nameOf=()=>(S.name||"").trim();
+// Before 2.2.4 the name defaulted to Shahfiq on devices that had the built-in roster. Keep it there.
+if(S.seeded&&S.name==null){S.name="Shahfiq";save(true)}
 function greeting(){const h=new Date().getHours();return h>=5&&h<12?"Good morning":h>=12&&h<18?"Good afternoon":"Good evening"}
 function dayTitle(D){const n=diff(pd(D),TODAY);return n===0?"Today":n===1?"Tomorrow":n===-1?"Yesterday":LONGDOW[pd(D).getDay()]}
 function viewDay(D){
@@ -570,7 +567,7 @@ function viewDay(D){
   const optional=(isToday&&t==="shift")?VID.find(v=>!S.done[v.i]):null;
   const prev=ds(add(dd,-1)),nxt=ds(add(dd,1));
   const head=`
-  ${isToday?`<div class="greet">${greeting()}, ${esc(nameOf())}</div>`:""}
+  ${isToday?`<div class="greet">${greeting()}${nameOf()?", "+esc(nameOf()):""}</div>`:""}
   <div class="lt"><div class="sub">${longDate(dd)}</div><div class="row"><h1>${dayTitle(D)}</h1>
     <div class="daynav">${!isToday?`<button class="btn tint small" data-act="go" data-d="${T}">Today</button>`:""}
     <button class="navb" data-act="go" data-d="${prev}" aria-label="Previous day">‹</button><button class="navb" data-act="go" data-d="${nxt}" aria-label="Next day">›</button></div></div></div>
@@ -1029,7 +1026,7 @@ async function logOut(){
       if(SY&&SY.err){loggingOut=false;toast({t:"Couldn't save first",s:"Check your connection, then try again",k:"warn"});render();return}}}
   if(S.session&&typeof endStudyMode==="function")try{await endStudyMode()}catch(e){}
   [TOKEN_KEY,SYNC_KEY,SP_KEY,SP_PKCE].forEach(k=>lsSet(k,null));SY=null;SP=null;
-  S=JSON.parse(JSON.stringify(DEF));Object.assign(S.shifts,ROSTER);S.seeded=ROSTER_VER;
+  S=JSON.parse(JSON.stringify(DEF));
   try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   cache={};openDoms=null;applyTheme();renderIsland();loggingOut=false;
   location.hash="#today";render(true);toast({t:"Logged out",s:"Your progress is safe on GitHub",k:"ok"});
