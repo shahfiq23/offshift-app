@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.3.4">
+<meta name="app-version" content="2.4.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -126,6 +126,25 @@ html{touch-action:manipulation} /* no double-tap zoom */
 .ptr.spin rect:nth-child(9){opacity:.36}.ptr.spin rect:nth-child(10){opacity:.3}.ptr.spin rect:nth-child(11){opacity:.24}.ptr.spin rect:nth-child(12){opacity:.18}
 @keyframes ptrspin{to{transform:rotate(-360deg)}}
 @media (min-width:1100px) and (min-height:600px){.ptr{left:248px}}
+/* Goodnotes reader */
+.reader{position:fixed;inset:0;z-index:125;background:var(--bg);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .38s cubic-bezier(.2,1,.3,1)}
+.reader.on{transform:none}
+body.reading{overflow:hidden}
+.rd-bar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 8px) max(14px,env(safe-area-inset-right,0px)) 8px max(14px,env(safe-area-inset-left,0px));
+  background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep);z-index:2}
+.rd-done{color:var(--blue);font-weight:600;font-size:17px;min-width:64px;text-align:left}
+.rd-sp{min-width:64px}
+.rd-t{flex:1;display:grid;text-align:center;min-width:0;line-height:1.25}
+.rd-t b{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-t span{font-size:12px;color:var(--label2);font-variant-numeric:tabular-nums}
+.rd-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;overscroll-behavior:contain}
+.rd-pages{margin:0 auto;padding:12px 12px calc(24px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;align-content:start;will-change:transform}
+.rd-pg{background:#fff;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.18);overflow:hidden}
+.rd-pg canvas{display:block;width:100%;height:100%}
+.rd-load{position:absolute;inset:0;top:60px;display:grid;place-content:center;justify-items:center;gap:12px;color:var(--label2);font-size:15px;text-align:center;padding:0 32px;pointer-events:none}
+.rd-spin{animation:ptrspin .9s steps(12) infinite;fill:currentColor}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stepn{flex:none;width:22px;height:22px;border-radius:11px;background:var(--fill);color:var(--label2);font:600 13px/22px var(--font);text-align:center;margin-top:1px}
 /* demo banner */
 .demo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--label);
   border-radius:12px;padding:10px 12px 10px 14px;font-size:15px;margin-top:6px}
@@ -375,6 +394,11 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
   <a href="#settings"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12.2 3.5h3.6l.6 2.9 2 .9 2.5-1.6 2.5 2.5-1.6 2.5.9 2 2.9.6v3.6l-2.9.6-.9 2 1.6 2.5-2.5 2.5-2.5-1.6-2 .9-.6 2.9h-3.6l-.6-2.9-2-.9-2.5 1.6-2.5-2.5 1.6-2.5-.9-2-2.9-.6v-3.6l2.9-.6.9-2-1.6-2.5 2.5-2.5 2.5 1.6 2-.9z"/><circle cx="14" cy="14" r="3.6"/></svg>Settings</a>
 </nav>
 <div class="ptr" id="ptr" aria-hidden="true"><svg viewBox="0 0 28 28" width="28" height="28"><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(0 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(30 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(60 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(90 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(120 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(150 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(180 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(210 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(240 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(270 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(300 14 14)"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(330 14 14)"/></svg></div>
+<div class="reader" id="reader" hidden role="dialog" aria-modal="true" aria-labelledby="rdTitle">
+  <div class="rd-bar"><button class="rd-done" data-act="rdclose">Done</button><div class="rd-t"><b id="rdTitle"></b><span id="rdPage"></span></div><span class="rd-sp"></span></div>
+  <div class="rd-scroll" id="rdScroll"><div class="rd-pages" id="rdPages"></div></div>
+  <div class="rd-load" id="rdLoad"><svg viewBox="0 0 28 28" width="28" height="28" class="rd-spin"><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(0 14 14)" opacity="1.00"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(30 14 14)" opacity="0.93"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(60 14 14)" opacity="0.86"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(90 14 14)" opacity="0.79"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(120 14 14)" opacity="0.72"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(150 14 14)" opacity="0.65"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(180 14 14)" opacity="0.58"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(210 14 14)" opacity="0.51"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(240 14 14)" opacity="0.44"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(270 14 14)" opacity="0.37"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(300 14 14)" opacity="0.30"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(330 14 14)" opacity="0.23"/></svg><span id="rdMsg"></span></div>
+</div>
 <div class="sheet" id="sheet" hidden></div>
 <div class="sess" id="sess" role="status" aria-label="Study Mode session" hidden></div>
 <div class="island" id="toast" role="status" aria-live="polite" hidden><span class="iico" id="toastIco"></span><span class="itxt"><b id="toastT"></b><span id="toastS"></span></span></div>
@@ -831,7 +855,8 @@ function viewSec(){
     <div class="pad"><div class="bar" role="progressbar" aria-valuenow="${done.length}" aria-valuemin="0" aria-valuemax="${VID.length}"><i style="width:${done.length/VID.length*100}%"></i></div></div>
     <div class="cell"><label class="grow" for="mins">Study per free day</label><select id="mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">${C.courseNote}</div></div>
-  ${(()=>{const n=VID.find(v=>!S.done[v.i]);return n?`<button class="btn tint block" data-act="jumpnext">Continue: ${n.i+1}. ${esc(n.title)}</button>${studyModeBtn("btn fill block")}`:""})()}`;
+  ${(()=>{const n=VID.find(v=>!S.done[v.i]);return n?`<button class="btn tint block" data-act="jumpnext">Continue: ${n.i+1}. ${esc(n.title)}</button>${studyModeBtn("btn fill block")}`:""})()}${notesSection()}`;
+  if(dbxOn())setTimeout(()=>loadNotes(false),0);
   const course=`<div class="sec"><div class="sh">Course · in playlist order</div><div class="grp">${courseList()}</div></div>`;
   return wide()?head+cols(`<div class="stack">${side}</div>`,course,"sticky-l"):head+side+course;
 }
@@ -1093,7 +1118,7 @@ async function logOut(){
       try{await pushSync()}catch(e){}
       if(SY&&SY.err){loggingOut=false;toast({t:"Couldn't save first",s:"Check your connection, then try again",k:"warn"});render();return}}}
   if(S.session&&typeof endStudyMode==="function")try{await endStudyMode()}catch(e){}
-  [TOKEN_KEY,SYNC_KEY,SP_KEY,SP_PKCE].forEach(k=>lsSet(k,null));SY=null;SP=null;
+  [TOKEN_KEY,SYNC_KEY,SP_KEY,SP_PKCE].forEach(k=>lsSet(k,null));SY=null;SP=null;clearNotes();
   S=JSON.parse(JSON.stringify(DEF));
   try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   cache={};openDoms=null;applyTheme();renderIsland();loggingOut=false;
@@ -1103,7 +1128,7 @@ async function logOut(){
 function showLogoutSheet(){
   const sh=document.getElementById("sheet");
   sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t">
-    <div class="sh-msg"><b id="sh-t">Log out as ${esc(SY&&SY.user||"")}?</b><span>Your latest changes are saved to GitHub first. Then your progress, GitHub key and Spotify login are cleared from this device. Log in again any time to get everything back.</span></div>
+    <div class="sh-msg"><b id="sh-t">Log out as ${esc(SY&&SY.user||"")}?</b><span>Your latest changes are saved to GitHub first. Then your progress, GitHub key, Spotify and Dropbox logins and downloaded notes are cleared from this device. Log in again any time to get everything back.</span></div>
     <button data-act="logoutyes" class="danger">Log Out</button>
   </div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
   sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
@@ -1313,6 +1338,7 @@ function applyTheme(){
 }
 // Settings: an iOS-style main list; each row opens its own page (#settings-<page>).
 const SET_ICO={
+ notes:["#FF9F0A",'<g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4.5" y="2.8" width="11.5" height="14.4" rx="2"/><path d="M4.5 6.2H3M4.5 10H3M4.5 13.8H3M8 7h5M8 10.2h5M8 13.4h3" stroke-linecap="round"/></g>'],
  appearance:["#5E5CE6",'<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 3.5a6.5 6.5 0 010 13z" fill="currentColor"/>'],
  profile:["#8E8E93",'<circle cx="10" cy="7" r="3.2" fill="currentColor"/><path d="M3.8 16.5c.8-3 3.3-4.8 6.2-4.8s5.4 1.8 6.2 4.8z" fill="currentColor"/>'],
  goal:["#FF9500",null],
@@ -1346,6 +1372,7 @@ function viewSettings(){
     <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>`],
     studymode:["Study Mode",()=>spotifySection()],
+    notes:["Goodnotes",()=>notesSettings()],
     calendar:["Calendar",()=>liveCalSection()+`<div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
     <div class="cell"><label class="grow" for="set-calshifts">Include shifts</label><input class="sw" type="checkbox" id="set-calshifts" data-act="calshifts" ${S.calShifts===false?"":"checked"}></div>
     <div class="cell"><label class="grow" for="set-runat">Run reminder</label><input id="set-runat" type="time" value="${S.runAt||"20:15"}" data-act="calset" style="width:110px"></div>
@@ -1374,13 +1401,177 @@ function viewSettings(){
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
   const head=`<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>`;
   const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("profile","Name",esc(nameOf()))}</div></div>
-  <div class="sec"><div class="grp">${row("goal",C.goalLbl,fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}</div></div>
+  <div class="sec"><div class="grp">${row("goal",C.goalLbl,fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}${DEMO?"":row("notes","Goodnotes",dbxOn()?"On":"Off")}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
   ${syncOn()?`<div class="sec"><div class="grp"><button class="cell btnrow destructive" data-act="logout">Log Out</button></div></div>`:""}`;
   if(wide())return head+cols(`<div class="stack">${list}</div>`,`<h2 class="pageh">${PAGES[sub][0]}</h2>${PAGES[sub][1]()}`,"split");
   return head+list;
 }
+
+// ---------- Goodnotes notes, read from Dropbox ----------
+// Goodnotes' Auto Backup saves notebooks to Dropbox as PDFs. Rhythm logs in to Dropbox (PKCE, like Spotify),
+// lists those PDFs and opens them in a built-in reader. Tokens stay on this device and are never in backups.
+const DBX_KEY="rhythm-dropbox",DBX_PKCE="rhythm-dropbox-pkce",NOTES_LIST="rhythm-notes-list",NOTES_POS="rhythm-notes-pos";
+let DBX=lsGet(DBX_KEY,null),notesList=lsGet(NOTES_LIST,null),notesBusy=false,notesErr=null,notesAll=false;
+const dbxOn=()=>!DEMO&&!!(DBX&&DBX.refresh&&S.dbxKey);
+async function dbxLogin(){
+  const id=(S.dbxKey||"").trim();if(!/^[a-z0-9]{8,24}$/i.test(id)){toast({t:"Add your App key first",s:"From your Dropbox app's Settings page",k:"warn"});return}
+  const ver=b64url(crypto.getRandomValues(new Uint8Array(48))),state="dbx."+b64url(crypto.getRandomValues(new Uint8Array(12)));
+  const chal=b64url(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(ver)));
+  lsSet(DBX_PKCE,{ver,state});
+  location.href="https://www.dropbox.com/oauth2/authorize?"+new URLSearchParams({client_id:id,response_type:"code",redirect_uri:SP_REDIRECT,code_challenge_method:"S256",code_challenge:chal,state,token_access_type:"offline"});
+}
+async function dbxToken(body){
+  const r=await fetch("https://api.dropboxapi.com/oauth2/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:S.dbxKey,...body})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error_description||j.error||"token"),{status:r.status});
+  DBX={access:j.access_token,refresh:j.refresh_token||(DBX&&DBX.refresh),exp:Date.now()+((j.expires_in||14400)-60)*1000};lsSet(DBX_KEY,DBX);
+}
+async function dbxFinishLogin(q){
+  const pk=lsGet(DBX_PKCE,null);history.replaceState(null,"",location.pathname+"#settings-notes");lsSet(DBX_PKCE,null);
+  if(q.has("error")||!pk||q.get("state")!==pk.state){toast({t:"Dropbox not connected",s:q.get("error")==="access_denied"?"You cancelled the login":"Login didn't finish. Try again",k:"warn"});return}
+  try{await dbxToken({grant_type:"authorization_code",code:q.get("code"),redirect_uri:SP_REDIRECT,code_verifier:pk.ver});
+    toast({t:"Dropbox connected",s:"Loading your notebooks",k:"ok"});render();loadNotes(true)}
+  catch(e){toast({t:"Dropbox login failed",s:"Check the Redirect URI and permissions in your Dropbox app",k:"warn"})}
+}
+async function dbx(url,opt={}){
+  if(!DBX||!DBX.refresh)throw Object.assign(new Error("not connected"),{status:401});
+  if(Date.now()>DBX.exp)await dbxToken({grant_type:"refresh_token",refresh_token:DBX.refresh});
+  const go=()=>fetch(url,{method:"POST",...opt,headers:{"Authorization":"Bearer "+DBX.access,...(opt.headers||{})}});
+  let r=await go();
+  if(r.status===401){await dbxToken({grant_type:"refresh_token",refresh_token:DBX.refresh});r=await go()}
+  if(!r.ok)throw Object.assign(new Error("dropbox "+r.status),{status:r.status});
+  return r;
+}
+const dbxJSON=(path,body)=>dbx("https://api.dropboxapi.com/2/"+path,{headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json());
+async function loadNotes(force){
+  if(!dbxOn()||notesBusy||!navigator.onLine)return;
+  if(!force&&notesList&&Date.now()-notesList.at<5*60000)return;
+  notesBusy=true;rerenderNotes();
+  try{
+    let path=(S.dbxFolder||"").trim();if(path&&!path.startsWith("/"))path="/"+path;if(path==="/")path="";
+    let r=await dbxJSON("files/list_folder",{path,recursive:true,limit:2000}),all=r.entries;
+    while(r.has_more){r=await dbxJSON("files/list_folder/continue",{cursor:r.cursor});all=all.concat(r.entries)}
+    const files=all.filter(e=>e[".tag"]==="file"&&/\.pdf$/i.test(e.name)).map(e=>({id:e.id,name:e.name.replace(/\.pdf$/i,""),
+      folder:e.path_display.split("/").slice(1,-1).join(" › "),rev:e.rev,size:e.size,mod:e.server_modified})).sort((a,b)=>a.mod<b.mod?1:-1);
+    notesList={at:Date.now(),files};lsSet(NOTES_LIST,notesList);notesErr=null;
+  }catch(e){notesErr=e.status===409?"That folder isn't in your Dropbox. Check the folder in Settings › Goodnotes.":e.status===401||e.status===400?"Dropbox needs reconnecting in Settings › Goodnotes.":"Couldn't reach Dropbox. Showing the last list."}
+  finally{notesBusy=false;rerenderNotes()}
+}
+function rerenderNotes(){if(route()==="secplus"||location.hash==="#settings-notes"){const y=scrollY;render();scrollTo(0,y)}}
+const fileSize=b=>b>=1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";
+const NOTE_ICO='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4.5" y="2.8" width="11.5" height="14.4" rx="2"/><path d="M4.5 6.2H3M4.5 10H3M4.5 13.8H3M8 7h5M8 10.2h5M8 13.4h3" stroke-linecap="round"/></svg>';
+function notesSection(){
+  if(DEMO)return "";
+  if(!dbxOn())return `<div class="sec"><div class="sh">Notes</div><div class="grp"><a class="cell ind" href="#settings-notes"><span class="ico" style="background:#FF9F0A">${NOTE_ICO}</span><div class="grow"><div style="color:var(--label)">Read your Goodnotes here</div><div class="t2">Set up once with Dropbox</div></div>${IC.chev}</a></div></div>`;
+  const files=(notesList&&notesList.files)||[],show=notesAll?files:files.slice(0,5);
+  const rows=show.map(f=>`<button class="cell ind" data-act="note" data-id="${esc(f.id)}"><span class="ico" style="background:#FF9F0A">${NOTE_ICO}</span><div class="grow" style="text-align:left;min-width:0"><div class="ell">${esc(f.name)}</div><div class="t2 ell">${f.folder?esc(f.folder)+" · ":""}${ago(Date.parse(f.mod))} · ${fileSize(f.size)}</div></div>${IC.chev}</button>`).join("");
+  const more=files.length>5?`<button class="cell btnrow" data-act="notesall">${notesAll?"Show Fewer":`Show All ${files.length}`}</button>`:"";
+  const body=files.length?rows+more:`<div class="cell" style="color:var(--label2)">${notesBusy?"Looking for your notebooks…":"No PDFs found yet."}</div>`;
+  const foot=notesErr?esc(notesErr):!files.length&&!notesBusy?"In Goodnotes, go to Settings › Auto Backup, choose Dropbox and the PDF format. New notebooks appear here after they back up.":notesBusy?"Checking Dropbox…":`Updated ${ago(notesList&&notesList.at)}. Pull down to refresh.`;
+  return `<div class="sec"><div class="sh">Notes${files.length?` · ${files.length}`:""}</div><div class="grp">${body}</div><div class="sf">${foot}</div></div>`;
+}
+function notesSettings(){
+  return `<div class="sec"><div class="sh">Dropbox</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-dbxkey">App key</label><input id="set-dbxkey" type="text" value="${esc(S.dbxKey||"")}" placeholder="From your Dropbox app" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
+    <div class="cell"><label class="grow" for="set-dbxfolder">Folder</label><input id="set-dbxfolder" type="text" value="${esc(S.dbxFolder||"")}" placeholder="All of Dropbox" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
+    ${dbxOn()?`<button class="cell btnrow" data-act="notesrefresh">Refresh Notebooks</button><button class="cell btnrow destructive" data-act="dbxoff">Disconnect Dropbox</button>`
+      :`<button class="cell btnrow" data-act="dbxlogin" style="font-weight:600">Connect Dropbox</button>`}
+  </div><div class="sf">${dbxOn()?`Connected. ${notesList?`${notesList.files.length} notebook${notesList.files.length===1?"":"s"} found.`:""} Leave Folder empty to look everywhere, or enter the folder Goodnotes backs up to.`:"Your Dropbox login stays on this device and is never included in backups."}</div></div>`;
+}
+// Downloaded notebooks are cached on the device (IndexedDB) so they open instantly and work offline.
+const notesDB=()=>new Promise((res,rej)=>{const r=indexedDB.open("rhythm-notes",1);r.onupgradeneeded=()=>r.result.createObjectStore("pdf");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+async function cacheGet(k){try{const db=await notesDB();return await new Promise(res=>{const q=db.transaction("pdf").objectStore("pdf").get(k);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)})}catch(e){return null}}
+async function cachePut(k,v){try{const db=await notesDB();db.transaction("pdf","readwrite").objectStore("pdf").put(v,k)}catch(e){}}
+function clearNotes(){DBX=null;notesList=null;notesErr=null;[DBX_KEY,DBX_PKCE,NOTES_LIST,NOTES_POS].forEach(k=>lsSet(k,null));try{indexedDB.deleteDatabase("rhythm-notes")}catch(e){}}
+
+// ---------- PDF reader ----------
+let pdfjsP=null;
+const loadPdfJs=()=>pdfjsP||(pdfjsP=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="vendor/pdfjs/pdf.min.js";
+  sc.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc="vendor/pdfjs/pdf.worker.min.js";res(window.pdfjsLib)};sc.onerror=()=>{pdfjsP=null;rej(new Error("pdfjs"))};document.head.appendChild(sc)}));
+let RD=null;
+const rdEl=id=>document.getElementById(id);
+async function openNote(id){
+  const f=((notesList&&notesList.files)||[]).find(x=>x.id===id);if(!f)return;
+  const rd=rdEl("reader");rdEl("rdTitle").textContent=f.name;rdEl("rdPage").textContent="";rdEl("rdPages").innerHTML="";rdEl("rdLoad").hidden=false;rdEl("rdMsg").textContent="Opening…";
+  rd.hidden=false;document.body.classList.add("reading");requestAnimationFrame(()=>rd.classList.add("on"));
+  const token={};RD={token,f,doc:null,z:1,sizes:[],cur:1};
+  try{
+    const [lib,c]=await Promise.all([loadPdfJs(),cacheGet(id)]);let data;
+    if(c&&c.rev===f.rev)data=c.data;
+    else{rdEl("rdMsg").textContent=c?"Getting the latest version…":"Downloading from Dropbox…";
+      try{data=await (await dbx("https://content.dropboxapi.com/2/files/download",{headers:{"Dropbox-API-Arg":JSON.stringify({path:f.id})}})).arrayBuffer();cachePut(id,{rev:f.rev,data:data.slice(0)})}
+      catch(e){if(c)data=c.data;else throw e}}
+    if(!RD||RD.token!==token)return;
+    const doc=await lib.getDocument({data:new Uint8Array(data)}).promise;if(!RD||RD.token!==token){doc.destroy();return}
+    RD.doc=doc;
+    for(let i=1;i<=doc.numPages;i++){const pg=await doc.getPage(i),v=pg.getViewport({scale:1});RD.sizes.push([v.width,v.height])}
+    rdEl("rdLoad").hidden=true;rdLayout();
+    const pos=(lsGet(NOTES_POS,{})||{})[id];if(pos&&pos>1){const w=rdEl("rdPages").children[pos-1];if(w)rdEl("rdScroll").scrollTop=w.offsetTop-12}
+    rdPageNo();
+  }catch(e){if(RD&&RD.token===token)rdEl("rdMsg").textContent=navigator.onLine?"Couldn't open this notebook. Pull down on the Sec+ tab to refresh, then try again.":"You're offline, and this notebook hasn't been downloaded yet."}
+}
+function closeNote(){const rd=rdEl("reader");if(RD&&RD.doc)try{RD.doc.destroy()}catch(e){}RD=null;rd.classList.remove("on");document.body.classList.remove("reading");
+  setTimeout(()=>{if(!RD){rd.hidden=true;rdEl("rdPages").innerHTML=""}},300)}
+// Lay out every page at the current zoom; canvases are drawn only for pages near the screen.
+function rdLayout(){
+  if(!RD||!RD.doc)return;const sc=rdEl("rdScroll"),pages=rdEl("rdPages");
+  const base=Math.min(sc.clientWidth-24,980),w=Math.round(base*RD.z);
+  pages.style.width=(w+24)+"px";
+  if(!pages.children.length)pages.innerHTML=RD.sizes.map((_,i)=>`<div class="rd-pg" data-i="${i+1}"><canvas></canvas></div>`).join("");
+  [...pages.children].forEach((el,i)=>{const [pw,ph]=RD.sizes[i];el.style.width=w+"px";el.style.height=Math.round(w*ph/pw)+"px"});
+  RD.w=w;rdDraw();
+}
+let rdT=null;
+function rdDraw(){
+  if(!RD||!RD.doc)return;const sc=rdEl("rdScroll"),top=sc.scrollTop,bot=top+sc.clientHeight,pad=sc.clientHeight;
+  [...rdEl("rdPages").children].forEach(el=>{const near=el.offsetTop+el.offsetHeight>top-pad&&el.offsetTop<bot+pad,cv=el.firstChild;
+    if(!near){if(cv.width){cv.width=0;cv.height=0;el.dataset.w=""}return}
+    if(el.dataset.w==String(RD.w)||el.dataset.busy)return;
+    el.dataset.busy=1;const i=+el.dataset.i,doc=RD.doc,w=RD.w;
+    doc.getPage(i).then(pg=>{if(!RD||RD.doc!==doc)return;
+      const v1=pg.getViewport({scale:1}),dpr=Math.min(devicePixelRatio||1,2);
+      let scale=w/v1.width*dpr;const maxPx=12e6;if(v1.width*v1.height*scale*scale>maxPx)scale=Math.sqrt(maxPx/(v1.width*v1.height));
+      const v=pg.getViewport({scale}),off=document.createElement("canvas");off.width=Math.floor(v.width);off.height=Math.floor(v.height);
+      return pg.render({canvasContext:off.getContext("2d"),viewport:v}).promise.then(()=>{if(!RD||RD.doc!==doc)return;
+        cv.width=off.width;cv.height=off.height;cv.getContext("2d").drawImage(off,0,0);el.dataset.w=String(w)})})
+      .catch(()=>{}).finally(()=>{delete el.dataset.busy;if(RD&&el.dataset.w!==String(RD.w)){clearTimeout(rdT);rdT=setTimeout(rdDraw,60)}})});
+}
+function rdPageNo(){
+  if(!RD||!RD.doc)return;const sc=rdEl("rdScroll"),mid=sc.scrollTop+sc.clientHeight/3;let n=1;
+  for(const el of rdEl("rdPages").children){if(el.offsetTop<=mid)n=+el.dataset.i;else break}
+  if(n!==RD.cur||!rdEl("rdPage").textContent){RD.cur=n;rdEl("rdPage").textContent=`Page ${n} of ${RD.sizes.length}`;
+    const pos=lsGet(NOTES_POS,{})||{};pos[RD.f.id]=n;lsSet(NOTES_POS,pos)}
+}
+// Zoom to z, keeping the point (cx, cy) on screen (relative to the scroll box) in place.
+function rdZoom(z,cx,cy){
+  if(!RD||!RD.doc)return;const sc=rdEl("rdScroll"),pages=rdEl("rdPages");z=Math.max(1,Math.min(4,z));
+  const fx=(sc.scrollLeft+cx-pages.offsetLeft)/pages.offsetWidth,fy=(sc.scrollTop+cy)/sc.scrollHeight;
+  RD.z=z;rdLayout();sc.scrollLeft=fx*pages.offsetWidth+pages.offsetLeft-cx;sc.scrollTop=fy*sc.scrollHeight-cy;rdDraw();
+}
+(function(){
+  const sc=rdEl("rdScroll"),pages=rdEl("rdPages");if(!sc)return;
+  sc.addEventListener("scroll",()=>{rdPageNo();clearTimeout(rdT);rdT=setTimeout(rdDraw,80)},{passive:true});
+  addEventListener("resize",()=>{if(RD&&RD.doc)rdLayout()});
+  let pinch=null,lastTap=0,tapXY=null;
+  const pt=(t)=>{const r=sc.getBoundingClientRect();return [t.clientX-r.left,t.clientY-r.top]};
+  sc.addEventListener("touchstart",e=>{if(!RD||!RD.doc)return;
+    if(e.touches.length===2){const [a,b]=[pt(e.touches[0]),pt(e.touches[1])];
+      pinch={d0:Math.hypot(a[0]-b[0],a[1]-b[1]),z0:RD.z,cx:(a[0]+b[0])/2,cy:(a[1]+b[1])/2,s:RD.z};
+      const ox=sc.scrollLeft+pinch.cx-pages.offsetLeft,oy=sc.scrollTop+pinch.cy;pages.style.transformOrigin=`${ox}px ${oy}px`}},{passive:true});
+  sc.addEventListener("touchmove",e=>{if(!pinch||e.touches.length<2)return;e.preventDefault();
+    const [a,b]=[pt(e.touches[0]),pt(e.touches[1])];pinch.s=Math.max(1,Math.min(4,pinch.z0*Math.hypot(a[0]-b[0],a[1]-b[1])/pinch.d0));
+    pages.style.transform=`scale(${pinch.s/pinch.z0})`},{passive:false});
+  sc.addEventListener("touchend",e=>{
+    if(pinch&&e.touches.length<2){const p=pinch;pinch=null;pages.style.transform="";pages.style.transformOrigin="";if(Math.abs(p.s-p.z0)>.02)rdZoom(p.s,p.cx,p.cy);lastTap=0;return}
+    if(e.changedTouches.length!==1||e.touches.length)return;const now=Date.now(),xy=pt(e.changedTouches[0]);
+    if(now-lastTap<300&&tapXY&&Math.hypot(xy[0]-tapXY[0],xy[1]-tapXY[1])<30){rdZoom(RD&&RD.z>1.05?1:2.2,xy[0],xy[1]);lastTap=0}
+    else{lastTap=now;tapXY=xy}},{passive:true});
+  // trackpad pinch / ctrl+scroll zooms the reader only
+  sc.addEventListener("wheel",e=>{if(!e.ctrlKey||!RD)return;e.preventDefault();const r=sc.getBoundingClientRect();rdZoom(RD.z*Math.exp(-e.deltaY*.01),e.clientX-r.left,e.clientY-r.top)},{passive:false});
+  addEventListener("keydown",e=>{if(e.key==="Escape"&&RD)closeNote()});
+})();
+
 // Wide screens (iPad, desktop): views lay their sections out in two columns.
 const WIDE=matchMedia("(min-width: 768px) and (min-height: 600px)");
 const wide=()=>WIDE.matches;
@@ -1520,6 +1711,12 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
+  else if(a==="note"){openNote(el.dataset.id);return}
+  else if(a==="rdclose"){closeNote();return}
+  else if(a==="notesall"){notesAll=!notesAll;rerenderNotes();return}
+  else if(a==="notesrefresh"){loadNotes(true);return}
+  else if(a==="dbxlogin"){const v=document.getElementById("set-dbxkey").value.trim();S.dbxKey=v;save();dbxLogin();return}
+  else if(a==="dbxoff"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Disconnect";return}clearNotes();render();toast({t:"Dropbox disconnected",s:"Downloaded notebooks removed from this device",k:"undo"});return}
   else if(a==="logout"){showLogoutSheet();return}
   else if(a==="logoutyes"){hideSheet();logOut();return}
   else if(a==="gateskip"){startDemo();return}
@@ -1557,6 +1754,8 @@ document.addEventListener("change",e=>{
     changed({t:"Test weeks updated",s:`Week ${tw[0]+1} and week ${tw[1]+1}`,k:"run"})}
   else if(el.dataset.act==="calset"){if(el.id==="set-runat")S.runAt=el.value;else if(el.id==="set-studyat")S.studyAt=el.value;else S.calSpan=el.value;save();if(syncOn()&&el.type==="time")toast({t:"Reminder time saved",s:"Your live calendar will update",k:"ok"})}
   else if(el.id==="set-spid"){S.spClient=el.value.trim();save()}
+  else if(el.id==="set-dbxkey"){S.dbxKey=el.value.trim();save()}
+  else if(el.id==="set-dbxfolder"){S.dbxFolder=el.value.trim();save();notesList=null;lsSet(NOTES_LIST,null);loadNotes(true);render()}
   else if(el.id==="set-sppl"){S.spPlaylist=el.value.trim();save();render();toast(spPlaylist()?{t:"Playlist saved",k:"ok"}:{t:"That's not a playlist link",s:"Spotify › playlist › Share › Copy link",k:"warn"})}
   else if(el.dataset.act==="spdev"){S.spDevice=el.value||undefined;const d=(spDevices||[]).find(x=>x.name===el.value);if(d)S.spDevId=d.id;save();toast({t:"Speaker saved",s:el.value||"None",k:"ok"})}
   else if(el.id==="set-name"){S.name=el.value.trim();save();toast({t:"Name saved",s:`${greeting()}, ${nameOf()}`,k:"ok"})}
@@ -1578,7 +1777,7 @@ if(DEMO){S=demoState();
   try{if(sessionStorage.getItem("rhythm-demo-new")){sessionStorage.removeItem("rhythm-demo-new");setTimeout(()=>toast({t:"Welcome to the demo",s:"Explore with sample data. Changes aren't saved",k:"copy"}),600)}}catch(e){}
 }
 applyTheme();
-spFinishLogin();
+(()=>{const q=new URLSearchParams(location.search);if((q.get("state")||"").startsWith("dbx."))dbxFinishLogin(q);else spFinishLogin()})();
 renderIsland();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)renderIsland()});
 if(syncOn())setTimeout(pullSync,600);
@@ -1609,7 +1808,7 @@ addEventListener("wheel",e=>{if(e.ctrlKey)e.preventDefault()},{passive:false});
 (function(){
   const el=document.getElementById("ptr"),app=document.getElementById("app"),bars=[...el.querySelectorAll("rect")];
   const TH=72,MAX=120,HOLD=56;let y0=null,pull=0,active=false,busy=false;
-  const blocked=t=>!document.getElementById("sheet").hidden||(t.closest&&t.closest("input,textarea,select,.sess"));
+  const blocked=t=>!document.getElementById("sheet").hidden||!document.getElementById("reader").hidden||(t.closest&&t.closest("input,textarea,select,.sess"));
   const set=(px,anim)=>{const tr=anim?"transform .35s cubic-bezier(.2,1,.3,1)":"none";app.style.transition=tr;el.style.transition=anim?"transform .35s cubic-bezier(.2,1,.3,1),opacity .25s":"none";
     app.style.transform=px?`translateY(${px}px)`:"";el.style.transform=`translateY(${Math.max(0,px-HOLD)/2}px) rotate(${px*2.2}deg)`;el.style.opacity=px>8?Math.min(1,px/40):0};
   const fill=f=>bars.forEach((b,i)=>b.style.opacity=i<Math.round(f*12)?(1-i*.06):0);
@@ -1629,6 +1828,7 @@ async function refreshNow(){
   let latest=null;
   try{const r=await fetch("./index.html?v="+Date.now(),{cache:"no-store"});const m=(await r.text()).match(/name="app-version" content="([^"]+)"/);latest=m&&m[1]}catch(e){}
   if(syncOn()){try{await pullSync()}catch(e){}}
+  if(dbxOn()){try{await loadNotes(true)}catch(e){}}
   if(latest&&latest!==cur){
     try{sessionStorage.setItem("rhythm-ptr",cur)}catch(e){}
     try{const reg=await navigator.serviceWorker?.getRegistration();if(reg)await reg.update()}catch(e){}
