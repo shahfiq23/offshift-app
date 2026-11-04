@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.4.0">
+<meta name="app-version" content="2.4.1">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -1463,9 +1463,12 @@ const fileSize=b=>b>=1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(
 const NOTE_ICO='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4.5" y="2.8" width="11.5" height="14.4" rx="2"/><path d="M4.5 6.2H3M4.5 10H3M4.5 13.8H3M8 7h5M8 10.2h5M8 13.4h3" stroke-linecap="round"/></svg>';
 function notesSection(){
   if(DEMO)return "";
-  if(!dbxOn())return `<div class="sec"><div class="sh">Notes</div><div class="grp"><a class="cell ind" href="#settings-notes"><span class="ico" style="background:#FF9F0A">${NOTE_ICO}</span><div class="grow"><div style="color:var(--label)">Read your Goodnotes here</div><div class="t2">Set up once with Dropbox</div></div>${IC.chev}</a></div></div>`;
+  // Dropbox logins are per device. If the app key is already saved (set up on another device), one tap connects this one.
+  if(!dbxOn())return `<div class="sec"><div class="sh">Notes</div><div class="grp">${S.dbxKey
+    ?`<button class="cell ind" data-act="dbxlogin2"><span class="ico" style="background:#FF9F0A">${NOTE_ICO}</span><span class="grow" style="text-align:left">Connect Dropbox on this device</span>${IC.chev}</button>`
+    :`<a class="cell ind" href="#settings-notes"><span class="ico" style="background:#FF9F0A">${NOTE_ICO}</span><span class="grow" style="color:var(--label)">Read your Goodnotes here</span>${IC.chev}</a>`}</div></div>`;
   const files=(notesList&&notesList.files)||[],show=notesAll?files:files.slice(0,5);
-  const rows=show.map(f=>`<button class="cell ind" data-act="note" data-id="${esc(f.id)}"><span class="ico" style="background:#FF9F0A">${NOTE_ICO}</span><div class="grow" style="text-align:left;min-width:0"><div class="ell">${esc(f.name)}</div><div class="t2 ell">${f.folder?esc(f.folder)+" · ":""}${ago(Date.parse(f.mod))} · ${fileSize(f.size)}</div></div>${IC.chev}</button>`).join("");
+  const rows=show.map(f=>`<button class="cell ind" data-act="note" data-id="${esc(f.id)}"><span class="ico" style="background:#FF9F0A">${NOTE_ICO}</span><div class="grow" style="text-align:left;min-width:0"><div class="ell">${esc(f.name)}</div><div class="t2 ell">${ago(Date.parse(f.mod))} · ${fileSize(f.size)}</div></div>${IC.chev}</button>`).join("");
   const more=files.length>5?`<button class="cell btnrow" data-act="notesall">${notesAll?"Show Fewer":`Show All ${files.length}`}</button>`:"";
   const body=files.length?rows+more:`<div class="cell" style="color:var(--label2)">${notesBusy?"Looking for your notebooks…":"No PDFs found yet."}</div>`;
   const foot=notesErr?esc(notesErr):!files.length&&!notesBusy?"In Goodnotes, go to Settings › Auto Backup, choose Dropbox and the PDF format. New notebooks appear here after they back up.":notesBusy?"Checking Dropbox…":`Updated ${ago(notesList&&notesList.at)}. Pull down to refresh.`;
@@ -1715,6 +1718,7 @@ document.addEventListener("click",e=>{
   else if(a==="rdclose"){closeNote();return}
   else if(a==="notesall"){notesAll=!notesAll;rerenderNotes();return}
   else if(a==="notesrefresh"){loadNotes(true);return}
+  else if(a==="dbxlogin2"){dbxLogin();return}
   else if(a==="dbxlogin"){const v=document.getElementById("set-dbxkey").value.trim();S.dbxKey=v;save();dbxLogin();return}
   else if(a==="dbxoff"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Disconnect";return}clearNotes();render();toast({t:"Dropbox disconnected",s:"Downloaded notebooks removed from this device",k:"undo"});return}
   else if(a==="logout"){showLogoutSheet();return}
