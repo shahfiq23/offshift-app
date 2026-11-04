@@ -1,5 +1,5 @@
 // Off/Shift offline cache. Bump VERSION whenever index.html changes so phones pick up the update.
-const VERSION = "rhythm-2.3.0";
+const VERSION = "rhythm-2.3.1";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/apple-touch-icon.png", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -14,6 +14,7 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   const isFont = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (url.origin !== location.origin && !isFont) return; // video links etc. go straight to the network
+  if (url.searchParams.has("v")) return; // pull-to-refresh version check: always the network, never cached
   // App page: network first so updates land, cache when offline.
   if (req.mode === "navigate") {
     // no-cache: always ask GitHub whether there's a newer page instead of trusting its 10-minute cache
