@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.0.5">
+<meta name="app-version" content="2.1.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -114,6 +114,14 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .btn.tint{background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--blue)}
 .btn.small{padding:7px 14px;font-size:15px;border-radius:20px}
 .btn.block{width:100%}
+/* first-open login screen */
+body.gate .tabbar{display:none}
+.gate-top{display:grid;justify-items:center;gap:8px;text-align:center;padding:12vh 16px 8px}
+.gate-top h1{font-size:30px;margin:6px 0 0}
+.gate-top .t2{font-size:15px;color:var(--label2);max-width:300px}
+.gate-alt{display:grid;justify-items:center;gap:14px;font-size:15px}
+.gate-alt a,.gate-alt button{color:var(--blue);background:none;border:0;font:inherit;cursor:pointer;text-decoration:none}
+.gate-alt button{color:var(--label2)}
 
 /* rings */
 .rings{display:flex;gap:18px;align-items:center;padding:16px}
@@ -386,12 +394,13 @@ const KEY="offshift-v1";
 const DEF={v:1,shifts:{},done:{},runs:[],runDone:{},screen:{},mins:45,busy:{}};
 let S=JSON.parse(JSON.stringify(DEF));
 try{const l=JSON.parse(localStorage.getItem(KEY)||"null");if(l)S=Object.assign({},DEF,l)}catch(e){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}try{scheduleSync()}catch(e){/* sync code not loaded yet during startup */}}
+// S.mtime = when this device last changed something. Sync uses it to tell which copy is newer.
+function save(quiet){if(!quiet)S.mtime=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save. Is storage full?")}try{scheduleSync()}catch(e){/* sync code not loaded yet during startup */}}
 // Shift days from the Cyber Shift roster (Nov 2026 to Jan 2027). Applied once per roster version;
 // after that, taps on the Roster tab win.
 const ROSTER_VER="2026-11-01";
 const ROSTER={"2026-11-01":"08:00-19:00","2026-11-02":"08:00-19:00","2026-11-06":"21:00-09:00","2026-11-07":"21:00-09:00","2026-11-08":"21:00-09:00","2026-11-12":"11:00-23:00","2026-11-13":"11:00-23:00","2026-11-14":"11:00-23:00","2026-11-18":"08:00-19:00","2026-11-19":"08:00-19:00","2026-11-20":"08:00-19:00","2026-11-24":"21:00-09:00","2026-11-25":"21:00-09:00","2026-11-26":"21:00-09:00","2026-11-30":"11:00-23:00","2026-12-01":"11:00-23:00","2026-12-02":"11:00-23:00","2026-12-06":"08:00-19:00","2026-12-07":"08:00-19:00","2026-12-08":"08:00-19:00","2026-12-12":"21:00-09:00","2026-12-13":"21:00-09:00","2026-12-14":"21:00-09:00","2026-12-18":"08:00-19:00","2026-12-19":"08:00-19:00","2026-12-20":"08:00-19:00","2026-12-24":"08:00-19:00","2026-12-25":"08:00-19:00","2026-12-26":"08:00-19:00","2026-12-30":"20:00-08:00","2026-12-31":"20:00-08:00","2027-01-01":"20:00-08:00","2027-01-05":"11:00-23:00","2027-01-06":"11:00-23:00","2027-01-07":"11:00-23:00","2027-01-11":"08:00-19:00","2027-01-12":"08:00-19:00","2027-01-13":"08:00-19:00","2027-01-17":"21:00-09:00","2027-01-18":"21:00-09:00","2027-01-19":"21:00-09:00","2027-01-23":"11:00-23:00","2027-01-24":"11:00-23:00","2027-01-25":"11:00-23:00","2027-01-29":"08:00-19:00","2027-01-30":"08:00-19:00","2027-01-31":"08:00-19:00"};
-if(S.seeded!==ROSTER_VER){Object.assign(S.shifts,ROSTER);S.seeded=ROSTER_VER;save()}
+if(S.seeded!==ROSTER_VER){Object.assign(S.shifts,ROSTER);S.seeded=ROSTER_VER;save(true)}
 
 // ---------- planning ----------
 let cache={};
@@ -812,13 +821,109 @@ const calURL=()=>SY&&SY.user&&SY.gist?`https://gist.githubusercontent.com/${SY.u
 const syncErr=e=>e&&(e.status===401||e.status===403)?"Your GitHub key was rejected. It may have expired; connect a new one.":e&&e.status===404?"The sync file is missing on GitHub. Disconnect and connect again.":"Couldn't reach GitHub. It'll retry when you're back online.";
 let syncT=null,syncBusy=false;
 function scheduleSync(){if(!syncOn()||SY.pending)return;setSY({dirty:true});clearTimeout(syncT);syncT=setTimeout(pushSync,2500)}
+// Two-way sync between devices. SY.rm = the backup's mtime the last time this device saw it.
+// If the backup changed since then, another device saved: take it, or merge it with changes made here.
+async function fetchRemote(){
+  const g=await gh("/gists/"+SY.gist,{cache:"no-store"});const f=g.files["rhythm-backup.json"];
+  if(!f)throw Object.assign(new Error("missing"),{status:404});
+  return JSON.parse(f.truncated?await (await fetch(f.raw_url,{cache:"no-store"})).text():f.content);
+}
+// Ticked videos, finished runs and logged runs are kept from both copies; everything else comes from the newer copy.
+function mergeState(a,b){
+  const [nw,old]=(a.mtime||0)>=(b.mtime||0)?[a,b]:[b,a];
+  const o=Object.assign({},DEF,JSON.parse(JSON.stringify(nw)));
+  o.done=Object.assign({},old.done,nw.done);o.runDone=Object.assign({},old.runDone,nw.runDone);
+  const k=r=>[r.d,r.km,r.sec].join("|"),have=new Set((o.runs||[]).map(k));
+  o.runs=[...(o.runs||[]),...(old.runs||[]).filter(r=>!have.has(k(r)))].sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:0);
+  o.mtime=Date.now();return o; // a merge is a new version, so other devices pick it up
+}
+const sameData=(a,b)=>{const c=o=>JSON.stringify(Object.assign({},o,{mtime:0}));return c(a)===c(b)};
+function adoptState(o,msg){
+  const differs=!sameData(S,o);S=Object.assign({},DEF,o);
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  if(!differs)return;
+  cache={};applyTheme();renderIsland();const y=scrollY;render();scrollTo(0,y);if(msg)toast(msg);
+}
+let pullBusy=false;
+async function pullSync(){
+  if(!syncOn()||SY.pending||syncBusy||pullBusy||!navigator.onLine)return;pullBusy=true;
+  try{
+    const o=await fetchRemote(),r=o.mtime||0;
+    if(r!==SY.rm){
+      if(SY.dirty){adoptState(mergeState(S,o),{t:"Synced",s:"Merged with your other device",k:"copy"});setSY({rm:r});pullBusy=false;return pushSync()}
+      adoptState(o,{t:"Synced",s:"Updated from your other device",k:"copy"});setSY({rm:r,dirty:false,err:null,last:Date.now()});
+    }
+    if(SY.dirty||SY.lastDay!==ds(new Date())){pullBusy=false;return pushSync()}
+    if(SY.err)setSY({err:null});
+  }catch(e){if(e.status===401||e.status===403||e.status===404)setSY({err:syncErr(e)})}
+  finally{pullBusy=false}
+}
 async function pushSync(manual){
   if(!syncOn()||SY.pending||syncBusy)return;syncBusy=true;
-  try{await gh("/gists/"+SY.gist,{method:"PATCH",body:JSON.stringify({files:syncFiles()})});
-    setSY({last:Date.now(),lastDay:T,dirty:false,err:null});if(manual)toast({t:"Backed up",s:"Saved to GitHub · calendar updated",k:"copy"})}
+  try{
+    // Another device saved since we last looked: fold its changes in before overwriting.
+    if(SY.rm!==undefined){try{const o=await fetchRemote(),r=o.mtime||0;if(r!==SY.rm)adoptState(mergeState(S,o),{t:"Synced",s:"Merged with your other device",k:"copy"})}catch(e){if(e.status===401||e.status===403)throw e}}
+    await gh("/gists/"+SY.gist,{method:"PATCH",body:JSON.stringify({files:syncFiles()})});
+    setSY({last:Date.now(),lastDay:T,dirty:false,err:null,rm:S.mtime||0});if(manual)toast({t:"Backed up",s:"Saved to GitHub · calendar updated",k:"copy"})}
   catch(e){setSY({err:syncErr(e)});if(manual)toast({t:"Backup failed",s:e.status===401||e.status===403?"GitHub key rejected":"Check your connection",k:"warn"})}
   finally{syncBusy=false;if(route()==="settings")render()}
 }
+// ---------- Password login ----------
+// No server, so the GitHub key itself is locked with the password (PBKDF2 + AES-GCM, done on the phone)
+// and the locked copy sits in a public gist. Any device can fetch it by username and unlock it with the password.
+const LOGIN_DESC="Rhythm login",LOGIN_FILE="rhythm-login.json",PBKDF_IT=600000;
+const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
+const unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function pwKey(pw,salt,it){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:it,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+let pwBusy=false;
+async function setLoginPassword(pw,pw2){
+  if(pwBusy||!syncOn())return;
+  if(pw.length<10){toast({t:"Password too short",s:"Use at least 10 characters",k:"warn"});return}
+  if(pw!==pw2){toast({t:"Passwords don't match",s:"Type the same password twice",k:"warn"});return}
+  pwBusy=true;toast({t:"Locking your key…",s:"This takes a second",k:"copy"});
+  try{
+    const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},await pwKey(pw,salt,PBKDF_IT),new TextEncoder().encode(ghToken()));
+    const files={[LOGIN_FILE]:{content:JSON.stringify({v:1,kdf:"PBKDF2-SHA256",it:PBKDF_IT,salt:b64(salt),iv:b64(iv),ct:b64(ct),set:new Date().toISOString()})}};
+    let id=SY.login,had=!!id;
+    if(id){try{await gh("/gists/"+id,{method:"PATCH",body:JSON.stringify({files})})}catch(e){if(e.status===404)id=null;else throw e}}
+    if(!id)id=(await gh("/gists",{method:"POST",body:JSON.stringify({description:LOGIN_DESC,public:true,files})})).id;
+    setSY({login:id});
+    toast({t:had?"Password changed":"Password set",s:`Log in anywhere as ${SY.user}`,k:"ok"});render();
+  }catch(e){toast({t:"Couldn't save password",s:e.status===401||e.status===403?"GitHub key rejected":"Check your connection",k:"warn"})}
+  finally{pwBusy=false}
+}
+async function removeLoginPassword(){
+  if(!SY||!SY.login)return;
+  try{await gh("/gists/"+SY.login,{method:"DELETE"})}catch(e){if(e.status!==404){toast({t:"Couldn't remove password",s:"Check your connection",k:"warn"});return}}
+  setSY({login:null});toast({t:"Password removed",s:"Use your GitHub key to connect other devices",k:"undo"});render();
+}
+async function loginWithPassword(user,pw){
+  if(pwBusy)return;user=(user||"").trim().replace(/^@/,"");
+  if(!user||!pw){toast({t:"Fill in both boxes",s:"GitHub username and password",k:"warn"});return}
+  pwBusy=true;toast({t:"Logging in…",s:"Checking your password",k:"copy"});
+  const pub=p=>fetch("https://api.github.com"+p,{headers:{"Accept":"application/vnd.github+json"}}).then(r=>{if(!r.ok){const e=new Error("github "+r.status);e.status=r.status;throw e}return r.json()});
+  let token=null;
+  try{
+    const list=await pub(`/users/${encodeURIComponent(user)}/gists?per_page=100`);
+    const g=list.find(x=>x.description===LOGIN_DESC&&x.files&&x.files[LOGIN_FILE]);
+    if(!g){toast({t:"No password set up",s:`Set one first on a connected phone`,k:"warn"});return}
+    const o=JSON.parse((await pub("/gists/"+g.id)).files[LOGIN_FILE].content);
+    if(!(o.it>=100000&&o.it<=5000000))throw new Error("bad login file");
+    try{const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(o.iv)},await pwKey(pw,unb64(o.salt),o.it),unb64(o.ct));token=new TextDecoder().decode(pt)}
+    catch(e){toast({t:"Wrong password",s:"Try again",k:"warn"});return}
+  }catch(e){toast({t:"Couldn't log in",s:e.status===404?`No GitHub user called ${user}`:e.status===403||e.status===429?"Too many tries. Wait a bit and try again":"Check your connection",k:"warn"});return}
+  finally{pwBusy=false}
+  if(token)await connectSync(token);
+}
+document.addEventListener("submit",e=>{
+  const f=e.target;if(!f||!f.id)return;
+  if(f.id==="loginform"){e.preventDefault();loginWithPassword(f.querySelector("#lg-user").value,f.querySelector("#lg-pw").value)}
+  else if(f.id==="pwform"){e.preventDefault();setLoginPassword(f.querySelector("#pw-new").value,f.querySelector("#pw-again").value)}
+});
 async function connectSync(token){
   token=(token||"").trim();if(!/^(github_pat_|ghp_)\w{20,}$/.test(token)){toast({t:"That doesn't look like a key",s:"It starts with github_pat_ or ghp_",k:"warn"});return}
   lsSet(TOKEN_KEY,token);toast({t:"Connecting…",s:"Checking your key with GitHub",k:"copy"});
@@ -826,10 +931,14 @@ async function connectSync(token){
     const me=await gh("/user");
     const list=await gh("/gists?per_page=100");
     const found=list.find(g=>g.description==="Rhythm sync"&&g.files&&g.files["rhythm-backup.json"]);
-    if(found){SY={user:me.login,gist:found.id,pending:"choose",remoteAt:found.updated_at};lsSet(SYNC_KEY,SY);
+    const lg=list.find(g=>g.description===LOGIN_DESC&&g.files&&g.files[LOGIN_FILE]),login=lg?lg.id:null;
+    // A device with no progress of its own just takes the backup. Otherwise ask which copy to keep.
+    const blank=!Object.keys(S.done||{}).length&&!(S.runs||[]).length&&!Object.keys(S.runDone||{}).length;
+    if(found&&blank){SY={user:me.login,gist:found.id,login};lsSet(SYNC_KEY,SY);await restoreSync();return}
+    if(found){SY={user:me.login,gist:found.id,login,pending:"choose",remoteAt:found.updated_at};lsSet(SYNC_KEY,SY);
       toast({t:"Found a backup",s:"Choose which copy to keep",k:"copy"})}
     else{const g=await gh("/gists",{method:"POST",body:JSON.stringify({description:"Rhythm sync",public:false,files:syncFiles()})});
-      SY={user:me.login,gist:g.id,last:Date.now(),lastDay:T};lsSet(SYNC_KEY,SY);
+      SY={user:me.login,gist:g.id,login,last:Date.now(),lastDay:T};lsSet(SYNC_KEY,SY);
       toast({t:"Sync is on",s:"Backups and calendar now update by themselves",k:"ok"})}
   }catch(e){lsSet(TOKEN_KEY,null);SY=null;lsSet(SYNC_KEY,null);
     toast({t:"Couldn't connect",s:e.status===401?"GitHub rejected that key":e.status===403||e.status===404?"The key needs Gists: Read and write":"Check your connection",k:"warn"})}
@@ -839,7 +948,7 @@ async function restoreSync(){
   try{const g=await gh("/gists/"+SY.gist);const f=g.files["rhythm-backup.json"];
     const txt=f.truncated?await (await fetch(f.raw_url)).text():f.content;const o=JSON.parse(txt);
     if(!o||typeof o.shifts!=="object")throw new Error("bad backup");
-    S=Object.assign({},DEF,o);setSY({pending:null});applyTheme();changed({t:"Restored from GitHub",s:"Your progress is back",k:"ok"});pushSync()}
+    S=Object.assign({},DEF,o);S.welcomed=true;setSY({pending:null,rm:o.mtime||0});applyTheme();cache={};save(true);renderIsland();render(true);toast({t:"Restored from GitHub",s:"Your progress is back",k:"ok"})}
   catch(e){toast({t:"Restore failed",s:e.status?syncErr(e):"The backup file couldn't be read",k:"warn"})}
 }
 function disconnectSync(){lsSet(TOKEN_KEY,null);lsSet(SYNC_KEY,null);SY=null;render();toast({t:"Sync off",s:"Your backup stays on GitHub",k:"undo"})}
@@ -854,7 +963,12 @@ function liveCalSection(){
 }
 function syncSection(){
   const chev=IC.chev;
-  if(!syncOn())return `<div class="sec"><div class="sh">Automatic Sync</div><div class="grp">
+  if(!syncOn())return `<div class="sec"><div class="sh">Log In</div><form class="grp" id="loginform" autocomplete="on">
+    <div class="cell"><label class="grow" for="lg-user">GitHub username</label><input id="lg-user" name="username" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="username" style="width:150px"></div>
+    <div class="cell"><label class="grow" for="lg-pw">Password</label><input id="lg-pw" name="password" type="password" autocomplete="current-password" placeholder="Required" style="width:150px"></div>
+    <button type="submit" class="cell btnrow" style="font-weight:600">Log In</button>
+  </form><div class="sf">Brings your progress back on this device. Works once you've set a password on a phone that's already connected.</div></div>
+  <div class="sec"><div class="sh">Or Connect with Your Key</div><div class="grp">
     <div class="cell"><label class="grow" for="set-token">GitHub key</label><input id="set-token" type="password" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:170px"></div>
     <button class="cell btnrow" data-act="syncconnect" style="font-weight:600">Connect</button>
   </div><div class="sf">Backs up your progress and keeps a calendar of your plan up to date on your GitHub, automatically. The key stays on this phone and is never included in backups.</div></div>`;
@@ -870,9 +984,16 @@ function syncSection(){
     <button class="cell btnrow" data-act="syncnow">Back Up Now</button>
     <button class="cell btnrow" data-act="syncrestore">Restore from GitHub</button>
   </div><div class="sf">Every change backs up a few seconds later. If you're offline, it catches up next time you open the app.</div></div>
+  <div class="sec"><div class="sh">Password Login</div><form class="grp" id="pwform" autocomplete="on">
+    <div class="cell"><label class="grow" for="pw-user">Username</label><input id="pw-user" name="username" type="text" autocomplete="username" value="${esc(SY.user||"")}" readonly style="width:150px;color:var(--label2)"></div>
+    <div class="cell"><label class="grow" for="pw-new">${SY.login?"New password":"Password"}</label><input id="pw-new" name="new-password" type="password" autocomplete="new-password" placeholder="10+ characters" style="width:150px"></div>
+    <div class="cell"><label class="grow" for="pw-again">Confirm</label><input id="pw-again" type="password" autocomplete="new-password" placeholder="Same again" style="width:150px"></div>
+    <button type="submit" class="cell btnrow" style="font-weight:600">${SY.login?"Change Password":"Set Password"}</button>
+    ${SY.login?'<button type="button" class="cell btnrow destructive" data-act="pwremove">Remove Password</button>':""}
+  </form><div class="sf">${SY.login?`Password is on. On another device, open Rhythm › Settings › Sync & Backup and log in as ${esc(SY.user)}.`:"Lets you log in on another device with your username and a password, instead of pasting the key."} Use a long password: your key is locked with it and stored on GitHub. If you ever replace your GitHub key, set the password again.</div></div>
   <div class="sec"><div class="grp"><button class="cell btnrow destructive" data-act="syncoff">Disconnect GitHub</button></div></div>`;
 }
-window.addEventListener("online",()=>{if(syncOn()&&SY.dirty)pushSync()});
+window.addEventListener("online",()=>{if(syncOn())pullSync()});
 
 // ---------- Spotify (Premium): start the study playlist on shuffle on a chosen speaker ----------
 // Uses Spotify's PKCE login (no secret needed). Tokens live only on this phone, outside app data and backups.
@@ -1104,8 +1225,23 @@ function route(){const h=location.hash.slice(1);const m=h.match(/^day-(\d{4}-\d{
 const goDay=d=>{location.hash=d===T?"#today":"#day-"+d};
 let enterT;
 let lastView=null;
+// A new device (never connected, never skipped) opens on a login screen.
+const needLogin=()=>!syncOn()&&!S.welcomed&&!(SY&&SY.pending);
+function viewLogin(){
+  return `<div class="gate-top"><svg viewBox="0 0 120 40" width="96" height="32" aria-hidden="true"><defs><linearGradient id="gw" x1="0" x2="1"><stop offset="0" stop-color="#5E5CE6"/><stop offset=".55" stop-color="#FF375F"/><stop offset="1" stop-color="#FF9F0A"/></linearGradient></defs><path d="M4 20h26l7-13 10 26 9-19 6 6h54" fill="none" stroke="url(#gw)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1>Welcome to Rhythm</h1><div class="t2">Log in to bring your plan and progress onto this device.</div></div>
+  <div class="sec"><form class="grp" id="loginform" autocomplete="on">
+    <div class="cell"><label class="grow" for="lg-user">Username</label><input id="lg-user" name="username" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="GitHub username" style="width:170px"></div>
+    <div class="cell"><label class="grow" for="lg-pw">Password</label><input id="lg-pw" name="password" type="password" autocomplete="current-password" placeholder="Required" style="width:170px"></div>
+  </form></div>
+  <div class="sec"><button class="btn fill block" type="submit" form="loginform">Log In</button></div>
+  <div class="sec gate-alt"><a href="#settings-sync" data-act="gatekey">Use GitHub Key Instead</a><button data-act="gateskip">Continue Without Logging In</button></div>`;
+}
 function render(animate){
   const r=route(),app=document.getElementById("app");
+  const gate=needLogin()&&!(r==="settings"&&location.hash==="#settings-sync");
+  document.body.classList.toggle("gate",gate);
+  if(gate){app.classList.remove("enter");app.innerHTML=viewLogin();lastView="gate";return}
   // On an in-place redraw (e.g. ticking a video), remember where each ring and bar was so it can slide to its new value.
   const same=!animate&&lastView===r+location.hash;
   const oldRings=same?[...app.querySelectorAll("circle.ring")].map(c=>getComputedStyle(c).strokeDashoffset):[];
@@ -1192,8 +1328,11 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
+  else if(a==="gateskip"){S.welcomed=true;save(true);render(true);return}
+  else if(a==="gatekey"){return}
+  else if(a==="pwremove"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Remove";return}removeLoginPassword();return}
   else if(a==="syncrestore"){restoreSync();return}
-  else if(a==="synckeeplocal"){setSY({pending:null});pushSync(true);render();return}
+  else if(a==="synckeeplocal"){setSY({pending:null,rm:undefined});pushSync(true);render();return}
   else if(a==="syncoff"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Disconnect";return}disconnectSync();return}
   else if(a==="copycal"){const u=calURL();(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast({t:"Link copied",s:"Calendar app › Add Subscription Calendar",k:"copy"}),()=>toast({t:"Couldn't copy",s:u,k:"warn"}));return}
   else if(a==="theme"){S.theme=el.dataset.v==="system"?null:el.dataset.v;save();applyTheme();render();
@@ -1239,8 +1378,9 @@ applyTheme();
 spFinishLogin();
 renderIsland();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)renderIsland()});
-if(syncOn()&&(SY.dirty||SY.lastDay!==T))setTimeout(pushSync,1500);
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&syncOn()&&(SY.dirty||SY.lastDay!==ds(new Date())))setTimeout(pushSync,800)});
+if(syncOn())setTimeout(pullSync,600);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&syncOn())setTimeout(pullSync,300)});
+setInterval(()=>{if(!document.hidden)pullSync()},60000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(!S.theme)applyTheme()});
 render();
 (function(){const sp=document.getElementById("splash");if(!sp)return;if(S.splash===false){sp.remove();render(true);return}
