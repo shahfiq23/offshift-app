@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.2.1">
+<meta name="app-version" content="2.2.2">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false)document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -227,7 +227,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 /* ---------- iPad and desktop ---------- */
 .side-title{display:none}
-@media (min-width:768px){
+@media (min-width:768px) and (min-height:600px){
   .page{max-width:1080px;padding-left:max(28px,env(safe-area-inset-left,0px));padding-right:max(28px,env(safe-area-inset-right,0px));gap:24px}
   .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
   .cols.sticky-l>.col:first-child,.cols.split>.col:first-child{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
@@ -259,7 +259,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   body.gate .page{max-width:520px}
 }
 /* Landscape iPad and desktop: tabs become a sidebar on the left, like iPad apps. */
-@media (min-width:1100px){
+@media (min-width:1100px) and (min-height:600px){
   body{padding-left:248px}
   .tabbar{top:0;right:auto;width:248px;flex-direction:column;justify-content:flex-start;gap:2px;border-top:0;border-right:.5px solid var(--sep);
     padding:calc(env(safe-area-inset-top,0px) + 20px) 12px 20px max(12px,env(safe-area-inset-left,0px))}
@@ -1306,7 +1306,7 @@ function viewSettings(){
   return head+list;
 }
 // Wide screens (iPad, desktop): views lay their sections out in two columns.
-const WIDE=matchMedia("(min-width: 768px)");
+const WIDE=matchMedia("(min-width: 768px) and (min-height: 600px)");
 const wide=()=>WIDE.matches;
 const cols=(l,r,cls="")=>`<div class="cols${cls?" "+cls:""}"><div class="col">${l}</div><div class="col">${r}</div></div>`;
 const VIEWS={today:()=>viewDay(T),day:()=>viewDay(DAYSEL),plan:viewPlan,run:viewRun,secplus:viewSec,settings:viewSettings};
