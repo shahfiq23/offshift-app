@@ -6,10 +6,10 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.3.2">
+<meta name="app-version" content="2.3.3">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
+<script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
@@ -1119,7 +1119,7 @@ function liveCalSection(){
 }
 function syncSection(){
   const chev=IC.chev;
-  if(DEMO)return `<div class="sec"><div class="sh">Log In</div><div class="grp"><button class="cell btnrow" data-act="demoexit" style="font-weight:600">Leave Demo and Log In</button></div><div class="sf">This is the demo, with a made-up person and goals. Nothing here is saved.</div></div>`;
+  if(DEMO)return `<div class="sec"><div class="sh">Log In</div><div class="grp"><button class="cell btnrow" data-act="demoexit" style="font-weight:600">Leave Demo and Log In</button></div><div class="sf">You're exploring the demo with sample data. Changes aren't saved.</div></div>`;
   if(!syncOn())return `<div class="sec"><div class="sh">Log In</div><form class="grp" id="loginform" autocomplete="on">
     <div class="cell"><label class="grow" for="lg-user">GitHub username</label><input id="lg-user" name="username" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="username" style="width:150px"></div>
     <div class="cell"><label class="grow" for="lg-pw">Password</label><input id="lg-pw" name="password" type="password" autocomplete="current-password" placeholder="Required" style="width:150px"></div>
@@ -1410,11 +1410,11 @@ function demoState(){
 }
 // Switching in or out of the demo reloads, because the goals themselves change.
 function startDemo(){
-  try{localStorage.removeItem(KEY);localStorage.setItem("rhythm-demo","1");sessionStorage.setItem("rhythm-demo-new","1")}catch(e){}
+  try{localStorage.removeItem(KEY);localStorage.setItem("rhythm-demo","1");sessionStorage.setItem("rhythm-demo-new","1");sessionStorage.setItem("rhythm-nosplash","1")}catch(e){}
   location.hash="#today";location.reload();
 }
 function exitDemo(){
-  try{localStorage.removeItem("rhythm-demo")}catch(e){}
+  try{localStorage.removeItem("rhythm-demo");sessionStorage.setItem("rhythm-nosplash","1")}catch(e){}
   location.hash="#today";location.reload();
 }
 function viewLogin(){
@@ -1574,7 +1574,7 @@ if(DEMO){S=demoState();
   const a=document.querySelector('.tabbar a[href="#run"]'),b=document.querySelector('.tabbar a[href="#secplus"]');
   if(a)a.lastChild.textContent=C.fitTab;
   if(b){b.lastChild.textContent=C.courseTab;b.querySelector("svg").innerHTML='<path d="M4.5 6c3-1.3 6.2-.9 9.5 1.2 3.3-2.1 6.5-2.5 9.5-1.2v15c-3-1.3-6.2-.9-9.5 1.2-3.3-2.1-6.5-2.5-9.5-1.2z"/><path d="M14 7.2v15"/>'}
-  try{if(sessionStorage.getItem("rhythm-demo-new")){sessionStorage.removeItem("rhythm-demo-new");setTimeout(()=>toast({t:"Demo mode",s:"Made-up goals and data. Nothing is saved",k:"copy"}),600)}}catch(e){}
+  try{if(sessionStorage.getItem("rhythm-demo-new")){sessionStorage.removeItem("rhythm-demo-new");setTimeout(()=>toast({t:"Welcome to the demo",s:"Explore with sample data. Changes aren't saved",k:"copy"}),600)}}catch(e){}
 }
 applyTheme();
 spFinishLogin();
@@ -1588,6 +1588,8 @@ WIDE.addEventListener?.("change",()=>render());
 render();
 (function(){const sp=document.getElementById("splash");if(!sp)return;
   let ptr=null;try{ptr=sessionStorage.getItem("rhythm-ptr");sessionStorage.removeItem("rhythm-ptr")}catch(e){}
+  let quick=null;try{quick=sessionStorage.getItem("rhythm-nosplash");sessionStorage.removeItem("rhythm-nosplash")}catch(e){}
+  if(quick){sp.remove();render(true);return}
   if(ptr){sp.remove();render(true);const v=(document.querySelector('meta[name="app-version"]')||{}).content;if(ptr!==v)setTimeout(()=>toast({t:"Rhythm updated",s:"Now on version "+v,k:"ok"}),300);return}
   if(S.splash===false){sp.remove();render(true);return}
   const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;let done=false;
