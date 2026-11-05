@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.7.0">
+<meta name="app-version" content="2.7.1">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -1633,9 +1633,12 @@ function viewSettings(){
   <div class="sec"><div class="sh">Startup</div><div class="grp">
     <div class="cell"><label class="grow" for="set-splash">Heartbeat animation</label><input class="sw" type="checkbox" id="set-splash" data-act="splash" ${S.splash===false?"":"checked"}></div>
   </div></div>`],
-    gestures:["Gestures",()=>`<div class="sec"><div class="grp">
-    ${[["Swipe with two fingers","Left or right to switch tabs."],["Pinch out on Today","See the whole week. Pinch in to go back."],["Hold two fingers","Quick actions from anywhere."],["Swipe with one finger","On Today, change day. On the week, change week."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
-  </div><div class="sf">Gestures with four or five fingers belong to iPadOS, so Rhythm doesn't use them.</div></div>`],
+    gestures:["Gestures",()=>`<div class="sec"><div class="sh">Gestures</div><div class="grp">
+    ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Opens your Quick Actions from anywhere."],["Swipe with one finger","On Today, go to the next or previous day."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
+  </div></div>
+  <div class="sec"><div class="sh">Quick Actions</div><div class="grp">
+    ${QA.map(a=>`<div class="cell"><label class="grow" for="qa-${a.k}"><div>${esc(a.name)}</div>${a.need&&!(a.k==="study"&&a.ok())?`<div class="t2">${esc(a.need)}</div>`:""}</label><input class="sw" type="checkbox" id="qa-${a.k}" data-act="qatoggle" data-k="${a.k}" ${qaOn().includes(a.k)?"checked":""}></div>`).join("")}
+  </div><div class="sf">Hold two fingers anywhere to open these. Each one only shows when it makes sense, like Go to Today when you're on another page.</div></div>`],
     profile:["Name",()=>`<div class="sec"><div class="grp">
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
   </div></div>`],
@@ -1677,7 +1680,7 @@ function viewSettings(){
   const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):"Off";
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
   const head=`<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>`;
-  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gestures","")}${row("profile","Name",esc(nameOf()))}</div></div>
+  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gestures",`${qaOn().length} quick action${qaOn().length===1?"":"s"}`)}${row("profile","Name",esc(nameOf()))}</div></div>
   <div class="sec"><div class="grp">${row("goal",C.goalLbl,fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}${DEMO?"":row("notes","Goodnotes",dbxOn()?"On":"Off")}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
@@ -2014,6 +2017,7 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
+  else if(a==="qatoggle"){const on=qaOn().filter(k=>k!==el.dataset.k);if(el.checked)on.push(el.dataset.k);S.qa=QA.map(x=>x.k).filter(k=>on.includes(k));save();if(wide()){const y=scrollY;render();scrollTo(0,y)}return}
   else if(a==="weekgo"){WEEKSEL=el.dataset.d;render(true);return}
   else if(a==="qa"){const v=el.dataset.v;
     if(v==="run"){showRunSheet(T);return}
@@ -2094,8 +2098,7 @@ document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;co
   if(Math.abs(dx)>70&&Math.abs(dy)<45){if(route()==="week"){WEEKSEL=ds(add(pd(WEEKSEL||T),dx<0?7:-7));render(true);return}
     const cur=route()==="day"?DAYSEL:T;goDay(ds(add(pd(cur),dx<0?1:-1)))}},{passive:true});
 // ---------- Two-finger gestures ----------
-// Swipe left/right with two fingers: next/previous tab. Pinch out on Today: the week. Pinch in on the week: back to the day.
-// Hold two fingers still: Quick Actions. 4- and 5-finger gestures belong to iPadOS and are left alone.
+// Swipe left/right with two fingers: next/previous tab. Hold two fingers still: your Quick Actions (Settings › Gestures). 4- and 5-finger gestures belong to iPadOS and are left alone.
 const TABS=["today","plan","run","secplus","settings"];
 const curTab=()=>{const r=route();return r==="day"||r==="week"?"today":r};
 function goTab(n){const i=TABS.indexOf(curTab()),j=i+n;if(j<0||j>=TABS.length)return;location.hash="#"+TABS[j]}
@@ -2113,19 +2116,22 @@ function closeWeek(){const d=WEEKFROM&&weekDays(pd(WEEKSEL||T)).includes(WEEKFRO
     g.dx=p.x-g.x0;g.dy=p.y-g.y0;g.sc=p.d/g.d0;if(Math.hypot(g.dx,g.dy)>12||Math.abs(g.sc-1)>.08){g.moved=true;clearTimeout(lp)}},{passive:true});
   document.addEventListener("touchend",e=>{if(!g||e.touches.length>1)return;const x=g;g=null;clearTimeout(lp);if(x.done||!x.moved)return;
     const r=route();
-    if(x.sc>1.3&&(r==="today"||r==="day")){openWeek(r==="day"?DAYSEL:T);return}
-    if(x.sc<.77&&r==="week"){closeWeek();return}
+    // Pinch for the week view is on hold (viewWeek is kept for later).
     if(Math.abs(x.sc-1)<.2&&Math.abs(x.dx)>70&&Math.abs(x.dx)>Math.abs(x.dy)*1.5)goTab(x.dx<0?1:-1)},{passive:true});
   document.addEventListener("touchcancel",()=>{g=null;clearTimeout(lp)},{passive:true});
 })();
+// Quick Actions the user can choose from (Settings › Gestures). Each says when it makes sense to show it.
+const QA=[
+  {k:"study",label:()=>S.session?"End Study Mode":"Start Study Mode",name:"Start Study Mode",ok:()=>!DEMO&&smReady(),need:"Needs Spotify set up in Settings › Study Mode."},
+  {k:"today",label:()=>"Go to Today",name:"Go to Today",ok:()=>route()!=="today"},
+  {k:"log",label:()=>`Log a ${C.Run}`,name:`Log a ${C.Run}`,ok:()=>true},
+  {k:"run",label:()=>`Mark Today's ${C.Run}`,name:`Mark Today's ${C.Run}`,ok:()=>{const r=runOn(T);return !!r&&!r.missed&&!S.runDone[T]},need:`Only shows on days with a ${C.run} planned.`},
+  {k:"next",label:()=>`Next ${C.courseTitle} Video`,name:`Next ${C.courseTitle} Video`,ok:()=>VID.some(v=>!S.done[v.i])}];
+const qaOn=()=>S.qa||["study","today","log"];
 function showQuick(){
-  const sh=document.getElementById("sheet"),r=runOn(T),acts=[];
-  if(route()!=="today")acts.push(`<button data-act="qa" data-v="today">Go to Today</button>`);
-  if(route()!=="week")acts.push(`<button data-act="qa" data-v="week">See This Week</button>`);
-  if(r&&!r.missed&&!S.runDone[T])acts.push(`<button data-act="qa" data-v="run">Mark Today's ${C.Run}</button>`);
-  acts.push(`<button data-act="qa" data-v="log">Log a ${C.Run}</button>`);
-  if(!DEMO&&smReady())acts.push(S.session?`<button data-act="qa" data-v="sessend">End Study Mode</button>`:`<button data-act="qa" data-v="study">Start Study Mode</button>`);
-  if(VID.some(v=>!S.done[v.i]))acts.push(`<button data-act="qa" data-v="next">Next ${C.courseTitle} Video</button>`);
+  const sh=document.getElementById("sheet"),on=qaOn();
+  const acts=QA.filter(a=>on.includes(a.k)&&a.ok()).map(a=>`<button data-act="qa" data-v="${a.k==="study"&&S.session?"sessend":a.k}">${esc(a.label())}</button>`);
+  if(!acts.length){toast({t:"No quick actions here",s:on.length?"None of yours apply right now":"Choose some in Settings › Gestures",k:"warn"});return}
   sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="sh-msg"><b id="sh-t">Quick Actions</b></div>${acts.join("")}</div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
   sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
   try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}
