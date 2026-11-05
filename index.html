@@ -891,7 +891,7 @@ function viewRun(){
   const w=Math.floor(diff(TODAY,START)/7);
   const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
     <dl><dt>Intervals</dt><dd>${esc(planText(i,"A"))}</dd><dt>Easy</dt><dd>${esc(planText(i,"B"))}</dd><dt>${isTestWk(i)?"Test":KIND.C}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
-  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
+  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div>${(S.runNote||{})[r.d]?`<div class="t2" style="color:${S.runDone[r.d]==="part"?"var(--orange)":"var(--green)"}">${S.runDone[r.d]==="part"?"Partly done":"Done"} · ${esc(S.runNote[r.d])}</div>`:""}</div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
   const head=`<div class="lt"><div class="sub">${C.fitSub}</div><h1>${C.fitTitle}</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":`starting ~${fmt(baseSec())}`}</span></div>
@@ -1264,7 +1264,10 @@ function parseStrava(raw){
   if(sec==null&&times.length===1)sec=times[0].v;
   if(sec==null&&km&&pace)sec=Math.round(pace*km);
   if(km==null&&sec&&pace)km=Math.round(sec/pace*100)/100;
-  return {km,sec,pace:pace||(km&&sec?Math.round(sec/km):null)};
+  // Strava puts a place next to the date, e.g. "Today at 20:46 · Southeast". Map labels are too unreliable to read.
+  const lm=raw.match(/(?:today|yesterday|[a-z]+day|\d{1,2}\s+[a-z]+(?:\s+\d{4})?)\s+at\s+\d{1,2}[:.]\d{2}(?:\s*[ap]m)?\s*[·•\-–.,]\s*([A-Za-z][A-Za-z .'&-]{1,40})/i);
+  const loc=lm?lm[1].trim().replace(/\s{2,}/g," ").replace(/[ .-]+$/,""):"";
+  return {km,sec,pace:pace||(km&&sec?Math.round(sec/km):null),loc};
 }
 // The session's reps and rep distance, e.g. "5 × 400 m …" → {n:5, m:400}.
 function sessionReps(r){if(!r||r.test)return null;const m=r.text.match(/(\d+)\s*×\s*(\d+(?:\.\d+)?)\s*(km|m)\b/);return m&&+m[1]>1?{n:+m[1],m:m[3]==="km"?parseFloat(m[2])*1000:+m[2]}:null}
@@ -1290,6 +1293,8 @@ function showShotCheck(d,mode,got){
   card.innerHTML=`<div class="sh-msg"><b id="sh-t">${ok?"Check your run":"Couldn't read everything"}</b><span>${ok?"Fix anything that looks off.":"Fill in what's missing."}</span>
     <div class="shot-f"><label>Distance<span><input id="sh-km" type="text" inputmode="decimal" value="${got.km??""}" placeholder="1.6"> km</span></label>
     <label>Time<span><input id="sh-t2" type="text" inputmode="numeric" value="${got.sec?fmt(got.sec):""}" placeholder="9:05"></span></label>
+    <label>Where<span><input id="sh-loc" type="text" list="sh-locs" value="${esc(got.loc||"")}" placeholder="e.g. Kallang" autocomplete="off" style="width:150px"></span></label>
+    <datalist id="sh-locs">${[...new Set(S.runs.map(x=>x.loc).filter(Boolean))].map(l=>`<option value="${esc(l)}">`).join("")}</datalist>
     <div class="shot-pace" id="sh-pace">${got.km&&got.sec?`Pace ${fmt(got.pace||Math.round(got.sec/got.km))}/km`:""}</div>
     ${sr?`<div class="shot-reps"><button type="button" data-act="shotrep" data-v="-1" aria-label="One rep fewer">−</button><span id="sh-reps">${reps} of ${sr.n} reps</span><button type="button" data-act="shotrep" data-v="1" aria-label="One rep more">+</button></div>`:""}</div></div>
     <button data-act="shotsave" data-d="${d}" class="pri">Save</button>`;
@@ -1303,7 +1308,8 @@ function saveShot(d){
   const v=shotVals();if(!v.km||!v.sec){toast({t:"Add the distance and time",s:"Like 1.6 and 9:05",k:"warn"});return}
   const r=runOn(d),{mode,sr,reps}=SHOT||{};hideSheet();
   const isT=!!(r&&r.test&&mode==="all"&&Math.abs(v.km-2.4)<=.15);
-  if(!S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km))S.runs.push({d,km:v.km,sec:v.sec,tt:isT});
+  const loc=((document.getElementById("sh-loc")||{}).value||"").trim().slice(0,40);
+  if(!S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km))S.runs.push(Object.assign({d,km:v.km,sec:v.sec,tt:isT},loc?{loc}:{}));
   const note=sr&&reps!=null&&(mode==="part"||reps>sr.n)?`${reps} of ${sr.n} reps`:"";
   setRunDone(d,mode==="all"?true:"part",note);
 }
