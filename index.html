@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.7.4">
+<meta name="app-version" content="2.8.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -177,6 +177,20 @@ body.reading{overflow:hidden}
 .hold.done .hr-ck{stroke-dashoffset:0}
 @media (min-width:1100px) and (min-height:600px){.hold{left:248px}}
 @media (prefers-reduced-motion:reduce){.hold{transition:opacity .2s}}
+/* edge swipe back to Today */
+.edgeback{position:fixed;left:6px;top:50%;margin-top:-20px;width:40px;height:40px;border-radius:20px;z-index:60;display:grid;place-items:center;
+  background:var(--bar);color:var(--label2);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+  box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:0;transform:scale(.7);transition:opacity .15s,background .15s,color .15s;pointer-events:none}
+.edgeback.ready{background:var(--blue);color:#fff}
+@media (min-width:1100px) and (min-height:600px){.edgeback{left:254px}}
+/* swipe a row for its action */
+[data-swipe]{position:relative;touch-action:pan-y}
+.swact{position:absolute;top:0;bottom:0;left:100%;width:100vw;display:flex;align-items:center;padding-left:20px;color:#fff;font:600 15px var(--font);border:0;border-radius:0}
+.swact.full{padding-left:28px}
+.grp{overflow:hidden}
+/* long-press a roster day */
+.cal .day{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .15s}
+.cal .day.pressed{transform:scale(.92)}
 /* demo banner */
 .demo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--label);
   border-radius:12px;padding:10px 12px 10px 14px;font-size:15px;margin-top:6px}
@@ -461,6 +475,7 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
   <div class="rd-load" id="rdLoad"><svg viewBox="0 0 28 28" width="28" height="28" class="rd-spin"><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(0 14 14)" opacity="1.00"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(30 14 14)" opacity="0.93"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(60 14 14)" opacity="0.86"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(90 14 14)" opacity="0.79"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(120 14 14)" opacity="0.72"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(150 14 14)" opacity="0.65"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(180 14 14)" opacity="0.58"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(210 14 14)" opacity="0.51"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(240 14 14)" opacity="0.44"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(270 14 14)" opacity="0.37"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(300 14 14)" opacity="0.30"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(330 14 14)" opacity="0.23"/></svg><span id="rdMsg"></span></div>
 </div>
 <div class="hold" id="hold" hidden aria-hidden="true"><svg viewBox="0 0 22 22" width="22" height="22"><circle cx="11" cy="11" r="9" class="hr-bg"/><circle cx="11" cy="11" r="9" class="hr-fg" transform="rotate(-90 11 11)"/><path class="hr-ck" d="M7 11.3l2.6 2.6L15 8.4"/></svg><span class="hold-t"></span></div>
+<div class="edgeback" id="edgeback" hidden aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
 <div class="sheet" id="sheet" hidden></div>
 <input type="file" id="shotfile" accept="image/*" hidden>
 <div class="sess" id="sess" role="status" aria-label="Study Mode session" hidden></div>
@@ -749,7 +764,7 @@ const IC={
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const LONGDOW=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],LONGMON=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const longDate=d=>`${LONGDOW[d.getDay()]}, ${d.getDate()} ${LONGMON[d.getMonth()]}`;
-const vrow=v=>`<div class="cell vrow ind${S.done[v.i]?" done":""}"><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.obj} · ${OBJ[v.obj]}</span></div><span class="trail">${v.len}</span></div>`;
+const vrow=v=>`<div class="cell vrow ind${S.done[v.i]?" done":""}" data-swipe="vid"><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.obj} · ${OBJ[v.obj]}</span></div><span class="trail">${v.len}</span></div>`;
 const weekDays=d=>{const m=add(d,-((d.getDay()+6)%7));return [...Array(7)].map((_,i)=>ds(add(m,i)))};
 
 function ring(r,frac,color){const c=2*Math.PI*r,f=Math.max(0,Math.min(1,frac));
@@ -941,7 +956,7 @@ function viewRun(){
   const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
     <dl><dt>Intervals</dt><dd>${esc(planText(i,"A"))}</dd><dt>Easy</dt><dd>${esc(planText(i,"B"))}</dd><dt>${isTestWk(i)?"Test":KIND.C}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
   const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>{const c=coachOf(r.coach),note=(S.runNote||{})[r.d],part=S.runDone[r.d]==="part";
-    return `<button class="cell runrow" data-act="runinfo" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}"><div class="grow" style="text-align:left;min-width:0"><div class="rr1">${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}${coachPill(c)}</div><div class="t2 ell">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span>${IC.chev}</button>`}).join("");
+    return `<button class="cell runrow" data-act="runinfo" data-swipe="run" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}"><div class="grow" style="text-align:left;min-width:0"><div class="rr1">${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}${coachPill(c)}</div><div class="t2 ell">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span>${IC.chev}</button>`}).join("");
   const head=`<div class="lt"><div class="sub">${C.fitSub}</div><h1>${C.fitTitle}</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":`starting ~${fmt(baseSec())}`}</span></div>
@@ -975,7 +990,7 @@ function courseList(){
   return DOM.map(([k,name,w])=>{
     const vs=VID.filter(v=>v.dom===k),dn=vs.filter(v=>S.done[v.i]).length,open=openDoms.has(k);
     const rows=vs.map(v=>{const isNext=next&&v.i===next.i;
-      return `<div class="cell vrow ind${S.done[v.i]?" done":""}${isNext?" nextv":""}"${isNext?' id="nextvid"':""}><span class="num">${v.i+1}</span><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.obj} ${OBJ[v.obj]}${isNext?' · <b style="color:var(--blue)">Up next</b>':""}</span></div><span class="trail">${v.len}</span></div>`}).join("");
+      return `<div class="cell vrow ind${S.done[v.i]?" done":""}${isNext?" nextv":""}" data-swipe="vid"${isNext?' id="nextvid"':""}><span class="num">${v.i+1}</span><input class="chk" type="checkbox" id="v${v.i}" data-act="vid" data-i="${v.i}" ${S.done[v.i]?"checked":""} aria-label="Mark ${esc(v.title)} watched"><div class="grow"><a href="${v.url}" target="_blank" rel="noopener">${esc(v.title)}</a><span class="code">${v.obj} ${OBJ[v.obj]}${isNext?' · <b style="color:var(--blue)">Up next</b>':""}</span></div><span class="trail">${v.len}</span></div>`}).join("");
     return `<div class="acc${open?" open":""}" data-dom="${k}">
       <button class="cell acch" data-act="acc" data-dom="${k}" aria-expanded="${open}"><div class="grow" style="display:grid;gap:6px">
         <div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">${k==="0"?"Introduction":DEMO?`Unit ${k} · ${esc(name)}`:k+".0 "+esc(name)}</span><span class="trail">${dn}/${vs.length}</span></div>
@@ -1055,6 +1070,10 @@ document.addEventListener("input",e=>{if(e.target.id==="voice"){clearTimeout(voi
 
 // ---------- render + events ----------
 let DAYSEL=null;
+// Moving between pages replaces the address instead of adding to history, so iOS's built-in back swipe
+// (which slides the whole page away) has nothing to go back to. Rhythm's own edge swipe goes to Today instead.
+function nav(h){if(location.hash!==h)location.replace(h)}
+document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest('a[href^="#"]');if(!a||a.target)return;e.preventDefault();nav(a.getAttribute("href"))});
 // ---------- Calendar export (.ics) ----------
 function icsText(days,extra=[]){
   const st=(S.runAt||"20:15").split(":").map(Number),sd=(S.studyAt||"17:30").split(":").map(Number);
@@ -1260,7 +1279,7 @@ async function logOut(){
   S=JSON.parse(JSON.stringify(DEF));
   try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   cache={};openDoms=null;applyTheme();renderIsland();loggingOut=false;
-  location.hash="#today";render(true);toast({t:"Logged out",s:"Your progress is safe on GitHub",k:"ok"});
+  nav("#today");render(true);toast({t:"Logged out",s:"Your progress is safe on GitHub",k:"ok"});
 }
 // iOS-style action sheet from the bottom to confirm logging out.
 function showLogoutSheet(){
@@ -1539,7 +1558,7 @@ async function spPlayStudy(opt={}){
 }
 let wakePending=null;
 async function startStudyMode(opt={}){
-  if(!smReady()){location.hash="#settings-studymode";toast({t:"Set up Study Mode first",s:"Settings › Study Mode",k:"warn"});return}
+  if(!smReady()){nav("#settings-studymode");toast({t:"Set up Study Mode first",s:"Settings › Study Mode",k:"warn"});return}
   if(S.session){islandOpen(true);return}
   let music=null;
   if(spOn()&&spPlaylist()){
@@ -1656,7 +1675,7 @@ function viewSettings(){
     <div class="cell"><label class="grow" for="set-gest">Gesture Control</label><input class="sw" type="checkbox" id="set-gest" data-act="gestoff" ${gestOn()?"checked":""}></div>
   </div><div class="sf">${gestOn()?"Turn off to stop all swipe and hold gestures.":"All gestures are off."}</div></div>
   ${gestOn()?`<div class="sec"><div class="sh">Gesture Options</div><div class="grp">
-    ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Runs your Quick Action when the ring fills."],["Swipe with one finger","On Today, go to the next or previous day."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
+    ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Runs your Quick Action when the ring fills."],["Swipe with one finger","On Today, go to the next or previous day."],["Swipe from the left edge","Back to Today from any page."],["Swipe a row left","Mark a video watched, or delete a run."],["Hold a day on the Roster","Add or remove a shift, or skip that day's run or study."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
   </div></div>
   <div class="sec"><div class="sh">Quick Action</div><div class="grp">
     ${QA.map(a=>`<button class="cell runrow" data-act="qa1" data-k="${a.k}" role="radio" aria-checked="${qaKey()===a.k}"><div class="grow" style="text-align:left"><div>${esc(a.name)}</div>${a.k==="study"&&(DEMO||!smReady())?`<div class="t2">${esc(a.need)}</div>`:""}</div>${qaKey()===a.k?`<span style="color:var(--blue)">${IC.check.replace("<svg",'<svg width="20" height="20"')}</span>`:""}</button>`).join("")}
@@ -1913,7 +1932,7 @@ function viewWeek(){
 const VIEWS={today:()=>viewDay(T),day:()=>viewDay(DAYSEL),week:viewWeek,plan:viewPlan,run:viewRun,secplus:viewSec,settings:viewSettings};
 function route(){const h=location.hash.slice(1);const m=h.match(/^day-(\d{4}-\d{2}-\d{2})$/);
   if(m){if(m[1]===T)return "today";DAYSEL=m[1];return "day"}if(/^settings-[a-z]+$/.test(h))return "settings";return VIEWS[h]&&h!=="day"?h:"today"}
-const goDay=d=>{location.hash=d===T?"#today":"#day-"+d};
+const goDay=d=>{nav(d===T?"#today":"#day-"+d)};
 let enterT;
 let lastView=null;
 // A device that isn't logged in opens on the login screen, unless it's showing the demo.
@@ -1937,11 +1956,11 @@ function demoState(){
 // Switching in or out of the demo reloads, because the goals themselves change.
 function startDemo(){
   try{localStorage.removeItem(KEY);localStorage.setItem("rhythm-demo","1");sessionStorage.setItem("rhythm-demo-new","1");sessionStorage.setItem("rhythm-nosplash","1")}catch(e){}
-  location.hash="#today";location.reload();
+  nav("#today");location.reload();
 }
 function exitDemo(){
   try{localStorage.removeItem("rhythm-demo");sessionStorage.setItem("rhythm-nosplash","1")}catch(e){}
-  location.hash="#today";location.reload();
+  nav("#today");location.reload();
 }
 function viewLogin(){
   return `<div class="gate-top"><svg viewBox="0 0 120 40" width="96" height="32" aria-hidden="true"><defs><linearGradient id="gw" x1="0" x2="1"><stop offset="0" stop-color="#5E5CE6"/><stop offset=".55" stop-color="#FF375F"/><stop offset="1" stop-color="#FF9F0A"/></linearGradient></defs><path d="M4 20h26l7-13 10 26 9-19 6 6h54" fill="none" stroke="url(#gw)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -2046,6 +2065,11 @@ document.addEventListener("click",e=>{
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
   else if(a==="weekgo"){WEEKSEL=el.dataset.d;render(true);return}
+  else if(a==="dm"){const d=el.dataset.d,v=el.dataset.v;hideSheet();
+    if(v==="open"){goDay(d);return}
+    if(v==="shift"){if(S.shifts[d]){delete S.shifts[d];changed({t:"Shift removed",s:nice(pd(d)),k:"undo"})}else{S.shifts[d]="Shift";changed({t:"Shift added",s:nice(pd(d)),k:"ok"})}return}
+    S.busy=S.busy||{};const o={...skipOf(d)};if(o[v])delete o[v];else o[v]=1;if(o.run||o.study)S.busy[d]=o;else delete S.busy[d];cache={};
+    changed(o[v]?{t:v==="run"?`${C.Run} skipped`:"Study skipped",s:"Moved to your next free days",k:"moved"}:{t:"Back on the plan",s:nice(pd(d)),k:"undo"});return}
   else if(a==="holdms"){S.holdMs=+el.dataset.v;if(S.holdMs===1000)delete S.holdMs;save();const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="qa1"){S.qa1=el.dataset.k;save();const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="gestoff"){S.gest=el.checked?undefined:false;if(S.gest===undefined)delete S.gest;save();const y=scrollY;render();scrollTo(0,y);return}
@@ -2113,18 +2137,83 @@ document.addEventListener("change",e=>{
   else if(el.dataset.act==="mins"){S.mins=+el.value;(()=>{changed(null);const f=schedule().last;toast({t:"Plan updated",s:`${S.mins} min per free day${f?` · finish ${pd(f).getDate()} ${MON[pd(f).getMonth()]}`:""}`,k:"ok"})})()}
 });
 let sx=null,sy=null;
-document.addEventListener("touchstart",e=>{const r=route();if(!gestOn()||(r!=="today"&&r!=="day"&&r!=="week")||e.touches.length>1||!document.getElementById("sheet").hidden){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+document.addEventListener("touchstart",e=>{const r=route();if(!gestOn()||(r!=="today"&&r!=="day"&&r!=="week")||e.touches.length>1||(r!=="today"&&e.touches[0].clientX<=24)||(e.target.closest&&e.target.closest("[data-swipe]"))||!document.getElementById("sheet").hidden){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
 document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
   if(Math.abs(dx)>70&&Math.abs(dy)<45){if(route()==="week"){WEEKSEL=ds(add(pd(WEEKSEL||T),dx<0?7:-7));render(true);return}
     const cur=route()==="day"?DAYSEL:T;goDay(ds(add(pd(cur),dx<0?1:-1)))}},{passive:true});
+// ---------- Edge swipe: from the left edge to Today ----------
+(function(){
+  const EDGE=24,GO=90;let e0=null;
+  const ind=()=>document.getElementById("edgeback");
+  const set=(dx)=>{const el=ind();if(!el)return;const f=Math.min(1,dx/GO);el.hidden=false;el.style.opacity=Math.min(1,dx/30);
+    el.style.transform=`translateX(${Math.min(dx,GO)*.45}px) scale(${.7+.3*f})`;el.classList.toggle("ready",f>=1)};
+  const hide=()=>{const el=ind();if(!el)return;el.style.opacity=0;el.style.transform="translateX(0) scale(.7)";el.classList.remove("ready");setTimeout(()=>{if(el.style.opacity==="0")el.hidden=true},200)};
+  document.addEventListener("touchstart",e=>{e0=null;if(!gestOn()||e.touches.length!==1)return;const t=e.touches[0];
+    if(t.clientX>EDGE||route()==="today"||!document.getElementById("sheet").hidden||!document.getElementById("reader").hidden||document.body.classList.contains("gate"))return;
+    // Stop iOS's own edge swipe from starting; a plain tap still goes through (see touchend).
+    e.preventDefault();e0={x:t.clientX,y:t.clientY,el:e.target,dx:0,dy:0}},{passive:false});
+  document.addEventListener("touchmove",e=>{if(!e0||e.touches.length!==1)return;const t=e.touches[0];e0.dx=t.clientX-e0.x;e0.dy=t.clientY-e0.y;
+    if(Math.abs(e0.dy)>60&&Math.abs(e0.dy)>e0.dx){hide();e0=null;return}if(e0.dx>6)set(e0.dx)},{passive:true});
+  document.addEventListener("touchend",()=>{if(!e0)return;const x=e0;e0=null;hide();
+    if(x.dx>=GO&&Math.abs(x.dy)<70){try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}goDay(T);return}
+    if(Math.abs(x.dx)<8&&Math.abs(x.dy)<8&&x.el){const c=x.el.closest("a,button,label,input,[data-act]")||x.el;c.click()}},{passive:true});
+  document.addEventListener("touchcancel",()=>{e0=null;hide()},{passive:true});
+})();
+// ---------- Swipe a row left for its action (like Mail) ----------
+// Videos: Watched / Unwatch. Runs in History: Delete. Swipe far to do it straight away, or a little and tap the button.
+(function(){
+  let s0=null,open=null;
+  const close=(row,anim=true)=>{if(!row)return;row.style.transition=anim?"transform .3s cubic-bezier(.2,1,.3,1)":"none";row.style.transform="";
+    setTimeout(()=>{const a=row.querySelector(".swact");if(a&&!row.style.transform)a.remove()},anim?300:0);if(open===row)open=null};
+  const label=row=>{if(row.dataset.swipe==="vid"){const cb=row.querySelector("input.chk");return cb&&cb.checked?["Unwatch","var(--label2)"]:["Watched","var(--green)"]}return ["Delete","var(--red)"]};
+  function act(row){if(row.dataset.swipe==="vid"){const cb=row.querySelector("input.chk");close(row,false);if(cb)cb.click();return}
+    const k=row.dataset.k,i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);close(row,false);if(i>-1){S.runs.splice(i,1);changed({t:`${C.Run} deleted`,k:"undo"})}}
+  document.addEventListener("touchstart",e=>{
+    if(open&&!(e.target.closest&&e.target.closest(".swact"))&&!open.contains(e.target)){close(open)}
+    s0=null;if(!gestOn()||e.touches.length!==1)return;const row=e.target.closest&&e.target.closest("[data-swipe]");if(!row)return;
+    const t=e.touches[0];s0={row,x:t.clientX,y:t.clientY,dx:0,dir:null,base:open===row?-88:0}},{passive:true});
+  document.addEventListener("touchmove",e=>{if(!s0||e.touches.length!==1)return;const t=e.touches[0],dx=t.clientX-s0.x,dy=t.clientY-s0.y;
+    if(!s0.dir){if(Math.abs(dx)<8&&Math.abs(dy)<8)return;s0.dir=Math.abs(dx)>Math.abs(dy)*1.2?"h":"v"}
+    if(s0.dir!=="h"){s0=null;return}e.preventDefault();
+    const row=s0.row;let a=row.querySelector(".swact");
+    if(!a){a=document.createElement("button");a.className="swact";a.type="button";const [l,c]=label(row);a.textContent=l;a.style.background=c;row.appendChild(a)}
+    s0.dx=Math.min(0,s0.base+dx);row.style.transition="none";row.style.transform=`translateX(${s0.dx}px)`;
+    a.classList.toggle("full",-s0.dx>row.offsetWidth*.55)},{passive:false});
+  document.addEventListener("touchend",()=>{if(!s0||s0.dir!=="h"){s0=null;return}const x=s0;s0=null;const row=x.row,w=row.offsetWidth;
+    if(-x.dx>w*.55){try{navigator.vibrate&&navigator.vibrate(10)}catch(_){}act(row);return}
+    if(-x.dx>44){row.style.transition="transform .3s cubic-bezier(.2,1,.3,1)";row.style.transform="translateX(-88px)";open=row}else close(row)},{passive:true});
+  document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest(".swact");if(!a)return;e.preventDefault();e.stopPropagation();act(a.closest("[data-swipe]"))},true);
+  window.swipeClose=()=>{if(open)close(open,false)};
+})();
+// ---------- Long-press a day on the Roster ----------
+(function(){
+  let lp=null,p0=null;window.__noClick=0;
+  document.addEventListener("touchstart",e=>{clearTimeout(lp);p0=null;if(!gestOn()||e.touches.length!==1||editShifts)return;const b=e.target.closest&&e.target.closest(".cal .day[data-d]");if(!b)return;
+    const t=e.touches[0];p0={x:t.clientX,y:t.clientY};lp=setTimeout(()=>{p0=null;window.__noClick=Date.now();try{navigator.vibrate&&navigator.vibrate(10)}catch(_){}b.classList.add("pressed");setTimeout(()=>b.classList.remove("pressed"),250);showDayMenu(b.dataset.d)},500)},{passive:true});
+  document.addEventListener("touchmove",e=>{if(!p0)return;const t=e.touches[0];if(Math.hypot(t.clientX-p0.x,t.clientY-p0.y)>10){clearTimeout(lp);p0=null}},{passive:true});
+  document.addEventListener("touchend",()=>{clearTimeout(lp);p0=null},{passive:true});
+  // The tap that ends a long press shouldn't also open the day, or close the menu that just appeared under the finger.
+  document.addEventListener("click",e=>{if(window.__noClick&&Date.now()-window.__noClick<700){window.__noClick=0;e.preventDefault();e.stopPropagation()}},true);
+})();
+function showDayMenu(d){
+  const t=dayType(d),r=runOn(d),sk=skipOf(d),sh=document.getElementById("sheet"),past=d<T,btn=[];
+  btn.push(`<button data-act="dm" data-v="open" data-d="${d}" class="pri">Open Day</button>`);
+  btn.push(isShift(d)?`<button data-act="dm" data-v="shift" data-d="${d}" class="danger">Remove Shift</button>`:`<button data-act="dm" data-v="shift" data-d="${d}">Add Shift</button>`);
+  if(!past&&t!=="shift"){
+    if(r||sk.run)btn.push(`<button data-act="dm" data-v="run" data-d="${d}">${sk.run?`Bring Back ${C.Run}`:`Skip ${C.Run}`}</button>`);
+    btn.push(`<button data-act="dm" data-v="study" data-d="${d}">${sk.study?"Bring Back Study":"Skip Study"}</button>`);
+  }
+  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="sh-msg"><b id="sh-t">${nice(pd(d))}</b>${t==="shift"?`<span>Shift · ${esc(shiftTime(d)||"")}</span>`:r&&!r.missed?`<span>${r.test?C.testName:KIND[r.k]} planned</span>`:""}</div>${btn.join("")}</div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
+  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+}
 // ---------- Two-finger gestures ----------
 // Swipe left/right with two fingers: next/previous tab. Hold two fingers still: your Quick Actions (Settings › Gestures). 4- and 5-finger gestures belong to iPadOS and are left alone.
 const gestOn=()=>S.gest!==false;
 const HOLDS=[500,1000,1500,2000],holdMs=()=>HOLDS.includes(S.holdMs)?S.holdMs:1000,holdLbl=ms=>`${ms/1000} s`;
 const TABS=["today","plan","run","secplus","settings"];
 const curTab=()=>{const r=route();return r==="day"||r==="week"?"today":r};
-function goTab(n){const i=TABS.indexOf(curTab()),j=i+n;if(j<0||j>=TABS.length)return;location.hash="#"+TABS[j]}
-function openWeek(from){WEEKFROM=from;WEEKSEL=from;location.hash="#week"}
+function goTab(n){const i=TABS.indexOf(curTab()),j=i+n;if(j<0||j>=TABS.length)return;nav("#"+TABS[j])}
+function openWeek(from){WEEKFROM=from;WEEKSEL=from;nav("#week")}
 function closeWeek(){const d=WEEKFROM&&weekDays(pd(WEEKSEL||T)).includes(WEEKFROM)?WEEKFROM:weekDays(pd(WEEKSEL||T)).includes(T)?T:weekDays(pd(WEEKSEL||T))[0];goDay(d)}
 (function(){
   let g=null,lp=null,lp2=null;
@@ -2184,10 +2273,10 @@ function holdDone(){
 })();
 function runQuick(k){
   if(k==="today"){if(route()==="today"){scrollTo({top:0,behavior:"smooth"});toast({t:"You're on Today",k:"ok"})}else goDay(T);return}
-  if(k==="log"){location.hash="#run";setTimeout(()=>{const x=document.getElementById("rd");if(x)x.closest(".sec").scrollIntoView({behavior:"smooth",block:"start"})},350);return}
+  if(k==="log"){nav("#run");setTimeout(()=>{const x=document.getElementById("rd");if(x)x.closest(".sec").scrollIntoView({behavior:"smooth",block:"start"})},350);return}
   if(k==="study"){if(DEMO||!smReady()){toast({t:"Study Mode isn't set up",s:"Settings › Study Mode",k:"warn"});return}if(S.session)endStudyMode().then(render);else startStudyMode();return}
   if(k==="run"){const r=runOn(T);if(!r||r.missed){toast({t:`No ${C.run} planned today`,k:"warn"});return}showRunSheet(T);return}
-  if(k==="next"){location.hash="#secplus";setTimeout(()=>{const n=document.getElementById("nextvid");if(n)n.scrollIntoView({behavior:"smooth",block:"center"})},400)}
+  if(k==="next"){nav("#secplus");setTimeout(()=>{const n=document.getElementById("nextvid");if(n)n.scrollIntoView({behavior:"smooth",block:"center"})},400)}
 }
 window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
