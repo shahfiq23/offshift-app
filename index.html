@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.5.0">
+<meta name="app-version" content="2.5.1">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -593,12 +593,11 @@ const screenTarget=s=>Math.max(5,9-4*Math.max(0,diff(pd(s),new Date(2026,10,1)))
 // Shift days are fully off. "rec" = the day a night shift ends (home ~9am, sleeping): no run, half study.
 // Each week picks up to 3 runs on the remaining free days. Intervals matter most, then tempo/test, then easy.
 // Two hard sessions are never placed on back-to-back days.
-function weekRuns(w){
-  if(cache["w"+w])return cache["w"+w];
+// The week's original plan, ignoring skips and today's date, so planned runs stay where they were.
+function basePlan(w){
+  if(cache["b"+w])return cache["b"+w];
   const days=[...Array(7)].map((_,i)=>ds(add(START,w*7+i)));
-  // When a day in this week is marked busy, its run moves to another free day from today on (past days keep only runs already done).
-  const hasBusy=days.some(skipRun);
-  const free=days.filter(s=>dayType(s)==="off"&&!skipRun(s)&&(!hasBusy||s>=T||S.runDone[s]));
+  const free=days.filter(s=>{const t=dayType(s);return t==="off"||t==="busy"});
   const testWk=isTestWk(w);
   const val={A:10,B:4,C:testWk?12:8};
   const combos=(arr,k,st=0,cur=[])=>k===0?[cur]:arr.slice(st).flatMap((_,j)=>combos(arr,k-1,st+j+1,[...cur,arr[st+j]]));
@@ -612,9 +611,40 @@ function weekRuns(w){
     if(sc>bs){bs=sc;best=c.map((d,i)=>[d,pm[i]])}
   }
   const out={};(best||[]).forEach(([d,k])=>out[d]=k);
-  cache["w"+w]=out;return out;
+  cache["b"+w]=out;return out;
 }
-function runOn(s){const w=Math.floor(diff(pd(s),START)/7);if(w<0||w>8)return null;const k=weekRuns(w)[s];return k?{w,k,text:planText(w,k),focus:planFocus(w),test:k==="C"&&isTestWk(w)}:null}
+// The week as it stands: done runs stay put; a run that was skipped, or that's in the past and wasn't marked done,
+// moves to the next free day this week. A missed run still shows on its own day (so you can see what was planned
+// and still tick it later); ticking it removes the moved copy. Never two hard sessions back to back.
+function weekRuns(w){
+  if(cache["w"+w])return cache["w"+w];
+  const base=basePlan(w),out={},missed={},moved={},need=[];
+  for(const [d,k] of Object.entries(base)){
+    if(S.runDone[d]){out[d]=k;continue}
+    if(skipRun(d)){need.push({k,from:d});continue}
+    if(d<T){missed[d]={k,to:null};need.push({k,from:d,miss:true});continue}
+    out[d]=k;
+  }
+  const hard=k=>k!=="B",days=[...Array(7)].map((_,i)=>ds(add(START,w*7+i)));
+  const pri={C:isTestWk(w)?0:2,A:1,B:3};need.sort((a,b)=>pri[a.k]-pri[b.k]);
+  const clash=(s,k)=>hard(k)&&[-1,1].some(n=>{const x=out[ds(add(pd(s),n))];return x&&hard(x)});
+  for(const n of need){
+    const slots=days.filter(s=>s>=T&&dayType(s)==="off"&&!skipRun(s)&&!out[s]);
+    let s=slots.find(x=>!clash(x,n.k));
+    // No room: a more important session (test, then intervals, then tempo, then easy) takes the place of a
+    // less important one later this week that isn't done yet. The less important one is dropped.
+    if(!s)s=days.filter(x=>x>=T&&out[x]&&!S.runDone[x]&&!moved[x]&&pri[out[x]]>pri[n.k]&&!clash(x,n.k)).sort((x,y)=>pri[out[y]]-pri[out[x]])[0];
+    if(!s)continue;
+    out[s]=n.k;moved[s]=n.from;if(n.miss)missed[n.from].to=s;
+  }
+  cache["m"+w]=missed;cache["mv"+w]=moved;cache["w"+w]=out;return out;
+}
+function runOn(s){const w=Math.floor(diff(pd(s),START)/7);if(w<0||w>8)return null;const k=weekRuns(w)[s];
+  const r=k2=>({w,k:k2,text:planText(w,k2),focus:planFocus(w),test:k2==="C"&&isTestWk(w)});
+  if(k)return Object.assign(r(k),{from:cache["mv"+w][s]||null});
+  const m=cache["m"+w][s];return m?Object.assign(r(m.k),{missed:true,to:m.to}):null}
+// A run counts towards the week's plan unless it's a missed one that has been moved to another day.
+const runCounts=d=>{const r=runOn(d);return !!r&&!(r.missed&&r.to)};
 const budget=s=>{if(skipStudy(s))return 0;const t=dayType(s);return t==="off"?S.mins*60:t==="rec"?Math.round(S.mins/2)*60:0};
 
 // ---------- icons (SF Symbols-style line icons) ----------
@@ -660,7 +690,7 @@ function viewDay(D){
   const runDone=!!S.runDone[D],runPart=S.runDone[D]==="part",runNote=(S.runNote||{})[D];const nextVid=vids.find(v=>!S.done[v.i]);
   const vidMin=hm(vids.reduce((a,v)=>a+v.sec,0));
   const wd=weekDays(TODAY);
-  const runsPlanned=wd.filter(d=>runOn(d)).length,runsDone=wd.filter(d=>runOn(d)&&S.runDone[d]).length;
+  const runsPlanned=wd.filter(runCounts).length,runsDone=wd.filter(d=>runCounts(d)&&S.runDone[d]).length;
   const studyGoal=wd.reduce((a,d)=>a+budget(d),0)/60,studyDone=VID.filter(v=>wd.includes(S.done[v.i])).reduce((a,v)=>a+v.sec,0)/60;
   const todayPlanned=(r?1:0)+vids.length,todayDone=(r&&runDone?1:0)+vids.filter(v=>S.done[v.i]).length;
   const when=isToday?"today":future?"that day":"that day";
@@ -708,7 +738,7 @@ function viewDay(D){
   const runSec=`${r?`<div class="sec"><div class="sh">${C.Run} · Week ${r.w+1} · ${r.focus}</div><div class="grp">
       <div class="cell ind"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${KIND[r.k]}</div><div class="t2">${esc(r.text)}</div></div></div>
       ${runDone?`<button class="cell" data-act="rundone" data-d="${D}" style="color:${runPart?"var(--orange)":"var(--green)"};text-align:left">${runPart?IC.half:IC.check.replace("<svg",'<svg width="20" height="20"')}<span class="grow">${runPart?`Partly done${runNote?" · "+esc(runNote):""}`:"Done"}</span><span class="trail" style="font-size:15px">Change</span></button>`:future?"":`<button class="cell btnrow" data-act="rundone" data-d="${D}">Mark as Done</button>`}
-    </div><div class="sf">${WU}</div></div>`:""}`;
+    </div><div class="sf">${r.missed&&!runDone?`Not marked as done, so it ${r.to?`moved to ${LONGDOW[pd(r.to).getDay()]}`:"couldn't fit anywhere else this week"}. Did it after all? Tap Mark as Done.`:r.from&&!runDone?`Moved here from ${LONGDOW[pd(r.from).getDay()]}. ${WU}`:WU}</div></div>`:""}`;
   const secSec=`<div class="sec"><div class="sh">${C.courseTitle}${vids.length?` · ${vidMin}`:""}</div>
     ${vids.length?`<div class="grp">${vids.map(vrow).join("")}</div>${future?'<div class="sf">Projected from your current pace. It shifts if you watch more or less before then.</div>':""}`
       :optional?`<div class="grp">${vrow(optional)}</div><div class="sf">Only if you feel like it on the commute. Shift days have no study target. This is your next video in order.</div>`
@@ -723,7 +753,7 @@ function weekStrip(dd){
     const vids=past?VID.filter(v=>S.done[v.i]===d):(sch.map[d]||[]);
     const vDone=vids.filter(v=>S.done[v.i]).length,vSec=vids.reduce((a,v)=>a+v.sec,0);
     const top=t==="shift"?`<span class="ws-tag">${shortTime(d)}</span>`:t==="rec"?`<span class="ws-tag hollow">After night</span>`:t==="busy"?`<span class="ws-tag grey">Busy</span>`:`<span class="ws-tag free">Free</span>`;
-    const run=r?`<div class="ws-l${S.runDone[d]?" done":""}"><i style="background:var(--orange)"></i>${r.test?C.testShort:KIND[r.k]}${S.runDone[d]==="part"?" · part":S.runDone[d]?" ✓":""}</div>`:"";
+    const run=r?`<div class="ws-l${S.runDone[d]||r.missed?" done":""}"><i style="background:var(--orange)${r.missed?";opacity:.45":""}"></i>${r.test?C.testShort:KIND[r.k]}${S.runDone[d]==="part"?" · part":S.runDone[d]?" ✓":r.missed?" · missed":""}</div>`:"";
     const study=vids.length?`<div class="ws-l${vDone===vids.length?" done":""}"><i style="background:var(--green)"></i>${past||vDone===vids.length?`${vids.length} video${vids.length>1?"s":""} ✓`:vDone?`${vDone}/${vids.length} done`:hm(vSec)}</div>`:"";
     const none=!run&&!study?`<div class="ws-l muted">${t==="shift"?"Rest":t==="rec"?"Sleep":"Nothing planned"}</div>`:"";
     return `<button class="ws-day${d===T?" today":""}${d===(DAYSEL||T)&&route()==="day"?" sel":""}${past?" past":""}" data-act="go" data-d="${d}" aria-label="${nice(x)}">
@@ -798,7 +828,7 @@ function paceChart(){
 // ---------- Sunday recap ----------
 function weekRecap(){
   const wd=weekDays(TODAY),nx=wd.map(d=>ds(add(pd(d),7)));
-  const runsPlanned=wd.filter(d=>runOn(d)),runsDone=runsPlanned.filter(d=>S.runDone[d]).length;
+  const runsPlanned=wd.filter(runCounts),runsDone=runsPlanned.filter(d=>S.runDone[d]).length;
   const extra=S.runs.filter(r=>wd.includes(r.d)&&!runOn(r.d)).length;
   const vids=VID.filter(v=>wd.includes(S.done[v.i])),vmin=vids.reduce((a,v)=>a+v.sec,0);
   const tests=S.runs.filter(r=>r.tt&&wd.includes(r.d)),bestAll=best24();
@@ -961,7 +991,7 @@ function icsText(days,extra=[]){
         let mins=(h2*60+m2)-(h1*60+m1);if(mins<=0)mins+=1440;
         out.push(ev(`shift-${d}`,d,h1,m1,mins,"Shift @ Univers",`${isNight(d)?"Night shift":"Day shift"} ${tm.replace("-","–")} · nothing else planned`,["-P1D","-PT2H"]));nShift++}}
     const r=runOn(d);
-    if(r&&!S.runDone[d]){out.push(ev(`run-${d}`,d,st[0],st[1],45,`${C.Run} · ${r.test?C.testName:KIND[r.k]}`,`${r.text}\n${WU}\nWeek ${r.w+1} · ${r.focus}`));nRun++}
+    if(r&&!r.missed&&!S.runDone[d]){out.push(ev(`run-${d}`,d,st[0],st[1],45,`${C.Run} · ${r.test?C.testName:KIND[r.k]}`,`${r.text}\n${WU}\nWeek ${r.w+1} · ${r.focus}`));nRun++}
     const vids=(sch.map[d]||[]).filter(v=>!S.done[v.i]);
     if(vids.length){const mins=Math.max(15,Math.round(vids.reduce((a,v)=>a+v.sec,0)/60));
       out.push(ev(`study-${d}`,d,sd[0],sd[1],mins,`${C.courseTitle} · ${vids.length} video${vids.length>1?"s":""}`,vids.map(v=>`${v.i+1}. ${v.title} (${v.len})`).join("\n")));nStudy++}
@@ -1180,7 +1210,7 @@ function showPartSheet(d){
 function setRunDone(d,v,note){
   if(v)S.runDone[d]=v;else delete S.runDone[d];
   const rn=S.runNote||(S.runNote={});if(v==="part"&&note)rn[d]=note;else delete rn[d];
-  const r=runOn(d),wd=weekDays(pd(d)),pl=wd.filter(x=>runOn(x)).length,dn=wd.filter(x=>runOn(x)&&S.runDone[x]).length;
+  cache={};const r=runOn(d),wd=weekDays(pd(d)),pl=wd.filter(runCounts).length,dn=wd.filter(x=>runCounts(x)&&S.runDone[x]).length;
   changed(!v?{t:"Marked as not done",k:"undo"}:v==="part"?{t:"Logged as partly done",s:`Still counts · ${dn} of ${pl} this week`,k:"run"}
     :{t:`${C.Run} done. Nice work!`,s:`${r?(r.test?C.testShort:KIND[r.k])+" · ":""}${dn} of ${pl} this week`,k:"run"});
 }
@@ -1745,7 +1775,7 @@ document.addEventListener("click",e=>{
     const before=k==="run"?runOn(d):null,nv=k==="study"?(schedule().map[d]||[]).length:0;
     cache={};let msg;
     if(el.checked)msg={t:"Back on the plan",s:k==="run"?`Your ${C.run} is back on `+nice(pd(d)):"Your videos are back on "+nice(pd(d)),k:"undo"};
-    else if(k==="run"&&before){const w=before.w,to=Object.entries(weekRuns(w)).find(([dd,kk])=>kk===before.k);
+    else if(k==="run"&&before){const w=before.w,to=Object.entries(weekRuns(w)).find(([dd,kk])=>kk===before.k&&dd>=T&&dd!==d&&!S.runDone[dd]);
       msg={t:`${C.Run} moved`,s:to?`${before.test?C.testShort:KIND[before.k]} → ${nice(pd(to[0]))}`:`${KIND[before.k]} dropped this week to keep hard days apart`,k:"moved"}}
     else if(k==="run")msg={t:`${C.Run} skipped`,k:"moved"};
     else msg={t:"Videos moved",s:nv?`${nv} video${nv>1?"s":""} → your next free days`:"Moved to your next free days",k:"moved"};
