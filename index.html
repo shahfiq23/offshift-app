@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.7.3">
+<meta name="app-version" content="2.7.4">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -1655,7 +1655,7 @@ function viewSettings(){
     gestures:["Gesture Control",()=>`<div class="sec"><div class="grp">
     <div class="cell"><label class="grow" for="set-gest">Gesture Control</label><input class="sw" type="checkbox" id="set-gest" data-act="gestoff" ${gestOn()?"checked":""}></div>
   </div><div class="sf">${gestOn()?"Turn off to stop all swipe and hold gestures.":"All gestures are off."}</div></div>
-  ${gestOn()?`<div class="sec"><div class="sh">How They Work</div><div class="grp">
+  ${gestOn()?`<div class="sec"><div class="sh">Gesture Options</div><div class="grp">
     ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Runs your Quick Action when the ring fills."],["Swipe with one finger","On Today, go to the next or previous day."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
   </div></div>
   <div class="sec"><div class="sh">Quick Action</div><div class="grp">
