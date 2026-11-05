@@ -1344,7 +1344,9 @@ function prepImage(file){return new Promise((res,rej)=>{const img=new Image(),u=
 function parseStrava(raw){
   let t=raw.replace(/,/g,".").replace(/(\d)[oO]/g,"$10").replace(/[oO](\d)/g,"0$1").replace(/(\d)\s*[:;]\s*(\d{2})/g,"$1:$2");
   const pm=t.match(/(\d{1,2}):(\d{2})\s*[\/\[|lI1]\s*km/i),pace=pm?+pm[1]*60+ +pm[2]:null;
-  let km=null;for(const m of t.matchAll(/(\d{1,3}(?:\.\d{1,2})?)\s*km\b/gi)){const v=parseFloat(m[1]);if(v>=.1&&v<=60){km=v;break}}
+  // Distance: prefer the number under the "Distance" label, then one with decimals, so a title like "Easy 3km" isn't used.
+  const kms=[...t.matchAll(/(\d{1,3}(?:\.\d{1,2})?)\s*km\b/gi)].map(m=>({v:parseFloat(m[1]),i:m.index,dec:m[1].includes(".")})).filter(x=>x.v>=.1&&x.v<=60);
+  const di=t.search(/distance/i),kp=(di>-1&&kms.find(x=>x.i>di))||kms.find(x=>x.dec)||kms[0];let km=kp?kp.v:null;
   const times=[];
   for(const m of t.matchAll(/(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?!\s*[\/\[|]\s*km)/g)){const v=(+(m[1]||0))*3600+ +m[2]*60+ +m[3];if(v>=30)times.push({v,i:m.index})}
   for(const m of t.matchAll(/(?:(\d{1,2})\s*h\s*)?(\d{1,2})\s*m(?:in)?\s*(\d{1,2})\s*s\b/gi)){times.push({v:(+(m[1]||0))*3600+ +m[2]*60+ +m[3],i:m.index})}
@@ -1357,7 +1359,9 @@ function parseStrava(raw){
   if(km==null&&sec&&pace)km=Math.round(sec/pace*100)/100;
   // Strava puts a place next to the date, e.g. "Today at 20:46 · Southeast". Map labels are too unreliable to read.
   const lm=raw.match(/(?:today|yesterday|[a-z]+day|\d{1,2}\s+[a-z]+(?:\s+\d{4})?)\s+at\s+\d{1,2}[:.]\d{2}(?:\s*[ap]m)?\s*[·•\-–.,]\s*([A-Za-z][A-Za-z .'&-]{1,40})/i);
-  const loc=lm?lm[1].trim().replace(/\s{2,}/g," ").replace(/[ .-]+$/,""):"";
+  let loc=lm?lm[1].trim().replace(/\s{2,}/g," ").replace(/[ .-]+$/,""):"";
+  // The feed view shows the device there ("Strava App (Apple Watch …)") and the place on the next line.
+  if(lm&&/strava|\bapp\b|watch|garmin/i.test(loc)){const nx=raw.slice(lm.index+lm[0].length).split("\n")[1]||"",m2=nx.match(/([A-Z][A-Za-z .'&-]{1,40})\s*$/);loc=m2?m2[1].trim().replace(/^[A-Za-z]\s+(?=[A-Z])/,""):""}
   // Average heart rate, e.g. "Avg Heart Rate 165 bpm". Skip the max if both are shown.
   let hr=null;const hrs=[...t.matchAll(/(\d{2,3})\s*b\s*[pP]\s*[mM]/g)].map(m=>({v:+m[1],pre:t.slice(Math.max(0,m.index-20),m.index).toLowerCase()})).filter(x=>x.v>=60&&x.v<=230);
   if(hrs.length){const a=hrs.find(x=>/av(g|erage)/.test(x.pre))||hrs.find(x=>!/max/.test(x.pre))||hrs[0];hr=a.v}
