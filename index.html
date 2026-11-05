@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.8.0">
+<meta name="app-version" content="2.8.1">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -177,12 +177,6 @@ body.reading{overflow:hidden}
 .hold.done .hr-ck{stroke-dashoffset:0}
 @media (min-width:1100px) and (min-height:600px){.hold{left:248px}}
 @media (prefers-reduced-motion:reduce){.hold{transition:opacity .2s}}
-/* edge swipe back to Today */
-.edgeback{position:fixed;left:6px;top:50%;margin-top:-20px;width:40px;height:40px;border-radius:20px;z-index:60;display:grid;place-items:center;
-  background:var(--bar);color:var(--label2);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
-  box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:0;transform:scale(.7);transition:opacity .15s,background .15s,color .15s;pointer-events:none}
-.edgeback.ready{background:var(--blue);color:#fff}
-@media (min-width:1100px) and (min-height:600px){.edgeback{left:254px}}
 /* swipe a row for its action */
 [data-swipe]{position:relative;touch-action:pan-y}
 .swact{position:absolute;top:0;bottom:0;left:100%;width:100vw;display:flex;align-items:center;padding-left:20px;color:#fff;font:600 15px var(--font);border:0;border-radius:0}
@@ -475,7 +469,6 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
   <div class="rd-load" id="rdLoad"><svg viewBox="0 0 28 28" width="28" height="28" class="rd-spin"><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(0 14 14)" opacity="1.00"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(30 14 14)" opacity="0.93"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(60 14 14)" opacity="0.86"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(90 14 14)" opacity="0.79"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(120 14 14)" opacity="0.72"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(150 14 14)" opacity="0.65"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(180 14 14)" opacity="0.58"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(210 14 14)" opacity="0.51"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(240 14 14)" opacity="0.44"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(270 14 14)" opacity="0.37"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(300 14 14)" opacity="0.30"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(330 14 14)" opacity="0.23"/></svg><span id="rdMsg"></span></div>
 </div>
 <div class="hold" id="hold" hidden aria-hidden="true"><svg viewBox="0 0 22 22" width="22" height="22"><circle cx="11" cy="11" r="9" class="hr-bg"/><circle cx="11" cy="11" r="9" class="hr-fg" transform="rotate(-90 11 11)"/><path class="hr-ck" d="M7 11.3l2.6 2.6L15 8.4"/></svg><span class="hold-t"></span></div>
-<div class="edgeback" id="edgeback" hidden aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
 <div class="sheet" id="sheet" hidden></div>
 <input type="file" id="shotfile" accept="image/*" hidden>
 <div class="sess" id="sess" role="status" aria-label="Study Mode session" hidden></div>
@@ -1675,7 +1668,7 @@ function viewSettings(){
     <div class="cell"><label class="grow" for="set-gest">Gesture Control</label><input class="sw" type="checkbox" id="set-gest" data-act="gestoff" ${gestOn()?"checked":""}></div>
   </div><div class="sf">${gestOn()?"Turn off to stop all swipe and hold gestures.":"All gestures are off."}</div></div>
   ${gestOn()?`<div class="sec"><div class="sh">Gesture Options</div><div class="grp">
-    ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Runs your Quick Action when the ring fills."],["Swipe with one finger","On Today, go to the next or previous day."],["Swipe from the left edge","Back to Today from any page."],["Swipe a row left","Mark a video watched, or delete a run."],["Hold a day on the Roster","Add or remove a shift, or skip that day's run or study."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
+    ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Runs your Quick Action when the ring fills."],["Swipe with one finger","On Today, go to the next or previous day."],["Swipe from the left edge","Back to Today from any page."],["Swipe a row left","Mark a video watched, or delete a run."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
   </div></div>
   <div class="sec"><div class="sh">Quick Action</div><div class="grp">
     ${QA.map(a=>`<button class="cell runrow" data-act="qa1" data-k="${a.k}" role="radio" aria-checked="${qaKey()===a.k}"><div class="grow" style="text-align:left"><div>${esc(a.name)}</div>${a.k==="study"&&(DEMO||!smReady())?`<div class="t2">${esc(a.need)}</div>`:""}</div>${qaKey()===a.k?`<span style="color:var(--blue)">${IC.check.replace("<svg",'<svg width="20" height="20"')}</span>`:""}</button>`).join("")}
@@ -2144,10 +2137,7 @@ document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;co
 // ---------- Edge swipe: from the left edge to Today ----------
 (function(){
   const EDGE=24,GO=90;let e0=null;
-  const ind=()=>document.getElementById("edgeback");
-  const set=(dx)=>{const el=ind();if(!el)return;const f=Math.min(1,dx/GO);el.hidden=false;el.style.opacity=Math.min(1,dx/30);
-    el.style.transform=`translateX(${Math.min(dx,GO)*.45}px) scale(${.7+.3*f})`;el.classList.toggle("ready",f>=1)};
-  const hide=()=>{const el=ind();if(!el)return;el.style.opacity=0;el.style.transform="translateX(0) scale(.7)";el.classList.remove("ready");setTimeout(()=>{if(el.style.opacity==="0")el.hidden=true},200)};
+  const set=()=>{},hide=()=>{};
   document.addEventListener("touchstart",e=>{e0=null;if(!gestOn()||e.touches.length!==1)return;const t=e.touches[0];
     if(t.clientX>EDGE||route()==="today"||!document.getElementById("sheet").hidden||!document.getElementById("reader").hidden||document.body.classList.contains("gate"))return;
     // Stop iOS's own edge swipe from starting; a plain tap still goes through (see touchend).
@@ -2188,7 +2178,8 @@ document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;co
 // ---------- Long-press a day on the Roster ----------
 (function(){
   let lp=null,p0=null;window.__noClick=0;
-  document.addEventListener("touchstart",e=>{clearTimeout(lp);p0=null;if(!gestOn()||e.touches.length!==1||editShifts)return;const b=e.target.closest&&e.target.closest(".cal .day[data-d]");if(!b)return;
+  const LONGPRESS_DAYS=false; // on hold for now; showDayMenu is kept for later
+  document.addEventListener("touchstart",e=>{clearTimeout(lp);p0=null;if(!LONGPRESS_DAYS||!gestOn()||e.touches.length!==1||editShifts)return;const b=e.target.closest&&e.target.closest(".cal .day[data-d]");if(!b)return;
     const t=e.touches[0];p0={x:t.clientX,y:t.clientY};lp=setTimeout(()=>{p0=null;window.__noClick=Date.now();try{navigator.vibrate&&navigator.vibrate(10)}catch(_){}b.classList.add("pressed");setTimeout(()=>b.classList.remove("pressed"),250);showDayMenu(b.dataset.d)},500)},{passive:true});
   document.addEventListener("touchmove",e=>{if(!p0)return;const t=e.touches[0];if(Math.hypot(t.clientX-p0.x,t.clientY-p0.y)>10){clearTimeout(lp);p0=null}},{passive:true});
   document.addEventListener("touchend",()=>{clearTimeout(lp);p0=null},{passive:true});
