@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.8.1">
+<meta name="app-version" content="2.8.2">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -116,6 +116,10 @@ button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:
 .btn.block{width:100%}
 /* pull to refresh: iOS-style spinner that fills in as you pull, then spins */
 html,body{overscroll-behavior-y:none}
+/* Feels like an app: no text selection or copy pop-up when you press and hold. Typing in boxes still works. */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+a,img{-webkit-user-drag:none}
 html{touch-action:manipulation} /* no double-tap zoom */
 .ptr{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 14px);margin:0 auto;width:28px;height:28px;z-index:15;pointer-events:none;opacity:0;color:var(--label2)}
 .ptr rect{fill:currentColor;opacity:0;transition:opacity .08s}
@@ -2307,6 +2311,9 @@ addEventListener("orientationchange",()=>{const m=document.querySelector('meta[n
 document.addEventListener("touchmove",e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
 addEventListener("wheel",e=>{if(e.ctrlKey)e.preventDefault()},{passive:false});
 document.getElementById("shotfile").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(f)readShot(e.target.dataset.d,e.target.dataset.mode,f)});
+// No press-and-hold menu (copy, look up) outside text boxes.
+document.addEventListener("contextmenu",e=>{if(!(e.target.closest&&e.target.closest("input,textarea,select")))e.preventDefault()});
+document.addEventListener("selectstart",e=>{if(!(e.target.closest&&e.target.closest("input,textarea,select")))e.preventDefault()});
 // ---------- Pull to refresh ----------
 // Pull down from the top of any page: checks GitHub for a newer version of the app (reloads into it if there is one)
 // and pulls the latest synced data from your other devices.
