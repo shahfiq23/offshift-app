@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.8.2">
+<meta name="app-version" content="2.8.3">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -183,8 +183,12 @@ body.reading{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.hold{transition:opacity .2s}}
 /* swipe a row for its action */
 [data-swipe]{position:relative;touch-action:pan-y}
-.swact{position:absolute;top:0;bottom:0;left:100%;width:100vw;display:flex;align-items:center;padding-left:20px;color:#fff;font:600 15px var(--font);border:0;border-radius:0}
+.swact{position:absolute;top:0;bottom:0;left:100%;width:100vw;display:flex;align-items:center;padding-left:20px;color:#fff;font:600 15px var(--font);border:0;border-radius:0;transition:padding-left .25s cubic-bezier(.2,1,.3,1)}
+.swact span{display:inline-block;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
 .swact.full{padding-left:28px}
+.swact.full span{transform:scale(1.08)}
+.swact.fire span{transform:scale(1.15)}
+[data-swipe].swgone{transition:height .25s ease,opacity .2s ease!important;overflow:hidden}
 .grp{overflow:hidden}
 /* long-press a roster day */
 .cal .day{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .15s}
@@ -2156,25 +2160,36 @@ document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;co
 // ---------- Swipe a row left for its action (like Mail) ----------
 // Videos: Watched / Unwatch. Runs in History: Delete. Swipe far to do it straight away, or a little and tap the button.
 (function(){
-  let s0=null,open=null;
+  let s0=null,open=null,busy=false;
   const close=(row,anim=true)=>{if(!row)return;row.style.transition=anim?"transform .3s cubic-bezier(.2,1,.3,1)":"none";row.style.transform="";
     setTimeout(()=>{const a=row.querySelector(".swact");if(a&&!row.style.transform)a.remove()},anim?300:0);if(open===row)open=null};
   const label=row=>{if(row.dataset.swipe==="vid"){const cb=row.querySelector("input.chk");return cb&&cb.checked?["Unwatch","var(--label2)"]:["Watched","var(--green)"]}return ["Delete","var(--red)"]};
-  function act(row){if(row.dataset.swipe==="vid"){const cb=row.querySelector("input.chk");close(row,false);if(cb)cb.click();return}
-    const k=row.dataset.k,i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);close(row,false);if(i>-1){S.runs.splice(i,1);changed({t:`${C.Run} deleted`,k:"undo"})}}
+  function doIt(row){if(row.dataset.swipe==="vid"){const cb=row.querySelector("input.chk");if(cb)cb.click();return}
+    const k=row.dataset.k,i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);if(i>-1){S.runs.splice(i,1);changed({t:`${C.Run} deleted`,k:"undo"})}}
+  // Like Mail: the colour fills the whole row, holds a moment, then the row glides back (or folds away for Delete).
+  function act(row){if(open===row)open=null;const a=row.querySelector(".swact"),w=row.offsetWidth,rm=matchMedia("(prefers-reduced-motion:reduce)").matches;
+    if(rm||!a){close(row,false);doIt(row);return}
+    busy=true;a.classList.add("full","fire");row.style.transition="transform .28s cubic-bezier(.2,1,.3,1)";row.style.transform=`translateX(${-w}px)`;
+    if(row.dataset.swipe==="vid"){
+      setTimeout(()=>{a.classList.remove("fire");row.style.transition="transform .55s cubic-bezier(.25,1,.3,1)";row.style.transform="translateX(0)";
+        setTimeout(()=>{busy=false;row.style.transition="none";row.style.transform="";a.remove();doIt(row)},560)},480);
+    }else{
+      setTimeout(()=>{row.style.height=row.offsetHeight+"px";row.offsetHeight;row.classList.add("swgone");row.style.height="0px";row.style.opacity="0";
+        setTimeout(()=>{busy=false;doIt(row)},260)},380);
+    }}
   document.addEventListener("touchstart",e=>{
     if(open&&!(e.target.closest&&e.target.closest(".swact"))&&!open.contains(e.target)){close(open)}
-    s0=null;if(!gestOn()||e.touches.length!==1)return;const row=e.target.closest&&e.target.closest("[data-swipe]");if(!row)return;
+    s0=null;if(busy||!gestOn()||e.touches.length!==1)return;const row=e.target.closest&&e.target.closest("[data-swipe]");if(!row)return;
     const t=e.touches[0];s0={row,x:t.clientX,y:t.clientY,dx:0,dir:null,base:open===row?-88:0}},{passive:true});
   document.addEventListener("touchmove",e=>{if(!s0||e.touches.length!==1)return;const t=e.touches[0],dx=t.clientX-s0.x,dy=t.clientY-s0.y;
     if(!s0.dir){if(Math.abs(dx)<8&&Math.abs(dy)<8)return;s0.dir=Math.abs(dx)>Math.abs(dy)*1.2?"h":"v"}
     if(s0.dir!=="h"){s0=null;return}e.preventDefault();
     const row=s0.row;let a=row.querySelector(".swact");
-    if(!a){a=document.createElement("button");a.className="swact";a.type="button";const [l,c]=label(row);a.textContent=l;a.style.background=c;row.appendChild(a)}
+    if(!a){a=document.createElement("button");a.className="swact";a.type="button";const [l,c]=label(row);const sp=document.createElement("span");sp.textContent=l;a.appendChild(sp);a.style.background=c;row.appendChild(a)}
     s0.dx=Math.min(0,s0.base+dx);row.style.transition="none";row.style.transform=`translateX(${s0.dx}px)`;
-    a.classList.toggle("full",-s0.dx>row.offsetWidth*.55)},{passive:false});
+    const full=-s0.dx>row.offsetWidth*.55;if(full!==a.classList.contains("full")){a.classList.toggle("full",full);if(full){try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}}}},{passive:false});
   document.addEventListener("touchend",()=>{if(!s0||s0.dir!=="h"){s0=null;return}const x=s0;s0=null;const row=x.row,w=row.offsetWidth;
-    if(-x.dx>w*.55){try{navigator.vibrate&&navigator.vibrate(10)}catch(_){}act(row);return}
+    if(-x.dx>w*.55){act(row);return}
     if(-x.dx>44){row.style.transition="transform .3s cubic-bezier(.2,1,.3,1)";row.style.transform="translateX(-88px)";open=row}else close(row)},{passive:true});
   document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest(".swact");if(!a)return;e.preventDefault();e.stopPropagation();act(a.closest("[data-swipe]"))},true);
   window.swipeClose=()=>{if(open)close(open,false)};
