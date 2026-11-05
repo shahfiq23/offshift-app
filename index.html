@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.7.1">
+<meta name="app-version" content="2.7.2">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -159,6 +159,19 @@ body.reading{overflow:hidden}
 .wk-c .ws-tag{font-size:11px;font-weight:600;color:#fff;background:var(--indigo);border-radius:5px;padding:2px 6px;white-space:nowrap}
 .wk-c .ws-tag.hollow{background:transparent;color:var(--indigo);box-shadow:0 0 0 1.2px var(--indigo) inset}
 .wk-c .ws-tag.grey{background:var(--label3)}
+/* two-finger hold: a Dynamic Island-style capsule with a ring that fills */
+.hold{position:fixed;left:0;right:0;margin:0 auto;width:fit-content;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:121;display:flex;align-items:center;gap:10px;
+  background:#000;color:#fff;border-radius:22px;padding:9px 16px 9px 10px;box-shadow:0 8px 24px rgba(0,0,0,.25),0 0 0 .5px rgba(255,255,255,.14) inset;
+  transform:scale(.7) translateY(-8px);opacity:0;transition:transform .3s cubic-bezier(.2,1.35,.35,1),opacity .2s}
+.hold.on{transform:none;opacity:1}
+.hold.out{transform:scale(.85) translateY(-6px);opacity:0}
+.hold .hold-t{font:600 15px var(--font)}
+.hold .hr-bg{fill:none;stroke:rgba(48,209,88,.25);stroke-width:2.6}
+.hold .hr-fg{fill:none;stroke:#30D158;stroke-width:2.6;stroke-linecap:round;stroke-dasharray:56.55;stroke-dashoffset:56.55}
+.hold .hr-ck{fill:none;stroke:#30D158;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:14;stroke-dashoffset:14;transition:stroke-dashoffset .25s .05s}
+.hold.done .hr-ck{stroke-dashoffset:0}
+@media (min-width:1100px) and (min-height:600px){.hold{left:248px}}
+@media (prefers-reduced-motion:reduce){.hold{transition:opacity .2s}}
 /* demo banner */
 .demo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--label);
   border-radius:12px;padding:10px 12px 10px 14px;font-size:15px;margin-top:6px}
@@ -442,6 +455,7 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
   <div class="rd-scroll" id="rdScroll"><div class="rd-pages" id="rdPages"></div></div>
   <div class="rd-load" id="rdLoad"><svg viewBox="0 0 28 28" width="28" height="28" class="rd-spin"><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(0 14 14)" opacity="1.00"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(30 14 14)" opacity="0.93"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(60 14 14)" opacity="0.86"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(90 14 14)" opacity="0.79"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(120 14 14)" opacity="0.72"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(150 14 14)" opacity="0.65"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(180 14 14)" opacity="0.58"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(210 14 14)" opacity="0.51"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(240 14 14)" opacity="0.44"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(270 14 14)" opacity="0.37"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(300 14 14)" opacity="0.30"/><rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(330 14 14)" opacity="0.23"/></svg><span id="rdMsg"></span></div>
 </div>
+<div class="hold" id="hold" hidden aria-hidden="true"><svg viewBox="0 0 22 22" width="22" height="22"><circle cx="11" cy="11" r="9" class="hr-bg"/><circle cx="11" cy="11" r="9" class="hr-fg" transform="rotate(-90 11 11)"/><path class="hr-ck" d="M7 11.3l2.6 2.6L15 8.4"/></svg><span class="hold-t"></span></div>
 <div class="sheet" id="sheet" hidden></div>
 <input type="file" id="shotfile" accept="image/*" hidden>
 <div class="sess" id="sess" role="status" aria-label="Study Mode session" hidden></div>
@@ -1633,12 +1647,15 @@ function viewSettings(){
   <div class="sec"><div class="sh">Startup</div><div class="grp">
     <div class="cell"><label class="grow" for="set-splash">Heartbeat animation</label><input class="sw" type="checkbox" id="set-splash" data-act="splash" ${S.splash===false?"":"checked"}></div>
   </div></div>`],
-    gestures:["Gestures",()=>`<div class="sec"><div class="sh">Gestures</div><div class="grp">
-    ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Opens your Quick Actions from anywhere."],["Swipe with one finger","On Today, go to the next or previous day."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
+    gestures:["Gestures",()=>`<div class="sec"><div class="grp">
+    <div class="cell"><label class="grow" for="set-gest">Gestures</label><input class="sw" type="checkbox" id="set-gest" data-act="gestoff" ${gestOn()?"checked":""}></div>
+  </div><div class="sf">${gestOn()?"Turn off to stop all swipe and hold gestures.":"All gestures are off. Pull down to refresh still works."}</div></div>
+  ${gestOn()?`<div class="sec"><div class="sh">How They Work</div><div class="grp">
+    ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Runs your Quick Action when the ring fills."],["Swipe with one finger","On Today, go to the next or previous day."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
   </div></div>
-  <div class="sec"><div class="sh">Quick Actions</div><div class="grp">
-    ${QA.map(a=>`<div class="cell"><label class="grow" for="qa-${a.k}"><div>${esc(a.name)}</div>${a.need&&!(a.k==="study"&&a.ok())?`<div class="t2">${esc(a.need)}</div>`:""}</label><input class="sw" type="checkbox" id="qa-${a.k}" data-act="qatoggle" data-k="${a.k}" ${qaOn().includes(a.k)?"checked":""}></div>`).join("")}
-  </div><div class="sf">Hold two fingers anywhere to open these. Each one only shows when it makes sense, like Go to Today when you're on another page.</div></div>`],
+  <div class="sec"><div class="sh">Quick Action</div><div class="grp">
+    ${QA.map(a=>`<button class="cell runrow" data-act="qa1" data-k="${a.k}" role="radio" aria-checked="${qaKey()===a.k}"><div class="grow" style="text-align:left"><div>${esc(a.name)}</div>${a.k==="study"&&(DEMO||!smReady())?`<div class="t2">${esc(a.need)}</div>`:""}</div>${qaKey()===a.k?`<span style="color:var(--blue)">${IC.check.replace("<svg",'<svg width="20" height="20"')}</span>`:""}</button>`).join("")}
+  </div><div class="sf">Hold two fingers anywhere until the ring fills.</div></div>`:""}`],
     profile:["Name",()=>`<div class="sec"><div class="grp">
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
   </div></div>`],
@@ -1680,7 +1697,7 @@ function viewSettings(){
   const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):"Off";
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
   const head=`<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>`;
-  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gestures",`${qaOn().length} quick action${qaOn().length===1?"":"s"}`)}${row("profile","Name",esc(nameOf()))}</div></div>
+  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gestures",gestOn()?"On":"Off")}${row("profile","Name",esc(nameOf()))}</div></div>
   <div class="sec"><div class="grp">${row("goal",C.goalLbl,fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}${DEMO?"":row("notes","Goodnotes",dbxOn()?"On":"Off")}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
@@ -2017,18 +2034,9 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
-  else if(a==="qatoggle"){const on=qaOn().filter(k=>k!==el.dataset.k);if(el.checked)on.push(el.dataset.k);S.qa=QA.map(x=>x.k).filter(k=>on.includes(k));save();if(wide()){const y=scrollY;render();scrollTo(0,y)}return}
   else if(a==="weekgo"){WEEKSEL=el.dataset.d;render(true);return}
-  else if(a==="qa"){const v=el.dataset.v;
-    if(v==="run"){showRunSheet(T);return}
-    hideSheet();
-    if(v==="today")goDay(T);
-    else if(v==="week")openWeek(route()==="day"?DAYSEL:T);
-    else if(v==="log"){location.hash="#run";setTimeout(()=>{const x=document.getElementById("rd");if(x){x.closest(".sec").scrollIntoView({behavior:"smooth",block:"start"})}},350)}
-    else if(v==="study")startStudyMode();
-    else if(v==="sessend")endStudyMode().then(render);
-    else if(v==="next"){location.hash="#secplus";setTimeout(()=>{const n=document.getElementById("nextvid");if(n)n.scrollIntoView({behavior:"smooth",block:"center"})},400)}
-    return}
+  else if(a==="qa1"){S.qa1=el.dataset.k;save();const y=scrollY;render();scrollTo(0,y);return}
+  else if(a==="gestoff"){S.gest=el.checked?undefined:false;if(S.gest===undefined)delete S.gest;save();const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="note"){openNote(el.dataset.id);return}
   else if(a==="rdclose"){closeNote();return}
   else if(a==="notesall"){notesAll=!notesAll;rerenderNotes();return}
@@ -2093,48 +2101,63 @@ document.addEventListener("change",e=>{
   else if(el.dataset.act==="mins"){S.mins=+el.value;(()=>{changed(null);const f=schedule().last;toast({t:"Plan updated",s:`${S.mins} min per free day${f?` · finish ${pd(f).getDate()} ${MON[pd(f).getMonth()]}`:""}`,k:"ok"})})()}
 });
 let sx=null,sy=null;
-document.addEventListener("touchstart",e=>{const r=route();if((r!=="today"&&r!=="day"&&r!=="week")||e.touches.length>1||!document.getElementById("sheet").hidden){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+document.addEventListener("touchstart",e=>{const r=route();if(!gestOn()||(r!=="today"&&r!=="day"&&r!=="week")||e.touches.length>1||!document.getElementById("sheet").hidden){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
 document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
   if(Math.abs(dx)>70&&Math.abs(dy)<45){if(route()==="week"){WEEKSEL=ds(add(pd(WEEKSEL||T),dx<0?7:-7));render(true);return}
     const cur=route()==="day"?DAYSEL:T;goDay(ds(add(pd(cur),dx<0?1:-1)))}},{passive:true});
 // ---------- Two-finger gestures ----------
 // Swipe left/right with two fingers: next/previous tab. Hold two fingers still: your Quick Actions (Settings › Gestures). 4- and 5-finger gestures belong to iPadOS and are left alone.
+const gestOn=()=>S.gest!==false;
 const TABS=["today","plan","run","secplus","settings"];
 const curTab=()=>{const r=route();return r==="day"||r==="week"?"today":r};
 function goTab(n){const i=TABS.indexOf(curTab()),j=i+n;if(j<0||j>=TABS.length)return;location.hash="#"+TABS[j]}
 function openWeek(from){WEEKFROM=from;WEEKSEL=from;location.hash="#week"}
 function closeWeek(){const d=WEEKFROM&&weekDays(pd(WEEKSEL||T)).includes(WEEKFROM)?WEEKFROM:weekDays(pd(WEEKSEL||T)).includes(T)?T:weekDays(pd(WEEKSEL||T))[0];goDay(d)}
 (function(){
-  let g=null,lp=null;
+  let g=null,lp=null,lp2=null;const HOLD=800;
   const pts=e=>{const [a,b]=e.touches;return {x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2,d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)}};
   const off=t=>!document.getElementById("sheet").hidden||!document.getElementById("reader").hidden||document.body.classList.contains("gate")||(t.closest&&t.closest("input,textarea,select"));
   document.addEventListener("touchstart",e=>{
-    if(e.touches.length===2&&!off(e.target)){const p=pts(e);g={x0:p.x,y0:p.y,d0:Math.max(1,p.d),dx:0,dy:0,sc:1,moved:false,done:false};
-      clearTimeout(lp);lp=setTimeout(()=>{if(g&&!g.moved&&!g.done){g.done=true;showQuick()}},550)}
-    else if(e.touches.length>2){g=null;clearTimeout(lp)}},{passive:true});
+    if(e.touches.length===2&&gestOn()&&!off(e.target)){const p=pts(e);g={x0:p.x,y0:p.y,d0:Math.max(1,p.d),dx:0,dy:0,sc:1,moved:false,done:false};
+      // After a short pause (so a two-finger swipe doesn't flash it), the ring starts filling; when full, the action runs.
+      clearTimeout(lp);clearTimeout(lp2);lp=setTimeout(()=>{if(!g||g.moved)return;holdShow(HOLD-150);lp2=setTimeout(()=>{if(g&&!g.moved&&!g.done){g.done=true;holdDone()}},HOLD-150)},150)}
+    else if(e.touches.length>2){g=null;clearTimeout(lp);clearTimeout(lp2);holdHide()}},{passive:true});
   document.addEventListener("touchmove",e=>{if(!g||e.touches.length!==2)return;const p=pts(e);
-    g.dx=p.x-g.x0;g.dy=p.y-g.y0;g.sc=p.d/g.d0;if(Math.hypot(g.dx,g.dy)>12||Math.abs(g.sc-1)>.08){g.moved=true;clearTimeout(lp)}},{passive:true});
-  document.addEventListener("touchend",e=>{if(!g||e.touches.length>1)return;const x=g;g=null;clearTimeout(lp);if(x.done||!x.moved)return;
+    g.dx=p.x-g.x0;g.dy=p.y-g.y0;g.sc=p.d/g.d0;if(Math.hypot(g.dx,g.dy)>12||Math.abs(g.sc-1)>.08){if(!g.done){g.moved=true;clearTimeout(lp);clearTimeout(lp2);holdHide()}}},{passive:true});
+  document.addEventListener("touchend",e=>{if(!g||e.touches.length>1)return;const x=g;g=null;clearTimeout(lp);clearTimeout(lp2);if(!x.done)holdHide();if(x.done||!x.moved)return;
     const r=route();
     // Pinch for the week view is on hold (viewWeek is kept for later).
     if(Math.abs(x.sc-1)<.2&&Math.abs(x.dx)>70&&Math.abs(x.dx)>Math.abs(x.dy)*1.5)goTab(x.dx<0?1:-1)},{passive:true});
-  document.addEventListener("touchcancel",()=>{g=null;clearTimeout(lp)},{passive:true});
+  document.addEventListener("touchcancel",()=>{g=null;clearTimeout(lp);clearTimeout(lp2);holdHide()},{passive:true});
 })();
-// Quick Actions the user can choose from (Settings › Gestures). Each says when it makes sense to show it.
+// Quick Action: one action, chosen in Settings › Gestures, run by holding two fingers until the ring fills.
 const QA=[
-  {k:"study",label:()=>S.session?"End Study Mode":"Start Study Mode",name:"Start Study Mode",ok:()=>!DEMO&&smReady(),need:"Needs Spotify set up in Settings › Study Mode."},
-  {k:"today",label:()=>"Go to Today",name:"Go to Today",ok:()=>route()!=="today"},
-  {k:"log",label:()=>`Log a ${C.Run}`,name:`Log a ${C.Run}`,ok:()=>true},
-  {k:"run",label:()=>`Mark Today's ${C.Run}`,name:`Mark Today's ${C.Run}`,ok:()=>{const r=runOn(T);return !!r&&!r.missed&&!S.runDone[T]},need:`Only shows on days with a ${C.run} planned.`},
-  {k:"next",label:()=>`Next ${C.courseTitle} Video`,name:`Next ${C.courseTitle} Video`,ok:()=>VID.some(v=>!S.done[v.i])}];
-const qaOn=()=>S.qa||["study","today","log"];
-function showQuick(){
-  const sh=document.getElementById("sheet"),on=qaOn();
-  const acts=QA.filter(a=>on.includes(a.k)&&a.ok()).map(a=>`<button data-act="qa" data-v="${a.k==="study"&&S.session?"sessend":a.k}">${esc(a.label())}</button>`);
-  if(!acts.length){toast({t:"No quick actions here",s:on.length?"None of yours apply right now":"Choose some in Settings › Gestures",k:"warn"});return}
-  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="sh-msg"><b id="sh-t">Quick Actions</b></div>${acts.join("")}</div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
-  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
-  try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}
+  {k:"study",name:"Start Study Mode",label:()=>S.session?"End Study Mode":"Start Study Mode",need:"Needs Spotify set up in Settings › Study Mode."},
+  {k:"today",name:"Go to Today",label:()=>"Go to Today"},
+  {k:"log",name:`Log a ${C.Run}`,label:()=>`Log a ${C.Run}`},
+  {k:"run",name:`Mark Today's ${C.Run}`,label:()=>`Mark Today's ${C.Run}`},
+  {k:"next",name:`Next ${C.courseTitle} Video`,label:()=>`Next ${C.courseTitle} Video`}];
+const qaKey=()=>QA.some(a=>a.k===S.qa1)?S.qa1:"today";
+const qaCur=()=>QA.find(a=>a.k===qaKey());
+let holdT=null;
+function holdShow(ms){
+  const el=document.getElementById("hold"),ring=el.querySelector(".hr-fg");
+  el.querySelector(".hold-t").textContent=qaCur().label();
+  clearTimeout(holdT);el.hidden=false;el.classList.remove("done","out");
+  ring.style.transition="none";ring.style.strokeDashoffset="56.55";void ring.getBoundingClientRect();
+  requestAnimationFrame(()=>{el.classList.add("on");ring.style.transition=`stroke-dashoffset ${ms}ms linear`;ring.style.strokeDashoffset="0"});
+}
+function holdHide(){const el=document.getElementById("hold");if(!el||el.hidden)return;el.classList.remove("on");el.classList.add("out");clearTimeout(holdT);holdT=setTimeout(()=>{el.hidden=true;el.classList.remove("out","done")},250)}
+function holdDone(){
+  const el=document.getElementById("hold");el.classList.add("done");try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
+  clearTimeout(holdT);holdT=setTimeout(()=>{holdHide();runQuick(qaKey())},380);
+}
+function runQuick(k){
+  if(k==="today"){if(route()==="today"){scrollTo({top:0,behavior:"smooth"});toast({t:"You're on Today",k:"ok"})}else goDay(T);return}
+  if(k==="log"){location.hash="#run";setTimeout(()=>{const x=document.getElementById("rd");if(x)x.closest(".sec").scrollIntoView({behavior:"smooth",block:"start"})},350);return}
+  if(k==="study"){if(DEMO||!smReady()){toast({t:"Study Mode isn't set up",s:"Settings › Study Mode",k:"warn"});return}if(S.session)endStudyMode().then(render);else startStudyMode();return}
+  if(k==="run"){const r=runOn(T);if(!r||r.missed){toast({t:`No ${C.run} planned today`,k:"warn"});return}showRunSheet(T);return}
+  if(k==="next"){location.hash="#secplus";setTimeout(()=>{const n=document.getElementById("nextvid");if(n)n.scrollIntoView({behavior:"smooth",block:"center"})},400)}
 }
 window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
