@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.6.0">
+<meta name="app-version" content="2.6.1">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -348,12 +348,21 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 .shot-f label{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--cell);border-radius:10px;padding:4px 6px 4px 14px;font-size:17px;color:var(--label)}
 .shot-f label span{display:flex;align-items:center;gap:6px;color:var(--label2)}
 .sh-msg .shot-f input{margin:0;width:90px;text-align:right;background:transparent;padding:8px 6px}
-.shot-pace{font-size:15px;color:var(--label2);text-align:center;min-height:20px}
+.shot-pace{font-size:15px;color:var(--label2);text-align:center;min-height:22px}
 .shot-reps{display:flex;align-items:center;justify-content:center;gap:18px;font:600 17px var(--font);color:var(--label)}
 .sh-msg .shot-reps span{color:var(--label);font:600 17px var(--font);min-width:110px;text-align:center}
 .sh-card .sh-msg .shot-reps button{width:40px;height:40px;padding:0;border:0;border-radius:20px;background:var(--cell);color:var(--blue);font:500 24px/1 var(--font)}
-.shot-coach{background:color-mix(in srgb,var(--blue) 10%,var(--cell));border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.35;color:var(--label);text-align:left}
-.coachn{font-size:13px;line-height:1.35;color:var(--label2);margin-top:4px;padding-left:9px;border-left:2px solid color-mix(in srgb,var(--blue) 45%,transparent)}
+.cpill{display:inline-block;font-size:12px;font-weight:600;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.cpill.ok{color:var(--green);background:color-mix(in srgb,var(--green) 15%,transparent)}
+.cpill.warn{color:var(--orange);background:color-mix(in srgb,var(--orange) 16%,transparent)}
+.cpill.info{color:var(--label2);background:var(--fill)}
+.sh-msg .shot-pace{display:flex;justify-content:center;align-items:center;gap:2px}
+.sh-msg .shot-tip{font-size:14px;color:var(--label2);text-align:center;line-height:1.35}
+.runrow{width:100%}
+.sh-msg .rsum{display:grid;gap:6px;justify-items:center;background:var(--cell);border-radius:12px;padding:10px 12px 12px;margin-top:10px}
+.sh-msg .rsum-h{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--label2)}
+.sh-msg .rsum .cpill{margin-left:0;font-size:13px;padding:3px 9px}
+.rr1{display:flex;align-items:center;gap:0;flex-wrap:wrap}
 .rd-spinwrap{display:grid;place-items:center;padding:16px 0 4px;color:var(--label2)}
 .sh-msg .reps{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:14px}
 .sh-card .sh-msg .reps button{width:46px;height:46px;padding:0;border:0;border-radius:23px;background:var(--cell);color:var(--label);font:600 18px var(--font);transition:background .15s,transform .15s}
@@ -893,7 +902,8 @@ function viewRun(){
   const w=Math.floor(diff(TODAY,START)/7);
   const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
     <dl><dt>Intervals</dt><dd>${esc(planText(i,"A"))}</dd><dt>Easy</dt><dd>${esc(planText(i,"B"))}</dd><dt>${isTestWk(i)?"Test":KIND.C}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
-  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div>${(S.runNote||{})[r.d]?`<div class="t2" style="color:${S.runDone[r.d]==="part"?"var(--orange)":"var(--green)"}">${S.runDone[r.d]==="part"?"Partly done":"Done"} · ${esc(S.runNote[r.d])}</div>`:""}${r.coach?`<div class="coachn">${esc(r.coach)}</div>`:""}</div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
+  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>{const c=coachOf(r.coach),note=(S.runNote||{})[r.d],part=S.runDone[r.d]==="part";
+    return `<button class="cell runrow" data-act="runinfo" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}"><div class="grow" style="text-align:left;min-width:0"><div class="rr1">${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}${coachPill(c)}</div><div class="t2 ell">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span>${IC.chev}</button>`}).join("");
   const head=`<div class="lt"><div class="sub">${C.fitSub}</div><h1>${C.fitTitle}</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":`starting ~${fmt(baseSec())}`}</span></div>
@@ -1275,21 +1285,26 @@ function parseStrava(raw){
 function sessionReps(r){if(!r||r.test)return null;const m=r.text.match(/(\d+)\s*×\s*(\d+(?:\.\d+)?)\s*(km|m)\b/);return m&&+m[1]>1?{n:+m[1],m:m[3]==="km"?parseFloat(m[2])*1000:+m[2]}:null}
 // Coach notes: compare what you ran (from the screenshot) with what the plan asked for. No AI, just the numbers.
 function coachNote(d,km,sec,mode){
-  const r=runOn(d);if(!r||!km||!sec)return "";
-  const pk=sec/km,t=r.text,toS=x=>{const [a,b]=x.split(":");return +a*60+ +b},by=n=>`${Math.abs(n)} s ${n<0?"faster":"slower"}`;
-  if(r.test){const full=Math.abs(km-2.4)<=.15,aim=aimAt(r.w),df=Math.round(sec-aim);
-    return full?`${fmt(sec)}: ${Math.abs(df)<3?"right on":by(df)+" than"} the aim of ${fmt(aim)}. Your paces now update to match.`:`That was ${km} km, not the full 2.4, so it won't count as your test. Log a full 2.4 to update your paces.`}
+  // Returns {tag, tone, tip}: a short verdict for a pill, and at most one sentence of advice.
+  const r=runOn(d);if(!r||!km||!sec)return null;
+  const pk=sec/km,t=r.text,toS=x=>{const [a,b]=x.split(":");return +a*60+ +b},N=(tag,tone,tip="")=>({tag,tone,tip});
+  if(r.test){const aim=aimAt(r.w),df=Math.round(sec-aim);
+    if(Math.abs(km-2.4)>.15)return N("Not a full 2.4","info","Log a full 2.4 to update your paces.");
+    return N(Math.abs(df)<3?"On the aim":`${Math.abs(df)} s ${df<0?"faster":"slower"} than aim`,df<=2?"ok":"warn","Your paces now update to match.")}
   const sr=sessionReps(r),each=t.match(/in (\d+:\d{2}) each/),at=t.match(/at (\d+:\d{2})\/km/),easy=t.match(/Around (\d+:\d{2})\/km/);
-  if(sr&&each){const tgt=toS(each[1]),act=Math.round(pk*sr.m/1000),df=act-tgt;let n=`Your reps averaged about ${fmt(act)} per ${distL(sr.m)}`;
-    if(df<=-6)n+=`, ${-df} s faster than the ${fmt(tgt)} target. `+(mode==="part"?`Going out too hard is a common reason to fade. Try holding ${fmt(tgt)} and finishing all ${sr.n}.`:"Strong. If that felt easy, your next 2.4 test will speed up the plan.");
-    else if(df>=30)n+=`, much slower than the ${fmt(tgt)} target. If Strava kept running during your rests or warm-up, pause it between reps for a truer reading.`;
-    else if(df>=6)n+=`, ${df} s slower than the ${fmt(tgt)} target. `+(mode==="part"?"That's OK early on. Take the full rest between reps.":"Fine for now. If the target feels too hard, set a slower Current time in Settings.");
-    else n+=`, right on the ${fmt(tgt)} target. `+(mode==="part"?"Good pacing. The plan builds you back up a rep at a time.":"Nice control.");
-    return n}
-  if(at){const tgt=toS(at[1]),df=Math.round(pk-tgt);return `You averaged ${fmt(Math.round(pk))}/km against ${fmt(tgt)}/km: `+(Math.abs(df)<6?"right on target.":df<0?`${-df} s faster. Tempo should feel comfortably hard, not all-out.`:`${df} s slower. Fine while you build up.`)}
-  if(easy){const tgt=toS(easy[1]);return pk<tgt-10?`${fmt(Math.round(pk))}/km is faster than your easy pace (${fmt(tgt)} or slower). Easy runs build endurance best when you can still chat.`:`${fmt(Math.round(pk))}/km. Good easy pace.`}
-  return "";
+  if(sr&&each){const tgt=toS(each[1]),act=Math.round(pk*sr.m/1000),df=act-tgt,part=mode==="part";
+    if(df>=30)return N("Pace unclear","info","Pause Strava between reps for a truer reading.");
+    if(df<=-6)return N(`${-df} s fast per rep`,"warn",part?`Hold ${fmt(tgt)} to finish all ${sr.n}.`:"Strong. Your next 2.4 test will speed the plan up.");
+    if(df>=6)return N(`${df} s slow per rep`,"warn",part?"Take the full rest between reps.":"Fine for now. Ease Current time if it feels too hard.");
+    return N("On pace","ok",part?"The plan builds you back up a rep at a time.":"Nice control.")}
+  if(at){const tgt=toS(at[1]),df=Math.round(pk-tgt);
+    if(Math.abs(df)<6)return N("On pace","ok");
+    return df<0?N(`${-df} s/km fast`,"warn","Tempo should feel comfortably hard, not all-out."):N(`${df} s/km slow`,"warn","Fine while you build up.")}
+  if(easy){const tgt=toS(easy[1]);return pk<tgt-10?N("Too quick for easy","warn",`Aim for ${fmt(tgt)}/km or slower, so you can still chat.`):N("Easy pace","ok")}
+  return null;
 }
+const coachOf=c=>!c?null:typeof c==="string"?{tag:"Note",tone:"info",tip:c}:c;
+const coachPill=c=>c?`<span class="cpill ${c.tone}">${esc(c.tag)}</span>`:"";
 let SHOT=null;
 function showShotAsk(d,mode){
   const sh=document.getElementById("sheet");
@@ -1314,16 +1329,19 @@ function showShotCheck(d,mode,got){
     <label>Time<span><input id="sh-t2" type="text" inputmode="numeric" value="${got.sec?fmt(got.sec):""}" placeholder="9:05"></span></label>
     <label>Where<span><input id="sh-loc" type="text" list="sh-locs" value="${esc(got.loc||"")}" placeholder="e.g. Kallang" autocomplete="off" style="width:150px"></span></label>
     <datalist id="sh-locs">${[...new Set(S.runs.map(x=>x.loc).filter(Boolean))].map(l=>`<option value="${esc(l)}">`).join("")}</datalist>
-    <div class="shot-pace" id="sh-pace">${got.km&&got.sec?`Pace ${fmt(got.pace||Math.round(got.sec/got.km))}/km`:""}</div>
+    <div class="shot-pace"><span id="sh-pace">${got.km&&got.sec?`Pace ${fmt(got.pace||Math.round(got.sec/got.km))}/km`:""}</span></div>
     ${sr?`<div class="shot-reps"><button type="button" data-act="shotrep" data-v="-1" aria-label="One rep fewer">−</button><span id="sh-reps">${reps} of ${sr.n} reps</span><button type="button" data-act="shotrep" data-v="1" aria-label="One rep more">+</button></div>`:""}
-    <div class="shot-coach" id="sh-coach"${ok?"":" hidden"}>${ok?esc(coachNote(d,got.km,got.sec,mode)):""}</div></div></div>
+    <div class="rsum" id="sh-sum" hidden><div class="rsum-h">Run Summary</div><div id="sh-pill"></div><div class="shot-tip" id="sh-tip"></div></div></div></div>
     <button data-act="shotsave" data-d="${d}" class="pri">Save</button>`;
   ["sh-km","sh-t2"].forEach(id=>document.getElementById(id).addEventListener("input",shotPace));
+  shotCoach(got.km,got.sec);
 }
+function shotCoach(km,sec){const c=SHOT&&coachNote(SHOT.d,km,sec,SHOT.mode),p=document.getElementById("sh-pill"),t=document.getElementById("sh-tip"),b=document.getElementById("sh-sum");
+  if(b)b.hidden=!c;if(p)p.innerHTML=coachPill(c);if(t){t.textContent=c&&c.tip||"";t.hidden=!(c&&c.tip)}}
 const shotVals=()=>{const km=parseFloat((document.getElementById("sh-km").value||"").replace(",",".")),m=(document.getElementById("sh-t2").value||"").trim().match(/^(?:(\d+):)?(\d{1,2})[:.](\d{2})$/);
   return {km:km>0?km:null,sec:m?(+(m[1]||0))*3600+ +m[2]*60+ +m[3]:null}};
 function shotPace(){const v=shotVals(),el=document.getElementById("sh-pace");el.textContent=v.km&&v.sec?`Pace ${fmt(Math.round(v.sec/v.km))}/km`:"";
-  const co=document.getElementById("sh-coach");if(co&&SHOT){const n=coachNote(SHOT.d,v.km,v.sec,SHOT.mode);co.textContent=n;co.hidden=!n}
+  shotCoach(v.km,v.sec);
   if(SHOT&&SHOT.sr&&v.km&&!SHOT.touched){const c=Math.round(v.km*1000/SHOT.sr.m);SHOT.reps=SHOT.mode==="all"?Math.max(SHOT.sr.n,c):Math.min(SHOT.sr.n-1,Math.max(1,c));document.getElementById("sh-reps").textContent=`${SHOT.reps} of ${SHOT.sr.n} reps`}}
 function saveShot(d){
   const v=shotVals();if(!v.km||!v.sec){toast({t:"Add the distance and time",s:"Like 1.6 and 9:05",k:"warn"});return}
@@ -1355,6 +1373,18 @@ function setRunDone(d,v,note){
   cache={};const r=runOn(d),wd=weekDays(pd(d)),pl=wd.filter(runCounts).length,dn=wd.filter(x=>runCounts(x)&&S.runDone[x]).length;
   changed(!v?{t:"Marked as not done",k:"undo"}:v==="part"?{t:"Logged as partly done",s:`Still counts · ${dn} of ${pl} this week`,k:"run"}
     :{t:`${C.Run} done. Nice work!`,s:`${r?(r.test?C.testShort:KIND[r.k])+" · ":""}${dn} of ${pl} this week`,k:"run"});
+}
+// Run details: the full numbers and coach note, with Delete tucked away here instead of on every row.
+function showRunInfo(k){
+  const r=S.runs.find(x=>x.d+"|"+x.sec+"|"+x.km===k);if(!r)return;
+  const c=coachOf(r.coach),note=(S.runNote||{})[r.d],part=S.runDone[r.d]==="part",sh=document.getElementById("sheet");
+  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <div class="sh-msg"><b id="sh-t">${distTxt(r.km)} · ${fmt(r.sec)}</b><span>${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</span>
+      ${note?`<span style="color:${part?"var(--orange)":"var(--green)"}">${part?"Partly done":"Done"} · ${esc(note)}</span>`:""}
+      ${c?`<div class="rsum"><div class="rsum-h">Run Summary</div><div>${coachPill(c)}</div>${c.tip?`<div class="shot-tip">${esc(c.tip)}</div>`:""}</div>`:""}</div>
+    <button data-act="delrun" data-k="${esc(k)}" class="danger">Delete Run</button>
+  </div><button class="sh-cancel" data-act="smcancel">Done</button>`;
+  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
 }
 function disconnectSync(){lsSet(TOKEN_KEY,null);lsSet(SYNC_KEY,null);SY=null;render();toast({t:"Sync off",s:"Your backup stays on GitHub",k:"undo"})}
 const ago=t=>{if(!t)return "never";const s=(Date.now()-t)/1000;return s<60?"just now":s<3600?`${Math.floor(s/60)} min ago`:s<86400?`${Math.floor(s/3600)} h ago`:nice(new Date(t))};
@@ -1981,7 +2011,8 @@ document.addEventListener("click",e=>{
     S.runs.push({d,km,sec,tt:isT});S.runDone[d]=true;
     changed(isT&&(prev==null||sec<prev)?{t:`New best ${C.bestLbl}!`,s:prev==null?`${fmt(sec)} · ${fmt(Math.max(0,sec-goalSec()))} to go`:`${fmt(sec)} · ${fmt(prev-sec)} faster`,k:"best"}
       :{t:`${C.Run} logged`,s:`${distTxt(km)} · ${fmt(sec)} · ${fmt(paceOf(sec,km))}${C.paceU}`,k:"run"})}
-  else if(a==="delrun"){const k=el.dataset.k;const i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);if(i>-1){S.runs.splice(i,1);changed({t:"Run deleted",k:"undo"})}}
+  else if(a==="runinfo"){showRunInfo(el.dataset.k);return}
+  else if(a==="delrun"){hideSheet();const k=el.dataset.k;const i=S.runs.findIndex(r=>r.d+"|"+r.sec+"|"+r.km===k);if(i>-1){S.runs.splice(i,1);changed({t:"Run deleted",k:"undo"})}}
 });
 document.addEventListener("change",e=>{
   const el=e.target;
