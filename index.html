@@ -352,6 +352,8 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 .shot-reps{display:flex;align-items:center;justify-content:center;gap:18px;font:600 17px var(--font);color:var(--label)}
 .sh-msg .shot-reps span{color:var(--label);font:600 17px var(--font);min-width:110px;text-align:center}
 .sh-card .sh-msg .shot-reps button{width:40px;height:40px;padding:0;border:0;border-radius:20px;background:var(--cell);color:var(--blue);font:500 24px/1 var(--font)}
+.shot-coach{background:color-mix(in srgb,var(--blue) 10%,var(--cell));border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.35;color:var(--label);text-align:left}
+.coachn{font-size:13px;line-height:1.35;color:var(--label2);margin-top:4px;padding-left:9px;border-left:2px solid color-mix(in srgb,var(--blue) 45%,transparent)}
 .rd-spinwrap{display:grid;place-items:center;padding:16px 0 4px;color:var(--label2)}
 .sh-msg .reps{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:14px}
 .sh-card .sh-msg .reps button{width:46px;height:46px;padding:0;border:0;border-radius:23px;background:var(--cell);color:var(--label);font:600 18px var(--font);transition:background .15s,transform .15s}
@@ -891,7 +893,7 @@ function viewRun(){
   const w=Math.floor(diff(TODAY,START)/7);
   const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
     <dl><dt>Intervals</dt><dd>${esc(planText(i,"A"))}</dd><dt>Easy</dt><dd>${esc(planText(i,"B"))}</dd><dt>${isTestWk(i)?"Test":KIND.C}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
-  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div>${(S.runNote||{})[r.d]?`<div class="t2" style="color:${S.runDone[r.d]==="part"?"var(--orange)":"var(--green)"}">${S.runDone[r.d]==="part"?"Partly done":"Done"} · ${esc(S.runNote[r.d])}</div>`:""}</div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
+  const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div>${(S.runNote||{})[r.d]?`<div class="t2" style="color:${S.runDone[r.d]==="part"?"var(--orange)":"var(--green)"}">${S.runDone[r.d]==="part"?"Partly done":"Done"} · ${esc(S.runNote[r.d])}</div>`:""}${r.coach?`<div class="coachn">${esc(r.coach)}</div>`:""}</div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
   const head=`<div class="lt"><div class="sub">${C.fitSub}</div><h1>${C.fitTitle}</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":`starting ~${fmt(baseSec())}`}</span></div>
@@ -1271,6 +1273,23 @@ function parseStrava(raw){
 }
 // The session's reps and rep distance, e.g. "5 × 400 m …" → {n:5, m:400}.
 function sessionReps(r){if(!r||r.test)return null;const m=r.text.match(/(\d+)\s*×\s*(\d+(?:\.\d+)?)\s*(km|m)\b/);return m&&+m[1]>1?{n:+m[1],m:m[3]==="km"?parseFloat(m[2])*1000:+m[2]}:null}
+// Coach notes: compare what you ran (from the screenshot) with what the plan asked for. No AI, just the numbers.
+function coachNote(d,km,sec,mode){
+  const r=runOn(d);if(!r||!km||!sec)return "";
+  const pk=sec/km,t=r.text,toS=x=>{const [a,b]=x.split(":");return +a*60+ +b},by=n=>`${Math.abs(n)} s ${n<0?"faster":"slower"}`;
+  if(r.test){const full=Math.abs(km-2.4)<=.15,aim=aimAt(r.w),df=Math.round(sec-aim);
+    return full?`${fmt(sec)}: ${Math.abs(df)<3?"right on":by(df)+" than"} the aim of ${fmt(aim)}. Your paces now update to match.`:`That was ${km} km, not the full 2.4, so it won't count as your test. Log a full 2.4 to update your paces.`}
+  const sr=sessionReps(r),each=t.match(/in (\d+:\d{2}) each/),at=t.match(/at (\d+:\d{2})\/km/),easy=t.match(/Around (\d+:\d{2})\/km/);
+  if(sr&&each){const tgt=toS(each[1]),act=Math.round(pk*sr.m/1000),df=act-tgt;let n=`Your reps averaged about ${fmt(act)} per ${distL(sr.m)}`;
+    if(df<=-6)n+=`, ${-df} s faster than the ${fmt(tgt)} target. `+(mode==="part"?`Going out too hard is a common reason to fade. Try holding ${fmt(tgt)} and finishing all ${sr.n}.`:"Strong. If that felt easy, your next 2.4 test will speed up the plan.");
+    else if(df>=30)n+=`, much slower than the ${fmt(tgt)} target. If Strava kept running during your rests or warm-up, pause it between reps for a truer reading.`;
+    else if(df>=6)n+=`, ${df} s slower than the ${fmt(tgt)} target. `+(mode==="part"?"That's OK early on. Take the full rest between reps.":"Fine for now. If the target feels too hard, set a slower Current time in Settings.");
+    else n+=`, right on the ${fmt(tgt)} target. `+(mode==="part"?"Good pacing. The plan builds you back up a rep at a time.":"Nice control.");
+    return n}
+  if(at){const tgt=toS(at[1]),df=Math.round(pk-tgt);return `You averaged ${fmt(Math.round(pk))}/km against ${fmt(tgt)}/km: `+(Math.abs(df)<6?"right on target.":df<0?`${-df} s faster. Tempo should feel comfortably hard, not all-out.`:`${df} s slower. Fine while you build up.`)}
+  if(easy){const tgt=toS(easy[1]);return pk<tgt-10?`${fmt(Math.round(pk))}/km is faster than your easy pace (${fmt(tgt)} or slower). Easy runs build endurance best when you can still chat.`:`${fmt(Math.round(pk))}/km. Good easy pace.`}
+  return "";
+}
 let SHOT=null;
 function showShotAsk(d,mode){
   const sh=document.getElementById("sheet");
@@ -1296,20 +1315,23 @@ function showShotCheck(d,mode,got){
     <label>Where<span><input id="sh-loc" type="text" list="sh-locs" value="${esc(got.loc||"")}" placeholder="e.g. Kallang" autocomplete="off" style="width:150px"></span></label>
     <datalist id="sh-locs">${[...new Set(S.runs.map(x=>x.loc).filter(Boolean))].map(l=>`<option value="${esc(l)}">`).join("")}</datalist>
     <div class="shot-pace" id="sh-pace">${got.km&&got.sec?`Pace ${fmt(got.pace||Math.round(got.sec/got.km))}/km`:""}</div>
-    ${sr?`<div class="shot-reps"><button type="button" data-act="shotrep" data-v="-1" aria-label="One rep fewer">−</button><span id="sh-reps">${reps} of ${sr.n} reps</span><button type="button" data-act="shotrep" data-v="1" aria-label="One rep more">+</button></div>`:""}</div></div>
+    ${sr?`<div class="shot-reps"><button type="button" data-act="shotrep" data-v="-1" aria-label="One rep fewer">−</button><span id="sh-reps">${reps} of ${sr.n} reps</span><button type="button" data-act="shotrep" data-v="1" aria-label="One rep more">+</button></div>`:""}
+    <div class="shot-coach" id="sh-coach"${ok?"":" hidden"}>${ok?esc(coachNote(d,got.km,got.sec,mode)):""}</div></div></div>
     <button data-act="shotsave" data-d="${d}" class="pri">Save</button>`;
   ["sh-km","sh-t2"].forEach(id=>document.getElementById(id).addEventListener("input",shotPace));
 }
 const shotVals=()=>{const km=parseFloat((document.getElementById("sh-km").value||"").replace(",",".")),m=(document.getElementById("sh-t2").value||"").trim().match(/^(?:(\d+):)?(\d{1,2})[:.](\d{2})$/);
   return {km:km>0?km:null,sec:m?(+(m[1]||0))*3600+ +m[2]*60+ +m[3]:null}};
 function shotPace(){const v=shotVals(),el=document.getElementById("sh-pace");el.textContent=v.km&&v.sec?`Pace ${fmt(Math.round(v.sec/v.km))}/km`:"";
+  const co=document.getElementById("sh-coach");if(co&&SHOT){const n=coachNote(SHOT.d,v.km,v.sec,SHOT.mode);co.textContent=n;co.hidden=!n}
   if(SHOT&&SHOT.sr&&v.km&&!SHOT.touched){const c=Math.round(v.km*1000/SHOT.sr.m);SHOT.reps=SHOT.mode==="all"?Math.max(SHOT.sr.n,c):Math.min(SHOT.sr.n-1,Math.max(1,c));document.getElementById("sh-reps").textContent=`${SHOT.reps} of ${SHOT.sr.n} reps`}}
 function saveShot(d){
   const v=shotVals();if(!v.km||!v.sec){toast({t:"Add the distance and time",s:"Like 1.6 and 9:05",k:"warn"});return}
   const r=runOn(d),{mode,sr,reps}=SHOT||{};hideSheet();
   const isT=!!(r&&r.test&&mode==="all"&&Math.abs(v.km-2.4)<=.15);
   const loc=((document.getElementById("sh-loc")||{}).value||"").trim().slice(0,40);
-  if(!S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km))S.runs.push(Object.assign({d,km:v.km,sec:v.sec,tt:isT},loc?{loc}:{}));
+  const coach=coachNote(d,v.km,v.sec,mode);
+  if(!S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km))S.runs.push(Object.assign({d,km:v.km,sec:v.sec,tt:isT},loc?{loc}:{},coach?{coach}:{}));
   const note=sr&&reps!=null&&(mode==="part"||reps>sr.n)?`${reps} of ${sr.n} reps`:"";
   setRunDone(d,mode==="all"?true:"part",note);
 }
