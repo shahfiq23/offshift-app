@@ -1252,10 +1252,10 @@ function prepImage(file){return new Promise((res,rej)=>{const img=new Image(),u=
 // Pull distance, moving time and pace out of a Strava activity screenshot's text.
 function parseStrava(raw){
   let t=raw.replace(/,/g,".").replace(/(\d)[oO]/g,"$10").replace(/[oO](\d)/g,"0$1").replace(/(\d)\s*[:;]\s*(\d{2})/g,"$1:$2");
-  const pm=t.match(/(\d{1,2}):(\d{2})\s*\/\s*km/i),pace=pm?+pm[1]*60+ +pm[2]:null;
+  const pm=t.match(/(\d{1,2}):(\d{2})\s*[\/\[|lI1]\s*km/i),pace=pm?+pm[1]*60+ +pm[2]:null;
   let km=null;for(const m of t.matchAll(/(\d{1,3}(?:\.\d{1,2})?)\s*km\b/gi)){const v=parseFloat(m[1]);if(v>=.1&&v<=60){km=v;break}}
   const times=[];
-  for(const m of t.matchAll(/(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?!\s*\/)/g)){const v=(+(m[1]||0))*3600+ +m[2]*60+ +m[3];if(v>=30)times.push({v,i:m.index})}
+  for(const m of t.matchAll(/(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?!\s*[\/\[|]\s*km)/g)){const v=(+(m[1]||0))*3600+ +m[2]*60+ +m[3];if(v>=30)times.push({v,i:m.index})}
   for(const m of t.matchAll(/(?:(\d{1,2})\s*h\s*)?(\d{1,2})\s*m(?:in)?\s*(\d{1,2})\s*s\b/gi)){times.push({v:(+(m[1]||0))*3600+ +m[2]*60+ +m[3],i:m.index})}
   for(const m of t.matchAll(/(\d{1,2})\s*h\s*(\d{1,2})\s*m\b/gi)){times.push({v:+m[1]*3600+ +m[2]*60,i:m.index})}
   let sec=null;const mv=t.search(/moving\s*time/i);
@@ -1276,7 +1276,7 @@ function showShotAsk(d,mode){
     <button data-act="shotskip" data-d="${d}" data-mode="${mode}">Skip</button>`;
 }
 async function readShot(d,mode,file){
-  const sh=document.getElementById("sheet"),card=sh.querySelector(".sh-card");
+  const sh=document.getElementById("sheet"),card=sh.querySelector(".sh-card");if(!card)return;
   card.innerHTML=`<div class="sh-msg"><b id="sh-t">Reading your screenshot…</b><span>The first time takes a little longer.</span><div class="rd-spinwrap"><svg viewBox="0 0 28 28" width="28" height="28" class="rd-spin">${[...Array(12)].map((_,i)=>`<rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(${i*30} 14 14)" opacity="${(1-i*.07).toFixed(2)}"/>`).join("")}</svg></div></div>`;
   let got={km:null,sec:null,pace:null};
   try{const [w,cv]=await Promise.all([loadOcr(),prepImage(file)]);const {data}=await w.recognize(cv);got=parseStrava(data.text||"")}catch(e){}
@@ -1290,7 +1290,7 @@ function showShotCheck(d,mode,got){
   card.innerHTML=`<div class="sh-msg"><b id="sh-t">${ok?"Check your run":"Couldn't read everything"}</b><span>${ok?"Fix anything that looks off.":"Fill in what's missing."}</span>
     <div class="shot-f"><label>Distance<span><input id="sh-km" type="text" inputmode="decimal" value="${got.km??""}" placeholder="1.6"> km</span></label>
     <label>Time<span><input id="sh-t2" type="text" inputmode="numeric" value="${got.sec?fmt(got.sec):""}" placeholder="9:05"></span></label>
-    <div class="shot-pace" id="sh-pace">${got.km&&got.sec?`Pace ${fmt(Math.round(got.sec/got.km))}/km`:""}</div>
+    <div class="shot-pace" id="sh-pace">${got.km&&got.sec?`Pace ${fmt(got.pace||Math.round(got.sec/got.km))}/km`:""}</div>
     ${sr?`<div class="shot-reps"><button type="button" data-act="shotrep" data-v="-1" aria-label="One rep fewer">−</button><span id="sh-reps">${reps} of ${sr.n} reps</span><button type="button" data-act="shotrep" data-v="1" aria-label="One rep more">+</button></div>`:""}</div></div>
     <button data-act="shotsave" data-d="${d}" class="pri">Save</button>`;
   ["sh-km","sh-t2"].forEach(id=>document.getElementById(id).addEventListener("input",shotPace));
