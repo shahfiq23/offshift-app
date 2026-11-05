@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.4.1">
+<meta name="app-version" content="2.5.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -344,6 +344,7 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 .sh-card button:first-of-type{border-top:0}
 .sh-card button.pri{font-weight:600}
 .sh-card button.danger{color:var(--red)}
+.sh-msg input{margin-top:10px;width:100%;font:17px var(--font);padding:10px 12px;border-radius:10px;border:0;background:var(--cell);color:var(--label);text-align:left}
 .sh-cancel{background:var(--cell);border-radius:14px;padding:16px;font-size:19px;font-weight:600;color:var(--blue)}
 @keyframes sessin{from{transform:translateY(-120%) scale(.6);opacity:0}}
 @keyframes eq{0%,100%{height:30%}50%{height:100%}}
@@ -410,7 +411,7 @@ let DEMO=false;try{DEMO=localStorage.getItem("rhythm-demo")==="1"&&!localStorage
 const C=DEMO?{
   fitTab:"Swim",fitTitle:"400 m Swim",fitSub:"400 m swim · 2 Nov – 3 Jan",dist:0.4,meters:true,pu:0.1,paceU:"/100 m",
   testName:"400 m test",testShort:"400 m test",testBadge:"Test",testsHdr:"400 m Tests",bestLbl:"400 m",goalLbl:"400 m Goal",testDist:"400 m",
-  base:600,goal:480,goalFrom:420,run:"swim",Run:"Swim",runs:"swims",Runs:"Swims",legs:"Arms rest.",
+  base:600,goal:480,goalFrom:420,testWeeks:[3,8],run:"swim",Run:"Swim",runs:"swims",Runs:"Swims",legs:"Arms rest.",
   note:"Losing form in the last 100 m is normal at this stage. The intervals build exactly that endurance.",
   courseTab:"Japanese",courseTitle:"Japanese",courseSub:"Japanese for Beginners · 60 lessons",
   courseNote:"Shift days have no study target. The day a night shift ends gets half. Say each new phrase out loud a few times before moving on.",
@@ -418,7 +419,7 @@ const C=DEMO?{
 }:{
   fitTab:"2.4 km",fitTitle:"2.4 km",fitSub:"IPPT 2.4 km · 2 Nov – 3 Jan",dist:2.4,meters:false,pu:1,paceU:"/km",
   testName:"2.4 km test",testShort:"2.4 test",testBadge:"2.4 Test",testsHdr:"2.4 km Tests",bestLbl:"2.4",goalLbl:"2.4 km Goal",testDist:"2.4 km",
-  base:780,goal:660,goalFrom:600,run:"run",Run:"Run",runs:"runs",Runs:"Runs",legs:"Legs rest.",
+  base:840,goal:720,goalFrom:600,testWeeks:[1,8],run:"run",Run:"Run",runs:"runs",Runs:"Runs",legs:"Legs rest.",
   note:"Fading after 1.6 km is normal right now. Your pace endurance is the gap, and the intervals train exactly that.",
   courseTab:"Sec+",courseTitle:"Security+",courseSub:"CompTIA SY0-701 · Professor Messer",
   courseNote:"Shift days have no study target. The day a night shift ends gets half. After the videos, do two weeks of practice exams before you book. Domain 4 is the biggest slice and overlaps your SOC work.",
@@ -478,7 +479,7 @@ const VID=(DEMO?JP_V:V).map((v,i)=>({i,obj:v[0],dom:v[0][0],title:v[1],len:v[2],
   url:"https://www.youtube.com/results?search_query="+encodeURIComponent(DEMO?"Japanese for beginners "+v[1]:i===0?"Professor Messer How to Pass Your SY0-701 Security+ Exam":`Professor Messer SY0-701 ${v[0]} ${v[1]}`)}));
 const TOTAL_SEC=VID.reduce((a,v)=>a+v.sec,0);
 
-// 9-week 2.4 km block: Mon 2 Nov to Sun 3 Jan. Target 11:00 = 4:35/km = 1:50 per 400 m.
+// 9-week 2.4 km block: Mon 2 Nov to Sun 3 Jan. Session paces are worked out from his current level (see levelAt).
 const WU=DEMO?"Warm-up: 200 m easy + 4 × 25 m drills. Cool-down: 100 m easy.":"Warm-up: 10 min easy jog + leg swings. Cool-down: 5–10 min walk.";
 const SWIM_PLAN=[
  {focus:"Base",A:"8 × 50 m in 1:05 each, 30 s rest",B:"Easy 600 m. Rest at the wall whenever you need.",C:"Threshold: 4 × 100 m in 2:20, 30 s rest"},
@@ -502,20 +503,42 @@ const RUN_PLAN=[
  {focus:"Taper + test",A:"4 × 400 m in 1:48, full rest (short and sharp)",B:"Easy 2.5 km, legs fresh",C:"TIME TRIAL: 2.4 km all-out. Target 11:00"}];
 const PLAN=DEMO?SWIM_PLAN:RUN_PLAN;
 const KIND=DEMO?{A:"Intervals",B:"Easy swim",C:"Threshold"}:{A:"Intervals",B:"Easy run",C:"Tempo"};
-const BASE_SEC=C.base;
-// Settings-driven goal and test weeks (0-based week numbers; default weeks 4 and 9).
+// Settings-driven starting time, goal and test weeks (0-based week numbers).
+const baseSec=()=>S.base||C.base;
 const goalSec=()=>S.goal||C.goal;
-const testWeeks=()=>S.testWeeks||[3,8];
+const testWeeks=()=>S.testWeeks||C.testWeeks;
 const isTestWk=w=>testWeeks().includes(w);
-const aimAt=w=>Math.round((BASE_SEC-(BASE_SEC-goalSec())*((w*7+6)/diff(END,START)))/15)*15;
+// Expected 2.4 time in week w: starts from the latest logged test (or the starting time) and moves evenly
+// to the goal by the final test. It never gets slower than a time already run.
+function levelAt(w){
+  const fin=Math.max(...testWeeks()),t=S.runs.filter(r=>r.tt).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0).pop();
+  let w0=0,s0=baseSec();
+  if(t){w0=Math.max(0,Math.min(8,Math.floor(diff(pd(t.d),START)/7)));s0=t.sec}
+  if(w<=w0||fin<=w0)return s0;
+  return Math.min(s0,s0+(goalSec()-s0)*Math.min(1,(w-w0)/(fin-w0)));
+}
+const aimAt=w=>Math.round(levelAt(w)/15)*15;
+// Run sessions per week: [reps, metres, rest]; easy runs; tempo [reps, metres, pace factor, extra].
+// Interval reps are a little faster than your current 2.4 pace, tempo a little slower, easy runs well slower.
+const RUN_A=[[6,400,"2 min walk/jog between"],[7,400,"2 min rest"],[5,600,"2 min rest"],[5,400,"2 min rest (lighter week)"],[6,600,"2 min rest"],[4,800,"2 min rest"],[5,800,"2 min rest"],[3,1000,"3 min rest"],[4,400,"full rest (short and sharp)"]];
+const RUN_B=["Easy 3 km. Walk breaks are fine. You should be able to talk.","Easy 3 km, fewer walk breaks than last week","Easy 3.5 km","Easy 3 km","Easy 4 km","Easy 4 km","Easy 4 km","Easy 3.5 km","Easy 2.5 km, legs fresh"];
+const RUN_C=[[2,1200,1.08,"2 min rest"],[2,1200,1.07,"2 min rest"],[1,1600,1.06,"then 800 m easy"],[1,2000,1.06,""],[1,2000,1.05,""],[2,1200,1,"2 min rest"],[1,2400,1.04,""],[1,1600,1,"then 800 m easy"],[1,2000,1.03,""]];
+const r5=x=>Math.round(x/5)*5,distL=m=>m>=1000?`${m/1000} km`:`${m} m`;
+function runText(w,k){
+  const pk=levelAt(w)/2.4;
+  if(k==="A"){const [n,m,rest]=RUN_A[w],f=w===8?.94:.97;return `${n} × ${distL(m)} in ${fmt(r5(pk*f*m/1000))} each, ${rest}`}
+  if(k==="B")return `${RUN_B[w]} Around ${fmt(r5(pk*1.25))}/km or slower.`;
+  const [n,m,f,ex]=RUN_C[w],lbl=f>1?"Tempo":"Race pace",pace=`${fmt(r5(pk*f))}/km`;
+  return n>1?`${lbl}: ${n} × ${distL(m)} at ${pace}${ex?", "+ex:""}`:`${lbl}: ${distL(m)} at ${pace}${ex?", "+ex:""}`;
+}
 const ALT_C=DEMO?{3:"Threshold: 300 m at 2:12/100 m",8:"Threshold: 300 m at 2:02/100 m"}:{3:"Tempo: 2 km at 5:00/km",8:"Tempo: 2 km at 4:40/km"};
 function planFocus(w){const f=PLAN[w].focus,t=isTestWk(w);
   if(t&&(w===3||w===8))return f;if(t)return f+" + test";return w===3?"Build":w===8?"Taper":f}
 function planText(w,k){
-  if(k!=="C")return PLAN[w][k];
+  if(k!=="C")return DEMO?PLAN[w][k]:runText(w,k);
   const tw=testWeeks();
   if(isTestWk(w))return w===Math.max(...tw)?`TIME TRIAL: ${C.testDist} all-out. Target ${fmt(goalSec())}`:`TIME TRIAL: ${C.testDist} all-out. Log it. Aim: about ${fmt(aimAt(w))}`;
-  return ALT_C[w]||PLAN[w].C;
+  return DEMO?(ALT_C[w]||PLAN[w].C):runText(w,"C");
 }
 
 // ---------- dates ----------
@@ -600,6 +623,7 @@ const IC={
  cal:'<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="6" width="20" height="18" rx="4"/><path d="M4 11.5h20M9.5 3.5v5M18.5 3.5v5" stroke-linecap="round"/><circle cx="10" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="18" cy="16.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="10" cy="20.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="20.5" r="1.3" fill="currentColor" stroke="none"/></svg>',
  timer:'<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="14" cy="15.5" r="9.5"/><path d="M14 15.5V10M11 3.5h6M21.5 7.5l1.6-1.6"/></svg>',
  shield:'<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M14 3.5l9 3.5v6.5c0 5.6-3.8 9.6-9 11-5.2-1.4-9-5.4-9-11V7z"/><path d="M10 14l3 3 5.5-6"/></svg>',
+ half:'<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 2.5a7.5 7.5 0 010 15z" fill="currentColor"/></svg>',
  run:'<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="12.5" cy="3.2" r="2"/><path d="M8.6 6.4l3.2-.5c.5-.1 1 .2 1.2.6l1.4 2.8 2.3.7a1 1 0 01-.6 1.9l-2.7-.8a1 1 0 01-.6-.5l-.6-1.2-1.2 2.7 2.3 1.8c.3.2.4.5.4.8l-.2 4.3a1 1 0 01-2 0l.2-3.8-2.6-2-1.5 3.1a1 1 0 01-.8.5l-3.5.4a1 1 0 01-.2-2l3-.3 2.7-5.9-1.4.2-1.3 2a1 1 0 01-1.7-1.1l1.6-2.5c.2-.3.5-.5.9-.6z"/></svg>',
  play:'<svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 4.2v11.6c0 .8.9 1.3 1.6.8l9-5.8c.6-.4.6-1.2 0-1.6l-9-5.8C6.9 2.9 6 3.4 6 4.2z"/></svg>',
  moon:'<svg viewBox="0 0 20 20" fill="currentColor"><path d="M15.8 12.6A7 7 0 017.4 4.2a.6.6 0 00-.8-.7A7.6 7.6 0 1016.5 13.4a.6.6 0 00-.7-.8z"/></svg>',
@@ -623,6 +647,8 @@ function ring(r,frac,color){const c=2*Math.PI*r,f=Math.max(0,Math.min(1,frac));
   <circle class="ring" style="--c:${c}" cx="66" cy="66" r="${r}" fill="none" stroke="${color}" stroke-width="15" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-f)+(f===0?0:0)}" transform="rotate(-90 66 66)" ${f===0?'stroke-opacity="0"':""}/>`}
 
 const nameOf=()=>(S.name||"").trim();
+// 2.5.0: goal changed to 12:00 and the first test moved to week 2. Clear old choices once so the new defaults apply.
+if(!DEMO&&S.planV!==2){delete S.goal;delete S.testWeeks;delete S.base;S.planV=2;save(true)}
 // Before 2.2.4 the name defaulted to Shahfiq on devices that had the built-in roster. Keep it on logged-in devices.
 if(S.seeded&&S.name==null&&localStorage.getItem("rhythm-gh-token")){S.name="Shahfiq";save(true)}
 function greeting(){const h=new Date().getHours();return h>=5&&h<12?"Good morning":h>=12&&h<18?"Good afternoon":"Good evening"}
@@ -631,7 +657,7 @@ function viewDay(D){
   const isToday=D===T,future=D>T,dd=pd(D);
   const t=dayType(D),r=runOn(D),sch=schedule();
   const vids=future||isToday?(sch.map[D]||[]):VID.filter(v=>S.done[v.i]===D);
-  const runDone=!!S.runDone[D];const nextVid=vids.find(v=>!S.done[v.i]);
+  const runDone=!!S.runDone[D],runPart=S.runDone[D]==="part",runNote=(S.runNote||{})[D];const nextVid=vids.find(v=>!S.done[v.i]);
   const vidMin=hm(vids.reduce((a,v)=>a+v.sec,0));
   const wd=weekDays(TODAY);
   const runsPlanned=wd.filter(d=>runOn(d)).length,runsDone=wd.filter(d=>runOn(d)&&S.runDone[d]).length;
@@ -681,7 +707,7 @@ function viewDay(D){
   const recap=isToday&&dd.getDay()===0?weekRecap():"";
   const runSec=`${r?`<div class="sec"><div class="sh">${C.Run} · Week ${r.w+1} · ${r.focus}</div><div class="grp">
       <div class="cell ind"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>${KIND[r.k]}</div><div class="t2">${esc(r.text)}</div></div></div>
-      ${runDone?`<div class="cell" style="color:var(--green)">${IC.check.replace("<svg",'<svg width="20" height="20"')} Done</div>`:future?"":`<button class="cell btnrow" data-act="rundone" data-d="${D}">Mark as Done</button>`}
+      ${runDone?`<button class="cell" data-act="rundone" data-d="${D}" style="color:${runPart?"var(--orange)":"var(--green)"};text-align:left">${runPart?IC.half:IC.check.replace("<svg",'<svg width="20" height="20"')}<span class="grow">${runPart?`Partly done${runNote?" · "+esc(runNote):""}`:"Done"}</span><span class="trail" style="font-size:15px">Change</span></button>`:future?"":`<button class="cell btnrow" data-act="rundone" data-d="${D}">Mark as Done</button>`}
     </div><div class="sf">${WU}</div></div>`:""}`;
   const secSec=`<div class="sec"><div class="sh">${C.courseTitle}${vids.length?` · ${vidMin}`:""}</div>
     ${vids.length?`<div class="grp">${vids.map(vrow).join("")}</div>${future?'<div class="sf">Projected from your current pace. It shifts if you watch more or less before then.</div>':""}`
@@ -697,7 +723,7 @@ function weekStrip(dd){
     const vids=past?VID.filter(v=>S.done[v.i]===d):(sch.map[d]||[]);
     const vDone=vids.filter(v=>S.done[v.i]).length,vSec=vids.reduce((a,v)=>a+v.sec,0);
     const top=t==="shift"?`<span class="ws-tag">${shortTime(d)}</span>`:t==="rec"?`<span class="ws-tag hollow">After night</span>`:t==="busy"?`<span class="ws-tag grey">Busy</span>`:`<span class="ws-tag free">Free</span>`;
-    const run=r?`<div class="ws-l${S.runDone[d]?" done":""}"><i style="background:var(--orange)"></i>${r.test?C.testShort:KIND[r.k]}${S.runDone[d]?" ✓":""}</div>`:"";
+    const run=r?`<div class="ws-l${S.runDone[d]?" done":""}"><i style="background:var(--orange)"></i>${r.test?C.testShort:KIND[r.k]}${S.runDone[d]==="part"?" · part":S.runDone[d]?" ✓":""}</div>`:"";
     const study=vids.length?`<div class="ws-l${vDone===vids.length?" done":""}"><i style="background:var(--green)"></i>${past||vDone===vids.length?`${vids.length} video${vids.length>1?"s":""} ✓`:vDone?`${vDone}/${vids.length} done`:hm(vSec)}</div>`:"";
     const none=!run&&!study?`<div class="ws-l muted">${t==="shift"?"Rest":t==="rec"?"Sleep":"Nothing planned"}</div>`:"";
     return `<button class="ws-day${d===T?" today":""}${d===(DAYSEL||T)&&route()==="day"?" sel":""}${past?" past":""}" data-act="go" data-d="${d}" aria-label="${nice(x)}">
@@ -739,12 +765,12 @@ function testChart(){
   const tests=S.runs.filter(r=>r.tt).sort((a,b)=>a.d<b.d?-1:1);
   const W=340,H=190,L=40,R=12,Tp=14,B=26,span=diff(END,START);
   const xs=d=>L+Math.max(0,Math.min(1,diff(pd(d),START)/span))*(W-L-R);
-  const lo=Math.min(goalSec()-30,...tests.map(t=>t.sec)),hi=Math.max(BASE_SEC+30,...tests.map(t=>t.sec));
+  const lo=Math.min(goalSec()-30,...tests.map(t=>t.sec)),hi=Math.max(baseSec()+30,...tests.map(t=>t.sec));
   const ys=sec=>Tp+(sec-lo)/(hi-lo)*(H-Tp-B);
   const ticks=[];for(let t=Math.ceil(lo/60)*60;t<=hi;t+=60)ticks.push(t);
   let g=ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${ys(t)}" y2="${ys(t)}" stroke="var(--sep)"/><text x="${L-6}" y="${ys(t)+3.5}" text-anchor="end">${fmt(t)}</text>`).join("");
   g+=`<line x1="${L}" x2="${W-R}" y1="${ys(goalSec())}" y2="${ys(goalSec())}" stroke="var(--green)" stroke-width="1.2"/><text x="${W-R}" y="${ys(goalSec())-5}" text-anchor="end" style="fill:var(--green);font-weight:600">Goal ${fmt(goalSec())}</text>`;
-  const target=`<line x1="${xs(ds(START))}" y1="${ys(BASE_SEC)}" x2="${xs(ds(END))}" y2="${ys(goalSec())}" stroke="var(--label2)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
+  const target=`<line x1="${xs(ds(START))}" y1="${ys(baseSec())}" x2="${xs(ds(END))}" y2="${ys(goalSec())}" stroke="var(--label2)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
   const months=[[2026,10,1],[2026,11,1],[2027,0,1]].map(([y,m,d])=>{const dd=new Date(y,m,d);if(dd<START)dd.setTime(START.getTime());return `<text x="${xs(ds(dd))}" y="${H-8}" text-anchor="${m===10?"start":"middle"}">${MON[m]}</text>`}).join("");
   const today=TODAY>=START&&TODAY<=END?`<line x1="${xs(T)}" x2="${xs(T)}" y1="${Tp}" y2="${H-B}" stroke="var(--blue)" stroke-opacity=".5" stroke-dasharray="2 3"/>`:"";
   const line=tests.length>1?`<polyline points="${tests.map(t=>`${xs(t.d)},${ys(t.sec)}`).join(" ")}" fill="none" stroke="var(--orange)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`:"";
@@ -799,27 +825,27 @@ function weekRecap(){
 }
 
 function viewRun(){
-  const b=best24(),cur=b??BASE_SEC,pct=Math.max(0,Math.min(100,(BASE_SEC-cur)/(BASE_SEC-goalSec())*100));
+  const b=best24(),cur=b??baseSec(),pct=Math.max(0,Math.min(100,(baseSec()-cur)/(baseSec()-goalSec())*100));
   const w=Math.floor(diff(TODAY,START)/7);
   const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
-    <dl><dt>Intervals</dt><dd>${esc(p.A)}</dd><dt>Easy</dt><dd>${esc(p.B)}</dd><dt>${isTestWk(i)?"Test":KIND.C}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
+    <dl><dt>Intervals</dt><dd>${esc(planText(i,"A"))}</dd><dt>Easy</dt><dd>${esc(planText(i,"B"))}</dd><dt>${isTestWk(i)?"Test":KIND.C}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
   const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>`<div class="cell"><div class="grow"><div>${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}</div><div class="t2">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span><button class="link" style="color:var(--red);font-size:15px" data-act="delrun" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}">Delete</button></div>`).join("");
   const head=`<div class="lt"><div class="sub">${C.fitSub}</div><h1>${C.fitTitle}</h1></div>
   <div class="sec"><div class="grp">
-    <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":"starting ~13:00"}</span></div>
+    <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":`starting ~${fmt(baseSec())}`}</span></div>
     <div class="stat"><span class="k">Goal</span><span class="v o">${fmt(goalSec())}</span><span class="s">${fmt(paceOf(goalSec(),C.dist))} ${C.paceU}</span></div>
     <div class="stat"><span class="k">To Cut</span><span class="v g">${fmt(Math.max(0,cur-goalSec()))}</span><span class="s">${Math.round(pct)}% there</span></div></div>
     <div class="pad"><div class="bar o" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div></div>
   </div><div class="sf">${C.note} The week ${testWeeks()[0]+1} test should come in near ${fmt(aimAt(testWeeks()[0]))}. If it does, ${fmt(goalSec())} in week ${testWeeks()[1]+1} is realistic.</div></div>`;
   const charts=`<div class="sec"><div class="sh">${C.testsHdr}</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${testChart()}</div></div>
-    <div class="sf">${S.runs.some(r=>r.tt)?`Orange is your logged tests. Stay on or above the dashed target line to reach ${fmt(goalSec())} by 3 January.`:`The dashed line is your target path from ${fmt(BASE_SEC)} to ${fmt(goalSec())}. Your ${C.testShort}s appear here as you log them${(()=>{const d=Object.entries(weekRuns(testWeeks()[0])).find(([,k])=>k==="C");return d?`; the first is on ${nice(pd(d[0]))}`:""})()}.`}</div></div>
+    <div class="sf">${S.runs.some(r=>r.tt)?`Orange is your logged tests. Stay on or above the dashed target line to reach ${fmt(goalSec())} by 3 January.`:`The dashed line is your target path from ${fmt(baseSec())} to ${fmt(goalSec())}. Your ${C.testShort}s appear here as you log them${(()=>{const d=Object.entries(weekRuns(testWeeks()[0])).find(([,k])=>k==="C");return d?`; the first is on ${nice(pd(d[0]))}`:""})()}.`}</div></div>
   ${S.runs.length?`<div class="sec"><div class="sh">Pace per ${C.Run}</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${paceChart()}</div></div><div class="sf">Your last ${Math.min(14,S.runs.length)} ${C.runs}. Taller is faster; orange bars are ${C.testShort}s. ${KIND.B}s should sit well below the goal pace.</div></div>`:""}`;
   const logSec=`<div class="sec"><div class="sh">Log a ${C.Run}</div><div class="grp">
     ${C.voice?`<div class="cell" style="display:grid;gap:6px;align-items:start"><label for="voice" class="t2" style="display:flex;gap:6px;align-items:center;color:var(--blue);font-weight:600;font-size:15px">${IC.mic} Say it</label>
       <textarea id="voice" rows="2" placeholder="Tap here, then the mic on your keyboard. Try “2.4 in 12 minutes 45”."></textarea><div id="voiceout" class="t2" aria-live="polite"></div></div>`:""}
     <div class="cell"><label class="grow" for="rd">Date</label><input id="rd" type="date" value="${T}" style="width:150px"></div>
     <div class="cell"><label class="grow" for="rk">Distance</label>${C.meters?`<input id="rk" type="number" inputmode="numeric" step="25" min="25" value="400" style="width:70px"><span class="trail">m</span>`:`<input id="rk" type="number" inputmode="decimal" step="0.1" min="0.4" value="2.4" style="width:60px"><span class="trail">km</span>`}</div>
-    <div class="cell"><label class="grow" for="rt">Time</label><input id="rt" type="text" inputmode="numeric" placeholder="${fmt(BASE_SEC-15)}" style="width:80px"></div>
+    <div class="cell"><label class="grow" for="rt">Time</label><input id="rt" type="text" inputmode="numeric" placeholder="${fmt(baseSec()-15)}" style="width:80px"></div>
     <div class="cell"><label class="grow" for="rtt">Full-effort ${C.testName}</label><input class="sw" id="rtt" type="checkbox"></div>
     <button class="cell btnrow" data-act="logrun" style="font-weight:600">Log ${C.Run}</button>
   </div><div class="sf">${C.voice?"Say it fills in the form below. You can also say “yesterday”, a day like “Tuesday”, or “test” for a full-effort 2.4. ":""}Logging a ${C.run} also ticks off that day's session.</div></div>
@@ -989,7 +1015,7 @@ async function fetchRemote(){
 function mergeState(a,b){
   const [nw,old]=(a.mtime||0)>=(b.mtime||0)?[a,b]:[b,a];
   const o=Object.assign({},DEF,JSON.parse(JSON.stringify(nw)));
-  o.done=Object.assign({},old.done,nw.done);o.runDone=Object.assign({},old.runDone,nw.runDone);
+  o.done=Object.assign({},old.done,nw.done);o.runNote=Object.assign({},old.runNote,nw.runNote);o.runDone=Object.assign({},old.runDone,nw.runDone);
   const k=r=>[r.d,r.km,r.sec].join("|"),have=new Set((o.runs||[]).map(k));
   o.runs=[...(o.runs||[]),...(old.runs||[]).filter(r=>!have.has(k(r)))].sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:0);
   o.mtime=Date.now();return o; // a merge is a new version, so other devices pick it up
@@ -1132,6 +1158,31 @@ function showLogoutSheet(){
     <button data-act="logoutyes" class="danger">Log Out</button>
   </div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
   sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+}
+// Marking a run: did it all, did part of it (still counts), or undo.
+function showRunSheet(d){
+  const r=runOn(d),done=S.runDone[d],sh=document.getElementById("sheet"),what=r?(r.test?C.testName:KIND[r.k]).toLowerCase():C.run;
+  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <div class="sh-msg"><b id="sh-t">How did your ${esc(what)} go?</b></div>
+    <button data-act="runall" data-d="${d}" class="pri">Did It All</button>
+    <button data-act="runpart" data-d="${d}">Did Part of It</button>
+    ${done?`<button data-act="runundo" data-d="${d}" class="danger">Mark as Not Done</button>`:""}
+  </div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
+  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+}
+function showPartSheet(d){
+  const sh=document.getElementById("sheet"),cur=(S.runNote||{})[d]||"";
+  sh.querySelector(".sh-card").innerHTML=`<div class="sh-msg"><b id="sh-t">What did you manage?</b><span>Optional. It still counts as a ${esc(C.run)} this week.</span>
+    <input id="partnote" type="text" maxlength="60" value="${esc(cur)}" placeholder="e.g. 4 of 6 reps" autocomplete="off"></div>
+    <button data-act="runpartsave" data-d="${d}" class="pri">Save</button>`;
+  setTimeout(()=>{const i=document.getElementById("partnote");if(i)i.focus()},350);
+}
+function setRunDone(d,v,note){
+  if(v)S.runDone[d]=v;else delete S.runDone[d];
+  const rn=S.runNote||(S.runNote={});if(v==="part"&&note)rn[d]=note;else delete rn[d];
+  const r=runOn(d),wd=weekDays(pd(d)),pl=wd.filter(x=>runOn(x)).length,dn=wd.filter(x=>runOn(x)&&S.runDone[x]).length;
+  changed(!v?{t:"Marked as not done",k:"undo"}:v==="part"?{t:"Logged as partly done",s:`Still counts · ${dn} of ${pl} this week`,k:"run"}
+    :{t:`${C.Run} done. Nice work!`,s:`${r?(r.test?C.testShort:KIND[r.k])+" · ":""}${dn} of ${pl} this week`,k:"run"});
 }
 function disconnectSync(){lsSet(TOKEN_KEY,null);lsSet(SYNC_KEY,null);SY=null;render();toast({t:"Sync off",s:"Your backup stays on GitHub",k:"undo"})}
 const ago=t=>{if(!t)return "never";const s=(Date.now()-t)/1000;return s<60?"just now":s<3600?`${Math.floor(s/60)} min ago`:s<86400?`${Math.floor(s/3600)} h ago`:nice(new Date(t))};
@@ -1364,10 +1415,11 @@ function viewSettings(){
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
   </div></div>`],
     goal:[C.goalLbl,()=>`<div class="sec"><div class="sh">${C.goalLbl}</div><div class="grp">
+    <div class="cell"><label class="grow" for="set-base">Current time</label><select id="set-base" data-act="base">${[...Array(29)].map((_,i)=>C.goalFrom+60+i*15).map(v=>`<option value="${v}" ${baseSec()===v?"selected":""}>${fmt(v)}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-goal">Goal time</label><select id="set-goal" data-act="goal">${[...Array(13)].map((_,i)=>C.goalFrom+i*15).map(v=>`<option value="${v}" ${goalSec()===v?"selected":""}>${fmt(v)}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t1">First test</label><select id="set-t1" data-act="tw" data-n="0">${[...Array(7)].map((_,i)=>i+1).map(w=>`<option value="${w}" ${testWeeks()[0]===w?"selected":""} ${w>=testWeeks()[1]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t2">Final test</label><select id="set-t2" data-act="tw" data-n="1">${[...Array(7)].map((_,i)=>i+2).map(w=>`<option value="${w}" ${testWeeks()[1]===w?"selected":""} ${w<=testWeeks()[0]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
-  </div><div class="sf">Tests replace that week's ${KIND.C.toLowerCase()}. The goal sets your target pace (${fmt(paceOf(goalSec(),C.dist))}${C.paceU}) and the target line on your charts. Interval paces in the plan stay set for ${fmt(C.goal)}.</div></div>`],
+  </div><div class="sf">Tests replace that week's ${KIND.C.toLowerCase()}. The goal sets your target pace (${fmt(paceOf(goalSec(),C.dist))}${C.paceU}) and the target line on your charts. Session paces start from your current time, or your latest logged test, and get a little faster each week towards the goal.</div></div>`],
     study:["Study",()=>`<div class="sec"><div class="sh">Study</div><div class="grp">
     <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>`],
@@ -1734,9 +1786,12 @@ document.addEventListener("click",e=>{
   else if(a==="theme"){S.theme=el.dataset.v==="system"?null:el.dataset.v;save();applyTheme();render();
     toast({t:"Appearance",s:el.dataset.v==="system"?"Following your iPhone":el.dataset.v==="dark"?"Dark mode on":"Light mode on",k:"ok"});return}
   else if(a==="resetall"){if(!el.dataset.sure){el.dataset.sure=1;el.textContent="Tap Again to Reset Everything";return}
-    S.runs=[];S.done={};S.runDone={};S.busy={};changed({t:"Progress reset",s:"A fresh start. Shifts and settings kept",k:"undo"});return}
-  else if(a==="rundone"){S.runDone[el.dataset.d||T]=true;(()=>{const dd=el.dataset.d||T,r=runOn(dd),wd=weekDays(pd(dd)),pl=wd.filter(x=>runOn(x)).length,dn=wd.filter(x=>runOn(x)&&S.runDone[x]).length;
-    changed({t:`${C.Run} done. Nice work!`,s:`${r?(r.test?C.testShort:KIND[r.k])+" · ":""}${dn} of ${pl} this week`,k:"run"})})()}
+    S.runs=[];S.done={};S.runDone={};S.runNote={};S.busy={};changed({t:"Progress reset",s:"A fresh start. Shifts and settings kept",k:"undo"});return}
+  else if(a==="rundone"){showRunSheet(el.dataset.d||T);return}
+  else if(a==="runall"){hideSheet();setRunDone(el.dataset.d,true);return}
+  else if(a==="runpart"){showPartSheet(el.dataset.d);return}
+  else if(a==="runpartsave"){const n=(document.getElementById("partnote")||{}).value||"";hideSheet();setRunDone(el.dataset.d,"part",n.trim().slice(0,60));return}
+  else if(a==="runundo"){hideSheet();setRunDone(el.dataset.d,null);return}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
     const d=document.getElementById("rd").value,km=parseFloat(document.getElementById("rk").value)/(C.meters?1000:1),t=document.getElementById("rt").value.trim();
@@ -1754,6 +1809,7 @@ document.addEventListener("change",e=>{
   if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];(()=>{if(!el.checked){changed(null);return}const v=VID[+i];changed(null);const n=VID.find(x=>!S.done[x.i]);
     toast({t:`Video ${v.i+1} watched`,s:n?`Next: ${n.title}`:`All ${VID.length} done. ${C.doneMsg}`,k:"video"})})()}
   else if(el.dataset.act==="goal"){S.goal=+el.value;if(S.goal===C.goal)delete S.goal;changed({t:"Goal updated",s:`${fmt(goalSec())} · ${fmt(paceOf(goalSec(),C.dist))}${C.paceU}`,k:"run"})}
+  else if(el.dataset.act==="base"){S.base=+el.value;if(S.base===C.base)delete S.base;changed({t:"Current time updated",s:`Paces now start from ${fmt(baseSec())}`,k:"run"})}
   else if(el.dataset.act==="tw"){const tw=[...testWeeks()];tw[+el.dataset.n]=+el.value;S.testWeeks=tw;
     changed({t:"Test weeks updated",s:`Week ${tw[0]+1} and week ${tw[1]+1}`,k:"run"})}
   else if(el.dataset.act==="calset"){if(el.id==="set-runat")S.runAt=el.value;else if(el.id==="set-studyat")S.studyAt=el.value;else S.calSpan=el.value;save();if(syncOn()&&el.type==="time")toast({t:"Reminder time saved",s:"Your live calendar will update",k:"ok"})}
