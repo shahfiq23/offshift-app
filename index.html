@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.6.1">
+<meta name="app-version" content="2.7.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -145,6 +145,20 @@ body.reading{overflow:hidden}
 .rd-spin{animation:ptrspin .9s steps(12) infinite;fill:currentColor}
 .ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stepn{flex:none;width:22px;height:22px;border-radius:11px;background:var(--fill);color:var(--label2);font:600 13px/22px var(--font);text-align:center;margin-top:1px}
+/* week view */
+.wk-row{width:100%;gap:12px;align-items:center}
+.wk-row.past{opacity:.6}
+.wk-d{display:grid;justify-items:center;width:40px;flex:none;line-height:1.1}
+.wk-d b{font-size:12px;font-weight:600;color:var(--label2);text-transform:uppercase}
+.wk-n{font:600 20px/30px var(--round);width:30px;height:30px;border-radius:15px;text-align:center;color:var(--label)}
+.wk-row.today .wk-n{background:var(--red);color:#fff}
+.wk-c{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;text-align:left;min-width:0}
+.wk-b{display:inline-flex;align-items:center;gap:6px;font-size:15px;color:var(--label)}
+.wk-b i{width:8px;height:8px;border-radius:50%;flex:none}
+.wk-b.muted{color:var(--label2)}
+.wk-c .ws-tag{font-size:11px;font-weight:600;color:#fff;background:var(--indigo);border-radius:5px;padding:2px 6px;white-space:nowrap}
+.wk-c .ws-tag.hollow{background:transparent;color:var(--indigo);box-shadow:0 0 0 1.2px var(--indigo) inset}
+.wk-c .ws-tag.grey{background:var(--label3)}
 /* demo banner */
 .demo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--label);
   border-radius:12px;padding:10px 12px 10px 14px;font-size:15px;margin-top:6px}
@@ -278,6 +292,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     transition:transform .15s}
   .ws-day:active{transform:scale(.97)}
   .ws-day.past{opacity:.6}
+  .ws-row.big{gap:10px}
+  .ws-row.big .ws-day{min-height:240px;padding:14px 12px;gap:10px}
+  .ws-row.big .ws-n{font-size:24px}
+  .ws-row.big .ws-l{font-size:14px}
   .ws-day.sel{box-shadow:0 0 0 2px var(--blue) inset}
   .ws-h{display:flex;align-items:baseline;justify-content:space-between;gap:4px}
   .ws-dow{font-size:13px;font-weight:600;color:var(--label2);text-transform:uppercase}
@@ -790,7 +808,7 @@ function viewDay(D){
   return wide()?head+cols(upnext+cando+runSec,rings+recap+secSec)+weekStrip(dd):head+upnext+cando+rings+recap+runSec+secSec;
 }
 // iPad/desktop: the whole week at a glance under Today. Tap a day to open it.
-function weekStrip(dd){
+function weekStrip(dd,big){
   const sch=schedule(),wd=weekDays(dd);
   const cards=wd.map(d=>{const x=pd(d),t=dayType(d),r=runOn(d),past=d<T;
     const vids=past?VID.filter(v=>S.done[v.i]===d):(sch.map[d]||[]);
@@ -801,6 +819,7 @@ function weekStrip(dd){
     const none=!run&&!study?`<div class="ws-l muted">${t==="shift"?"Rest":t==="rec"?"Sleep":"Nothing planned"}</div>`:"";
     return `<button class="ws-day${d===T?" today":""}${d===(DAYSEL||T)&&route()==="day"?" sel":""}${past?" past":""}" data-act="go" data-d="${d}" aria-label="${nice(x)}">
       <div class="ws-h"><span class="ws-dow">${DOW[x.getDay()]}</span><span class="ws-n">${x.getDate()}</span></div>${top}${run}${study}${none}</button>`}).join("");
+  if(big)return `<div class="sec ws"><div class="ws-row big">${cards}</div><div class="sf">Tap a day to open it. Swipe for other weeks. Pinch in to go back.</div></div>`;
   return `<div class="sec ws"><div class="sh">This Week · ${nice(pd(wd[0]))} – ${nice(pd(wd[6]))}</div><div class="ws-row">${cards}</div></div>`;
 }
 function screenChart(){
@@ -1592,6 +1611,7 @@ function applyTheme(){
 // Settings: an iOS-style main list; each row opens its own page (#settings-<page>).
 const SET_ICO={
  notes:["#FF9F0A",'<g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4.5" y="2.8" width="11.5" height="14.4" rx="2"/><path d="M4.5 6.2H3M4.5 10H3M4.5 13.8H3M8 7h5M8 10.2h5M8 13.4h3" stroke-linecap="round"/></g>'],
+ gestures:["#30B0C7",'<path d="M7.5 10V4.8a1.3 1.3 0 012.6 0V9m0-.5V3.6a1.3 1.3 0 012.6 0V9m0-.8V5a1.3 1.3 0 012.6 0v6.5c0 3.3-2.4 5.7-5.4 5.7-2 0-3.3-.9-4.4-2.4L3.4 11.7a1.3 1.3 0 012-1.6L7.5 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'],
  appearance:["#5E5CE6",'<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 3.5a6.5 6.5 0 010 13z" fill="currentColor"/>'],
  profile:["#8E8E93",'<circle cx="10" cy="7" r="3.2" fill="currentColor"/><path d="M3.8 16.5c.8-3 3.3-4.8 6.2-4.8s5.4 1.8 6.2 4.8z" fill="currentColor"/>'],
  goal:["#FF9500",null],
@@ -1613,6 +1633,9 @@ function viewSettings(){
   <div class="sec"><div class="sh">Startup</div><div class="grp">
     <div class="cell"><label class="grow" for="set-splash">Heartbeat animation</label><input class="sw" type="checkbox" id="set-splash" data-act="splash" ${S.splash===false?"":"checked"}></div>
   </div></div>`],
+    gestures:["Gestures",()=>`<div class="sec"><div class="grp">
+    ${[["Swipe with two fingers","Left or right to switch tabs."],["Pinch out on Today","See the whole week. Pinch in to go back."],["Hold two fingers","Quick actions from anywhere."],["Swipe with one finger","On Today, change day. On the week, change week."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
+  </div><div class="sf">Gestures with four or five fingers belong to iPadOS, so Rhythm doesn't use them.</div></div>`],
     profile:["Name",()=>`<div class="sec"><div class="grp">
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
   </div></div>`],
@@ -1654,7 +1677,7 @@ function viewSettings(){
   const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):"Off";
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
   const head=`<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>`;
-  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("profile","Name",esc(nameOf()))}</div></div>
+  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gestures","")}${row("profile","Name",esc(nameOf()))}</div></div>
   <div class="sec"><div class="grp">${row("goal",C.goalLbl,fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}${DEMO?"":row("notes","Goodnotes",dbxOn()?"On":"Off")}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
@@ -1833,7 +1856,30 @@ function rdZoom(z,cx,cy){
 const WIDE=matchMedia("(min-width: 768px) and (min-height: 600px)");
 const wide=()=>WIDE.matches;
 const cols=(l,r,cls="")=>`<div class="cols${cls?" "+cls:""}"><div class="col">${l}</div><div class="col">${r}</div></div>`;
-const VIEWS={today:()=>viewDay(T),day:()=>viewDay(DAYSEL),plan:viewPlan,run:viewRun,secplus:viewSec,settings:viewSettings};
+// Week view (pinch out on Today): the whole week at a glance. Tap a day to open it; swipe to change week.
+let WEEKSEL=null,WEEKFROM=null;
+function viewWeek(){
+  const base=pd(WEEKSEL||T),wd=weekDays(base),sch=schedule(),here=wd.includes(T);
+  const off=Math.round(diff(pd(wd[0]),pd(weekDays(TODAY)[0]))/7);
+  const title=off===0?"This Week":off===1?"Next Week":off===-1?"Last Week":`Week of ${nice(pd(wd[0]))}`;
+  const pl=wd.filter(runCounts).length,dn=wd.filter(d=>runCounts(d)&&S.runDone[d]).length;
+  const stGoal=Math.round(wd.reduce((a,d)=>a+budget(d),0)/60),stDone=Math.round(VID.filter(v=>wd.includes(S.done[v.i])).reduce((a,v)=>a+v.sec,0)/60);
+  const rows=wd.map(d=>{const x=pd(d),t=dayType(d),r=runOn(d),past=d<T;
+    const vids=past||d===T?(d===T?(sch.map[d]||[]):VID.filter(v=>S.done[v.i]===d)):(sch.map[d]||[]);
+    const vDone=vids.filter(v=>S.done[v.i]).length,vSec=vids.reduce((a,v)=>a+v.sec,0);
+    const tag=t==="shift"?`<span class="ws-tag">${shortTime(d)}</span>`:t==="rec"?`<span class="ws-tag hollow">After night</span>`:t==="busy"?`<span class="ws-tag grey">Busy</span>`:"";
+    const bits=[];
+    if(r)bits.push(`<span class="wk-b"><i style="background:var(--orange)${r.missed?";opacity:.45":""}"></i>${r.test?C.testShort:KIND[r.k]}${S.runDone[d]==="part"?" · part":S.runDone[d]?" ✓":r.missed?" · missed":""}</span>`);
+    if(vids.length)bits.push(`<span class="wk-b"><i style="background:var(--green)"></i>${vDone===vids.length?`${vids.length} video${vids.length>1?"s":""} ✓`:hm(vSec)}</span>`);
+    if(!bits.length)bits.push(`<span class="wk-b muted">${t==="shift"?"Rest":t==="rec"?"Sleep":"Free"}</span>`);
+    return `<button class="cell wk-row${d===T?" today":""}${past?" past":""}" data-act="go" data-d="${d}"><span class="wk-d"><b>${DOW[x.getDay()]}</b><span class="wk-n">${x.getDate()}</span></span><span class="grow wk-c">${tag}${bits.join("")}</span>${IC.chev}</button>`}).join("");
+  return `<div class="lt"><div class="sub">${nice(pd(wd[0]))} – ${nice(pd(wd[6]))}</div><div class="row"><h1>${title}</h1>
+    <div class="daynav">${here?"":`<button class="btn tint small" data-act="weekgo" data-d="${T}">Today</button>`}<button class="navb" data-act="weekgo" data-d="${ds(add(base,-7))}" aria-label="Previous week">‹</button><button class="navb" data-act="weekgo" data-d="${ds(add(base,7))}" aria-label="Next week">›</button></div></div></div>
+  <div class="sec"><div class="grp"><div class="stats"><div class="stat"><span class="k">${C.Runs}</span><span class="v">${dn}<span style="font-size:17px;color:var(--label2)">/${pl}</span></span></div>
+    <div class="stat"><span class="k">Study</span><span class="v">${stDone}<span style="font-size:17px;color:var(--label2)">/${stGoal} min</span></span></div></div></div></div>
+  ${wide()?weekStrip(base,true):`<div class="sec"><div class="grp">${rows}</div><div class="sf">Tap a day to open it. Swipe for other weeks. Pinch in to go back.</div></div>`}`;
+}
+const VIEWS={today:()=>viewDay(T),day:()=>viewDay(DAYSEL),week:viewWeek,plan:viewPlan,run:viewRun,secplus:viewSec,settings:viewSettings};
 function route(){const h=location.hash.slice(1);const m=h.match(/^day-(\d{4}-\d{2}-\d{2})$/);
   if(m){if(m[1]===T)return "today";DAYSEL=m[1];return "day"}if(/^settings-[a-z]+$/.test(h))return "settings";return VIEWS[h]&&h!=="day"?h:"today"}
 const goDay=d=>{location.hash=d===T?"#today":"#day-"+d};
@@ -1902,7 +1948,7 @@ function render(animate){
   }
   if(animate){[...app.children].forEach((el,i)=>el.style.setProperty("--i",Math.min(i,8)));void app.offsetWidth;app.classList.add("enter");
     clearTimeout(enterT);enterT=setTimeout(()=>app.classList.remove("enter"),1800)}
-  const tab=r==="day"?"today":r;document.querySelectorAll(".tabbar a").forEach(a=>a.getAttribute("href")==="#"+tab?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
+  const tab=r==="day"||r==="week"?"today":r;document.querySelectorAll(".tabbar a").forEach(a=>a.getAttribute("href")==="#"+tab?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
 }
 function changed(msg){cache={};save();const y=scrollY;render();scrollTo(0,y);if(msg)toast(msg)}
 // toast("text") or toast({t:"Title", s:"subtitle", k:"ok|run|video|moved|undo|warn|copy|best"})
@@ -1968,6 +2014,17 @@ document.addEventListener("click",e=>{
     toast({t:el.checked?"Shifts included":"Shifts left out",s:syncOn()?"Your live calendar will update":"Applies next time you add to Calendar",k:"ok"});return}
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
+  else if(a==="weekgo"){WEEKSEL=el.dataset.d;render(true);return}
+  else if(a==="qa"){const v=el.dataset.v;
+    if(v==="run"){showRunSheet(T);return}
+    hideSheet();
+    if(v==="today")goDay(T);
+    else if(v==="week")openWeek(route()==="day"?DAYSEL:T);
+    else if(v==="log"){location.hash="#run";setTimeout(()=>{const x=document.getElementById("rd");if(x){x.closest(".sec").scrollIntoView({behavior:"smooth",block:"start"})}},350)}
+    else if(v==="study")startStudyMode();
+    else if(v==="sessend")endStudyMode().then(render);
+    else if(v==="next"){location.hash="#secplus";setTimeout(()=>{const n=document.getElementById("nextvid");if(n)n.scrollIntoView({behavior:"smooth",block:"center"})},400)}
+    return}
   else if(a==="note"){openNote(el.dataset.id);return}
   else if(a==="rdclose"){closeNote();return}
   else if(a==="notesall"){notesAll=!notesAll;rerenderNotes();return}
@@ -2032,9 +2089,47 @@ document.addEventListener("change",e=>{
   else if(el.dataset.act==="mins"){S.mins=+el.value;(()=>{changed(null);const f=schedule().last;toast({t:"Plan updated",s:`${S.mins} min per free day${f?` · finish ${pd(f).getDate()} ${MON[pd(f).getMonth()]}`:""}`,k:"ok"})})()}
 });
 let sx=null,sy=null;
-document.addEventListener("touchstart",e=>{const r=route();if(r!=="today"&&r!=="day"){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
-document.addEventListener("touchend",e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
-  if(Math.abs(dx)>70&&Math.abs(dy)<45){const cur=route()==="day"?DAYSEL:T;goDay(ds(add(pd(cur),dx<0?1:-1)))}},{passive:true});
+document.addEventListener("touchstart",e=>{const r=route();if((r!=="today"&&r!=="day"&&r!=="week")||e.touches.length>1||!document.getElementById("sheet").hidden){sx=null;return}sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
+  if(Math.abs(dx)>70&&Math.abs(dy)<45){if(route()==="week"){WEEKSEL=ds(add(pd(WEEKSEL||T),dx<0?7:-7));render(true);return}
+    const cur=route()==="day"?DAYSEL:T;goDay(ds(add(pd(cur),dx<0?1:-1)))}},{passive:true});
+// ---------- Two-finger gestures ----------
+// Swipe left/right with two fingers: next/previous tab. Pinch out on Today: the week. Pinch in on the week: back to the day.
+// Hold two fingers still: Quick Actions. 4- and 5-finger gestures belong to iPadOS and are left alone.
+const TABS=["today","plan","run","secplus","settings"];
+const curTab=()=>{const r=route();return r==="day"||r==="week"?"today":r};
+function goTab(n){const i=TABS.indexOf(curTab()),j=i+n;if(j<0||j>=TABS.length)return;location.hash="#"+TABS[j]}
+function openWeek(from){WEEKFROM=from;WEEKSEL=from;location.hash="#week"}
+function closeWeek(){const d=WEEKFROM&&weekDays(pd(WEEKSEL||T)).includes(WEEKFROM)?WEEKFROM:weekDays(pd(WEEKSEL||T)).includes(T)?T:weekDays(pd(WEEKSEL||T))[0];goDay(d)}
+(function(){
+  let g=null,lp=null;
+  const pts=e=>{const [a,b]=e.touches;return {x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2,d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)}};
+  const off=t=>!document.getElementById("sheet").hidden||!document.getElementById("reader").hidden||document.body.classList.contains("gate")||(t.closest&&t.closest("input,textarea,select"));
+  document.addEventListener("touchstart",e=>{
+    if(e.touches.length===2&&!off(e.target)){const p=pts(e);g={x0:p.x,y0:p.y,d0:Math.max(1,p.d),dx:0,dy:0,sc:1,moved:false,done:false};
+      clearTimeout(lp);lp=setTimeout(()=>{if(g&&!g.moved&&!g.done){g.done=true;showQuick()}},550)}
+    else if(e.touches.length>2){g=null;clearTimeout(lp)}},{passive:true});
+  document.addEventListener("touchmove",e=>{if(!g||e.touches.length!==2)return;const p=pts(e);
+    g.dx=p.x-g.x0;g.dy=p.y-g.y0;g.sc=p.d/g.d0;if(Math.hypot(g.dx,g.dy)>12||Math.abs(g.sc-1)>.08){g.moved=true;clearTimeout(lp)}},{passive:true});
+  document.addEventListener("touchend",e=>{if(!g||e.touches.length>1)return;const x=g;g=null;clearTimeout(lp);if(x.done||!x.moved)return;
+    const r=route();
+    if(x.sc>1.3&&(r==="today"||r==="day")){openWeek(r==="day"?DAYSEL:T);return}
+    if(x.sc<.77&&r==="week"){closeWeek();return}
+    if(Math.abs(x.sc-1)<.2&&Math.abs(x.dx)>70&&Math.abs(x.dx)>Math.abs(x.dy)*1.5)goTab(x.dx<0?1:-1)},{passive:true});
+  document.addEventListener("touchcancel",()=>{g=null;clearTimeout(lp)},{passive:true});
+})();
+function showQuick(){
+  const sh=document.getElementById("sheet"),r=runOn(T),acts=[];
+  if(route()!=="today")acts.push(`<button data-act="qa" data-v="today">Go to Today</button>`);
+  if(route()!=="week")acts.push(`<button data-act="qa" data-v="week">See This Week</button>`);
+  if(r&&!r.missed&&!S.runDone[T])acts.push(`<button data-act="qa" data-v="run">Mark Today's ${C.Run}</button>`);
+  acts.push(`<button data-act="qa" data-v="log">Log a ${C.Run}</button>`);
+  if(!DEMO&&smReady())acts.push(S.session?`<button data-act="qa" data-v="sessend">End Study Mode</button>`:`<button data-act="qa" data-v="study">Start Study Mode</button>`);
+  if(VID.some(v=>!S.done[v.i]))acts.push(`<button data-act="qa" data-v="next">Next ${C.courseTitle} Video</button>`);
+  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="sh-msg"><b id="sh-t">Quick Actions</b></div>${acts.join("")}</div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
+  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+  try{navigator.vibrate&&navigator.vibrate(10)}catch(e){}
+}
 window.addEventListener("hashchange",()=>{scrollTo(0,0);render(true);
   const a=document.querySelector('.tabbar a[aria-current="page"]');if(a){a.classList.remove("pop");void a.offsetWidth;a.classList.add("pop")}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();n.setHours(0,0,0,0);if(ds(n)!==T){TODAY=n;T=ds(n);cache={};render(true)}else if(route()==="today")render()});
@@ -2084,7 +2179,7 @@ document.getElementById("shotfile").addEventListener("change",e=>{const f=e.targ
     app.style.transform=px?`translateY(${px}px)`:"";el.style.transform=`translateY(${Math.max(0,px-HOLD)/2}px) rotate(${px*2.2}deg)`;el.style.opacity=px>8?Math.min(1,px/40):0};
   const fill=f=>bars.forEach((b,i)=>b.style.opacity=i<Math.round(f*12)?(1-i*.06):0);
   document.addEventListener("touchstart",e=>{if(busy||e.touches.length>1||scrollY>0||blocked(e.target)){y0=null;return}y0=e.touches[0].clientY;pull=0;active=false},{passive:true});
-  document.addEventListener("touchmove",e=>{if(y0==null||busy)return;const dy=e.touches[0].clientY-y0;
+  document.addEventListener("touchmove",e=>{if(y0==null||busy)return;if(e.touches.length>1){if(active){active=false;set(0,true)}y0=null;return}const dy=e.touches[0].clientY-y0;
     if(dy<=0||scrollY>0){if(active){active=false;set(0,true)}return}
     active=true;e.preventDefault();pull=Math.min(MAX,dy*.5);set(pull,false);fill(Math.min(1,pull/TH))},{passive:false});
   document.addEventListener("touchend",()=>{if(y0==null)return;y0=null;if(!active)return;active=false;
