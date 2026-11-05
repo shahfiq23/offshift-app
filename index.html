@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.5.3">
+<meta name="app-version" content="2.5.4">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -528,12 +528,29 @@ const RUN_A=[[6,400,"2 min walk/jog between"],[7,400,"2 min rest"],[5,600,"2 min
 const RUN_B=["Easy 3 km. Walk breaks are fine. You should be able to talk.","Easy 3 km, fewer walk breaks than last week","Easy 3.5 km","Easy 3 km","Easy 4 km","Easy 4 km","Easy 4 km","Easy 3.5 km","Easy 2.5 km, legs fresh"];
 const RUN_C=[[2,1200,1.08,"2 min rest"],[2,1200,1.07,"2 min rest"],[1,1600,1.06,"then 800 m easy"],[1,2000,1.06,""],[1,2000,1.05,""],[2,1200,1,"2 min rest"],[1,2400,1.04,""],[1,1600,1,"then 800 m easy"],[1,2000,1.03,""]];
 const r5=x=>Math.round(x/5)*5,distL=m=>m>=1000?`${m/1000} km`:`${m} m`;
+// Rep sessions build on how the last one went. If the last session of the same kind was only partly done
+// (e.g. 4 of 6 reps), the next one asks for one rep more than you managed, scaled to the new rep distance,
+// instead of the full plan. Finish an eased session in full and the next one adds a rep again, until you're
+// back on the full plan.
+function lastSession(w,k){
+  for(let wk=w-1;wk>=0;wk--){const wr=weekRuns(wk),ds_=Object.keys(wr).filter(d=>wr[d]===k&&S.runDone[d]).sort();if(ds_.length)return {d:ds_.pop(),wk}}
+  return null;
+}
+function easedReps(w,k,n,m){
+  if(DEMO||n<2)return null;const ls=lastSession(w,k);if(!ls)return null;
+  let x,of,full=false;
+  if(S.runDone[ls.d]==="part"){const mm=((S.runNote||{})[ls.d]||"").match(/^(\d+) of (\d+) reps/);if(!mm)return null;x=+mm[1];of=+mm[2]}
+  else{const t=planText(ls.wk,k),a=t.match(/(\d+) ×/),b=t.match(/eased from (\d+)/);if(!a||!b)return null;x=+a[1];of=x;full=true}
+  const prevM=(k==="A"?RUN_A:RUN_C)[ls.wk][1],reps=Math.max(2,Math.min(n,Math.round((x+1)*prevM/m)));
+  return reps<n?{reps,x,of,full}:null;
+}
 function runText(w,k){
   const pk=levelAt(w)/2.4;
-  if(k==="A"){const [n,m,rest]=RUN_A[w],f=w===8?.94:.97;return `${n} × ${distL(m)} in ${fmt(r5(pk*f*m/1000))} each, ${rest}`}
+  if(k==="A"){const [n0,m,rest]=RUN_A[w],f=w===8?.94:.97,e=easedReps(w,"A",n0,m),n=e?e.reps:n0;
+    return `${n} × ${distL(m)} in ${fmt(r5(pk*f*m/1000))} each, ${rest}${e?(e.full?` (building back up to ${n0})`:` (eased from ${n0} after ${e.x} of ${e.of} last time)`):""}`}
   if(k==="B")return `${RUN_B[w]} Around ${fmt(r5(pk*1.25))}/km or slower.`;
-  const [n,m,f,ex]=RUN_C[w],lbl=f>1?"Tempo":"Race pace",pace=`${fmt(r5(pk*f))}/km`;
-  return n>1?`${lbl}: ${n} × ${distL(m)} at ${pace}${ex?", "+ex:""}`:`${lbl}: ${distL(m)} at ${pace}${ex?", "+ex:""}`;
+  const [n0,m,f,ex]=RUN_C[w],lbl=f>1?"Tempo":"Race pace",pace=`${fmt(r5(pk*f))}/km`,e=easedReps(w,"C",n0,m),n=e?e.reps:n0;
+  return n>1?`${lbl}: ${n} × ${distL(m)} at ${pace}${ex?", "+ex:""}${e?` (eased from ${n0})`:""}`:`${lbl}: ${distL(m)} at ${pace}${ex?", "+ex:""}${e?` (eased from ${n0} reps)`:""}`;
 }
 const ALT_C=DEMO?{3:"Threshold: 300 m at 2:12/100 m",8:"Threshold: 300 m at 2:02/100 m"}:{3:"Tempo: 2 km at 5:00/km",8:"Tempo: 2 km at 4:40/km"};
 function planFocus(w){const f=PLAN[w].focus,t=isTestWk(w);
@@ -848,7 +865,7 @@ function weekRecap(){
     :runsDone>0?`${runsDone} of ${runsPlanned.length} ${C.runs} done. Next week, aim for all of them.`
     :runsPlanned.length?`No ${C.runs} logged this week. A fresh week starts tomorrow.`:`The ${C.run} plan starts tomorrow.`;
   return `<div class="sec"><div class="sh big">Week in Review</div><div class="grp">
-    <div class="cell"><span class="ico" style="background:transparent">${ring(runsPlanned.length?runsDone/runsPlanned.length:0,"var(--orange)")}</span><div class="grow"><div>Runs</div><div class="t2">${runsDone} of ${runsPlanned.length} planned${extra?` · ${extra} extra`:""}</div></div></div>
+    <div class="cell"><span class="ico" style="background:transparent">${ring(runsPlanned.length?runsDone/runsPlanned.length:0,"var(--orange)")}</span><div class="grow"><div>Runs</div><div class="t2">${runsDone} of ${runsPlanned.length} planned${(()=>{const pt=runsPlanned.filter(d=>S.runDone[d]==="part").length;return pt?` · ${pt} partly`:""})()}${extra?` · ${extra} extra`:""}</div></div></div>
     <div class="cell"><span class="ico" style="background:transparent">${ring(vids.length?1:0,"var(--green)")}</span><div class="grow"><div>${C.courseTitle}</div><div class="t2">${vids.length} video${vids.length===1?"":"s"} · ${hm(vmin)}</div></div></div>
     ${pb?`<div class="cell"><span class="ico" style="background:var(--orange)">${IC.run}</span><div class="grow"><div>New best ${C.bestLbl}</div><div class="t2">${fmt(pb.sec)} on ${nice(pd(pb.d))}</div></div></div>`:""}
   </div><div class="sf">${msg}</div></div>
