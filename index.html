@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.8.4">
+<meta name="app-version" content="2.9.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -977,7 +977,7 @@ function viewRun(){
     return `<div class="acc wkacc${open?" open":""}${past?" past":""}"><button class="cell acch" data-act="accw" data-w="${i}" aria-expanded="${open}"><div class="grow wkh"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span></div>${i===w?'<span class="badge">This Week</span>':""}${IC.chev}</button>
       <div class="accb"><div class="accin wkb"><dl><dt>Intervals</dt><dd>${esc(planShort(i,"A"))}</dd><dt>Easy</dt><dd>${esc(planShort(i,"B"))}</dd><dt>${tw?"Test":rp?"Race pace":KIND.C}</dt><dd>${esc(planShort(i,"C"))}</dd></dl></div></div></div>`}).join("");
   const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>{const c=coachOf(r.coach),note=(S.runNote||{})[r.d],part=S.runDone[r.d]==="part";
-    return `<button class="cell runrow" data-act="runinfo" data-swipe="run" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}"><div class="grow" style="text-align:left;min-width:0"><div class="rr1">${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}${coachPill(c)}</div><div class="t2 ell">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span>${IC.chev}</button>`}).join("");
+    return `<button class="cell runrow" data-act="runinfo" data-swipe="run" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}"><div class="grow" style="text-align:left;min-width:0"><div class="rr1">${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}${coachPill(c)}</div><div class="t2 ell">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.hr?` · ${r.hr} bpm`:""}${r.loc?` · ${esc(r.loc)}`:""}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span>${IC.chev}</button>`}).join("");
   const head=`<div class="lt"><div class="sub">${C.fitSub}</div><h1>${C.fitTitle}</h1></div>
   <div class="sec"><div class="grp">
     <div class="stats"><div class="stat"><span class="k">Best</span><span class="v">${b?fmt(b):"–"}</span><span class="s">${b?"logged test":`starting ~${fmt(baseSec())}`}</span></div>
@@ -994,6 +994,7 @@ function viewRun(){
     <div class="cell"><label class="grow" for="rd">Date</label><input id="rd" type="date" value="${T}" style="width:150px"></div>
     <div class="cell"><label class="grow" for="rk">Distance</label>${C.meters?`<input id="rk" type="number" inputmode="numeric" step="25" min="25" value="400" style="width:70px"><span class="trail">m</span>`:`<input id="rk" type="number" inputmode="decimal" step="0.1" min="0.4" value="2.4" style="width:60px"><span class="trail">km</span>`}</div>
     <div class="cell"><label class="grow" for="rt">Time</label><input id="rt" type="text" inputmode="numeric" placeholder="${fmt(baseSec()-15)}" style="width:80px"></div>
+    <div class="cell"><label class="grow" for="rhr">Avg heart rate</label><input id="rhr" type="text" inputmode="numeric" placeholder="Optional" style="width:80px"><span class="trail">bpm</span></div>
     <div class="cell"><label class="grow" for="rtt">Full-effort ${C.testName}</label><input class="sw" id="rtt" type="checkbox"></div>
     <button class="cell btnrow" data-act="logrun" style="font-weight:600">Log ${C.Run}</button>
   </div><div class="sf">${C.voice?"Say it fills in the form below. You can also say “yesterday”, a day like “Tuesday”, or “test” for a full-effort 2.4. ":""}Logging a ${C.run} also ticks off that day's session.</div></div>
@@ -1357,12 +1358,20 @@ function parseStrava(raw){
   // Strava puts a place next to the date, e.g. "Today at 20:46 · Southeast". Map labels are too unreliable to read.
   const lm=raw.match(/(?:today|yesterday|[a-z]+day|\d{1,2}\s+[a-z]+(?:\s+\d{4})?)\s+at\s+\d{1,2}[:.]\d{2}(?:\s*[ap]m)?\s*[·•\-–.,]\s*([A-Za-z][A-Za-z .'&-]{1,40})/i);
   const loc=lm?lm[1].trim().replace(/\s{2,}/g," ").replace(/[ .-]+$/,""):"";
-  return {km,sec,pace:pace||(km&&sec?Math.round(sec/km):null),loc};
+  // Average heart rate, e.g. "Avg Heart Rate 165 bpm". Skip the max if both are shown.
+  let hr=null;const hrs=[...t.matchAll(/(\d{2,3})\s*b\s*[pP]\s*[mM]/g)].map(m=>({v:+m[1],pre:t.slice(Math.max(0,m.index-20),m.index).toLowerCase()})).filter(x=>x.v>=60&&x.v<=230);
+  if(hrs.length){const a=hrs.find(x=>/av(g|erage)/.test(x.pre))||hrs.find(x=>!/max/.test(x.pre))||hrs[0];hr=a.v}
+  return {km,sec,pace:pace||(km&&sec?Math.round(sec/km):null),loc,hr};
 }
 // The session's reps and rep distance, e.g. "5 × 400 m …" → {n:5, m:400}.
 function sessionReps(r){if(!r||r.test)return null;const m=r.text.match(/(\d+)\s*×\s*(\d+(?:\.\d+)?)\s*(km|m)\b/);return m&&+m[1]>1?{n:+m[1],m:m[3]==="km"?parseFloat(m[2])*1000:+m[2]}:null}
+// Heart rate zones as a share of max heart rate (Settings, default 200).
+const maxHr=()=>S.maxHr||200;
+const ZONES=["Recovery","Easy","Steady","Hard","Max"];
+function zoneOf(hr){if(!hr)return 0;const p=hr/maxHr();return p<.6?1:p<.7?2:p<.8?3:p<.9?4:5}
+const hrTxt=hr=>hr?`${hr} bpm · Zone ${zoneOf(hr)}`:"";
 // Coach notes: compare what you ran (from the screenshot) with what the plan asked for. No AI, just the numbers.
-function coachNote(d,km,sec,mode){
+function coachNote(d,km,sec,mode,hr){
   // Returns {tag, tone, tip}: a short verdict for a pill, and at most one sentence of advice.
   const r=runOn(d);if(!r||!km||!sec)return null;
   const pk=sec/km,t=r.text,toS=x=>{const [a,b]=x.split(":");return +a*60+ +b},N=(tag,tone,tip="")=>({tag,tone,tip});
@@ -1376,9 +1385,14 @@ function coachNote(d,km,sec,mode){
     if(df>=6)return N(`${df} s slow per rep`,"warn",part?"Take the full rest between reps.":"Fine for now. Ease Current time if it feels too hard.");
     return N("On pace","ok",part?"The plan builds you back up a rep at a time.":"Nice control.")}
   if(at){const tgt=toS(at[1]),df=Math.round(pk-tgt);
+    if(zoneOf(hr)===5)return N("Zone 5, too hard","warn","Tempo should be zone 3 to 4: comfortably hard, not all-out.");
     if(Math.abs(df)<6)return N("On pace","ok");
     return df<0?N(`${-df} s/km fast`,"warn","Tempo should feel comfortably hard, not all-out."):N(`${df} s/km slow`,"warn","Fine while you build up.")}
-  if(easy){const tgt=toS(easy[1]);return pk<tgt-10?N("Too quick for easy","warn",`Aim for ${fmt(tgt)}/km or slower, so you can still chat.`):N("Easy pace","ok")}
+  if(easy){const tgt=toS(easy[1]),z=zoneOf(hr),top=Math.round(maxHr()*.8);
+    // Heart rate is the better guide for easy runs: if it's there, it decides. Zones 2-3 are fine for now.
+    if(z>=4)return N(`Zone ${z} on an easy run`,"warn",`Slow down until you can chat. Keep it under ${top} bpm.`);
+    if(z)return N(`Easy · zone ${z}`,"ok");
+    return pk<tgt-10?N("Too quick for easy","warn",`Aim for ${fmt(tgt)}/km or slower, so you can still chat.`):N("Easy pace","ok")}
   return null;
 }
 const coachOf=c=>!c?null:typeof c==="string"?{tag:"Note",tone:"info",tip:c}:c;
@@ -1405,29 +1419,32 @@ function showShotCheck(d,mode,got){
   card.innerHTML=`<div class="sh-msg"><b id="sh-t">${ok?"Check your run":"Couldn't read everything"}</b><span>${ok?"Fix anything that looks off.":"Fill in what's missing."}</span>
     <div class="shot-f"><label>Distance<span><input id="sh-km" type="text" inputmode="decimal" value="${got.km??""}" placeholder="1.6"> km</span></label>
     <label>Time<span><input id="sh-t2" type="text" inputmode="numeric" value="${got.sec?fmt(got.sec):""}" placeholder="9:05"></span></label>
+    <label>Avg Heart Rate<span><input id="sh-hr" type="text" inputmode="numeric" value="${got.hr??""}" placeholder="160" style="width:56px"> bpm</span></label>
     <label>Where<span><input id="sh-loc" type="text" list="sh-locs" value="${esc(got.loc||"")}" placeholder="e.g. Kallang" autocomplete="off" style="width:150px"></span></label>
     <datalist id="sh-locs">${[...new Set(S.runs.map(x=>x.loc).filter(Boolean))].map(l=>`<option value="${esc(l)}">`).join("")}</datalist>
-    <div class="shot-pace"><span id="sh-pace">${got.km&&got.sec?`Pace ${fmt(got.pace||Math.round(got.sec/got.km))}/km`:""}</span></div>
+    <div class="shot-pace"><span id="sh-pace">${shotLine(got.km,got.sec,got.hr,got.pace)}</span></div>
     ${sr?`<div class="shot-reps"><button type="button" data-act="shotrep" data-v="-1" aria-label="One rep fewer">−</button><span id="sh-reps">${reps} of ${sr.n} reps</span><button type="button" data-act="shotrep" data-v="1" aria-label="One rep more">+</button></div>`:""}
     <div class="rsum" id="sh-sum" hidden><div class="rsum-h">Run Summary</div><div id="sh-pill"></div><div class="shot-tip" id="sh-tip"></div></div></div></div>
     <button data-act="shotsave" data-d="${d}" class="pri">Save</button>`;
-  ["sh-km","sh-t2"].forEach(id=>document.getElementById(id).addEventListener("input",shotPace));
-  shotCoach(got.km,got.sec);
+  ["sh-km","sh-t2","sh-hr"].forEach(id=>document.getElementById(id).addEventListener("input",shotPace));
+  shotCoach(got.km,got.sec,got.hr);
 }
-function shotCoach(km,sec){const c=SHOT&&coachNote(SHOT.d,km,sec,SHOT.mode),p=document.getElementById("sh-pill"),t=document.getElementById("sh-tip"),b=document.getElementById("sh-sum");
+const shotLine=(km,sec,hr,pace)=>[km&&sec?`Pace ${fmt(pace||Math.round(sec/km))}/km`:"",hr?`Zone ${zoneOf(hr)} ${ZONES[zoneOf(hr)-1]}`:""].filter(Boolean).join(" · ");
+function shotCoach(km,sec,hr){const c=SHOT&&coachNote(SHOT.d,km,sec,SHOT.mode,hr),p=document.getElementById("sh-pill"),t=document.getElementById("sh-tip"),b=document.getElementById("sh-sum");
   if(b)b.hidden=!c;if(p)p.innerHTML=coachPill(c);if(t){t.textContent=c&&c.tip||"";t.hidden=!(c&&c.tip)}}
 const shotVals=()=>{const km=parseFloat((document.getElementById("sh-km").value||"").replace(",",".")),m=(document.getElementById("sh-t2").value||"").trim().match(/^(?:(\d+):)?(\d{1,2})[:.](\d{2})$/);
-  return {km:km>0?km:null,sec:m?(+(m[1]||0))*3600+ +m[2]*60+ +m[3]:null}};
-function shotPace(){const v=shotVals(),el=document.getElementById("sh-pace");el.textContent=v.km&&v.sec?`Pace ${fmt(Math.round(v.sec/v.km))}/km`:"";
-  shotCoach(v.km,v.sec);
+  const h=parseInt((document.getElementById("sh-hr")||{}).value,10);
+  return {km:km>0?km:null,sec:m?(+(m[1]||0))*3600+ +m[2]*60+ +m[3]:null,hr:h>=40&&h<=240?h:null}};
+function shotPace(){const v=shotVals(),el=document.getElementById("sh-pace");el.textContent=shotLine(v.km,v.sec,v.hr);
+  shotCoach(v.km,v.sec,v.hr);
   if(SHOT&&SHOT.sr&&v.km&&!SHOT.touched){const c=Math.round(v.km*1000/SHOT.sr.m);SHOT.reps=SHOT.mode==="all"?Math.max(SHOT.sr.n,c):Math.min(SHOT.sr.n-1,Math.max(1,c));document.getElementById("sh-reps").textContent=`${SHOT.reps} of ${SHOT.sr.n} reps`}}
 function saveShot(d){
   const v=shotVals();if(!v.km||!v.sec){toast({t:"Add the distance and time",s:"Like 1.6 and 9:05",k:"warn"});return}
   const r=runOn(d),{mode,sr,reps}=SHOT||{};hideSheet();
   const isT=!!(r&&r.test&&mode==="all"&&Math.abs(v.km-2.4)<=.15);
   const loc=((document.getElementById("sh-loc")||{}).value||"").trim().slice(0,40);
-  const coach=coachNote(d,v.km,v.sec,mode);
-  if(!S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km))S.runs.push(Object.assign({d,km:v.km,sec:v.sec,tt:isT},loc?{loc}:{},coach?{coach}:{}));
+  const coach=coachNote(d,v.km,v.sec,mode,v.hr);
+  if(!S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km))S.runs.push(Object.assign({d,km:v.km,sec:v.sec,tt:isT},v.hr?{hr:v.hr}:{},loc?{loc}:{},coach?{coach}:{}));
   const note=sr&&reps!=null&&(mode==="part"||reps>sr.n)?`${reps} of ${sr.n} reps`:"";
   setRunDone(d,mode==="all"?true:"part",note);
 }
@@ -1458,6 +1475,7 @@ function showRunInfo(k){
   const c=coachOf(r.coach),note=(S.runNote||{})[r.d],part=S.runDone[r.d]==="part",sh=document.getElementById("sheet");
   sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t">
     <div class="sh-msg"><b id="sh-t">${distTxt(r.km)} · ${fmt(r.sec)}</b><span>${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</span>
+      ${r.hr?`<span>Avg ${hrTxt(r.hr)} ${ZONES[zoneOf(r.hr)-1]}</span>`:""}
       ${note?`<span style="color:${part?"var(--orange)":"var(--green)"}">${part?"Partly done":"Done"} · ${esc(note)}</span>`:""}
       ${c?`<div class="rsum"><div class="rsum-h">Run Summary</div><div>${coachPill(c)}</div>${c.tip?`<div class="shot-tip">${esc(c.tip)}</div>`:""}</div>`:""}</div>
     <button data-act="delrun" data-k="${esc(k)}" class="danger">Delete Run</button>
@@ -1712,10 +1730,11 @@ function viewSettings(){
   </div></div>`],
     goal:[C.goalLbl,()=>`<div class="sec"><div class="sh">${C.goalLbl}</div><div class="grp">
     <div class="cell"><label class="grow" for="set-base">Current time</label><select id="set-base" data-act="base">${[...Array(29)].map((_,i)=>C.goalFrom+60+i*15).map(v=>`<option value="${v}" ${baseSec()===v?"selected":""}>${fmt(v)}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
+    <div class="cell"><label class="grow" for="set-maxhr">Max heart rate</label><select id="set-maxhr" data-act="maxhr">${[...Array(51)].map((_,i)=>170+i).map(v=>`<option value="${v}" ${maxHr()===v?"selected":""}>${v} bpm</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-goal">Goal time</label><select id="set-goal" data-act="goal">${[...Array(13)].map((_,i)=>C.goalFrom+i*15).map(v=>`<option value="${v}" ${goalSec()===v?"selected":""}>${fmt(v)}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t1">First test</label><select id="set-t1" data-act="tw" data-n="0">${[...Array(7)].map((_,i)=>i+1).map(w=>`<option value="${w}" ${testWeeks()[0]===w?"selected":""} ${w>=testWeeks()[1]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
     <div class="cell"><label class="grow" for="set-t2">Final test</label><select id="set-t2" data-act="tw" data-n="1">${[...Array(7)].map((_,i)=>i+2).map(w=>`<option value="${w}" ${testWeeks()[1]===w?"selected":""} ${w<=testWeeks()[0]?"disabled":""}>Week ${w+1} · ${add(START,w*7).getDate()} ${MON[add(START,w*7).getMonth()]}</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
-  </div><div class="sf">Tests replace that week's ${KIND.C.toLowerCase()}. The goal sets your target pace (${fmt(paceOf(goalSec(),C.dist))}${C.paceU}) and the target line on your charts. Session paces start from your current time, or your latest logged test, and get a little faster each week towards the goal.</div></div>`],
+  </div><div class="sf">Tests replace that week's ${KIND.C.toLowerCase()}. The goal sets your target pace (${fmt(paceOf(goalSec(),C.dist))}${C.paceU}) and the target line on your charts. Session paces start from your current time, or your latest logged test, and get a little faster each week towards the goal. Max heart rate sets your zones (about 220 minus your age).</div></div>`],
     study:["Study",()=>`<div class="sec"><div class="sh">Study</div><div class="grp">
     <div class="cell"><label class="grow" for="set-mins">Study per free day</label><select id="set-mins" data-act="mins">${[20,30,45,60,90].map(m=>`<option value="${m}" ${S.mins===m?"selected":""}>${m} min</option>`).join("")}</select>${IC.chev.replace('class="chev"','class="chev" style="transform:rotate(90deg)"')}</div>
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>`],
@@ -2136,7 +2155,8 @@ document.addEventListener("click",e=>{
     if(!d||!(km>0)||!m){toast({t:"Check the time",s:"Enter it like 12:45",k:"warn"});return}
     const sec=+m[1]*60+ +m[2],isT=document.getElementById("rtt").checked,prev=best24();
     if(S.runs.some(r=>r.d===d&&r.sec===sec&&r.km===km)){toast({t:"Already logged",s:"That run is in your history",k:"warn"});return}
-    S.runs.push({d,km,sec,tt:isT});S.runDone[d]=true;
+    const hr=parseInt(document.getElementById("rhr").value,10),hv=hr>=40&&hr<=240?hr:null,co=coachNote(d,km,sec,"all",hv);
+    S.runs.push(Object.assign({d,km,sec,tt:isT},hv?{hr:hv}:{},co&&!isT?{coach:co}:{}));S.runDone[d]=true;
     changed(isT&&(prev==null||sec<prev)?{t:`New best ${C.bestLbl}!`,s:prev==null?`${fmt(sec)} · ${fmt(Math.max(0,sec-goalSec()))} to go`:`${fmt(sec)} · ${fmt(prev-sec)} faster`,k:"best"}
       :{t:`${C.Run} logged`,s:`${distTxt(km)} · ${fmt(sec)} · ${fmt(paceOf(sec,km))}${C.paceU}`,k:"run"})}
   else if(a==="runinfo"){showRunInfo(el.dataset.k);return}
@@ -2147,6 +2167,7 @@ document.addEventListener("change",e=>{
   if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];(()=>{if(!el.checked){changed(null);return}const v=VID[+i];changed(null);const n=VID.find(x=>!S.done[x.i]);
     toast({t:`Video ${v.i+1} watched`,s:n?`Next: ${n.title}`:`All ${VID.length} done. ${C.doneMsg}`,k:"video"})})()}
   else if(el.dataset.act==="goal"){S.goal=+el.value;if(S.goal===C.goal)delete S.goal;changed({t:"Goal updated",s:`${fmt(goalSec())} · ${fmt(paceOf(goalSec(),C.dist))}${C.paceU}`,k:"run"})}
+  else if(el.dataset.act==="maxhr"){S.maxHr=+el.value;changed({t:"Max heart rate updated",s:`Zone 2 is now ${Math.round(S.maxHr*.6)}–${Math.round(S.maxHr*.7)} bpm`,k:"run"})}
   else if(el.dataset.act==="base"){S.base=+el.value;if(S.base===C.base)delete S.base;changed({t:"Current time updated",s:`Paces now start from ${fmt(baseSec())}`,k:"run"})}
   else if(el.dataset.act==="tw"){const tw=[...testWeeks()];tw[+el.dataset.n]=+el.value;S.testWeeks=tw;
     changed({t:"Test weeks updated",s:`Week ${tw[0]+1} and week ${tw[1]+1}`,k:"run"})}
