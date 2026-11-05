@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.8.3">
+<meta name="app-version" content="2.8.4">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -289,6 +289,15 @@ details[open]>summary .chev{transform:rotate(90deg)}
 .obj{font-size:13px;color:var(--label2);text-transform:uppercase;padding:14px 16px 4px;background:var(--bg)}
 
 /* week plan */
+.wkh{display:flex;gap:8px;align-items:baseline;min-width:0}
+.wkh b{font-weight:600}
+.wkacc .acch .badge{margin-right:6px}
+.wkacc.past .wkh{opacity:.5}
+.accin.wkb{background:var(--cell)}
+.wkb dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;padding:0 16px 12px;font-size:15px;opacity:0;transform:translateY(-6px);transition:opacity .25s ease,transform .3s ease}
+.acc.open .wkb dl{opacity:1;transform:none;transition-delay:.08s}
+.wkb dt{color:var(--label2)}
+.wkb dd{margin:0}
 .wk{display:grid;gap:4px}
 .wk .h{display:flex;gap:8px;align-items:center}
 .wk .h b{font-weight:600}
@@ -629,6 +638,15 @@ function runText(w,k){
 const ALT_C=DEMO?{3:"Threshold: 300 m at 2:12/100 m",8:"Threshold: 300 m at 2:02/100 m"}:{3:"Tempo: 2 km at 5:00/km",8:"Tempo: 2 km at 4:40/km"};
 function planFocus(w){const f=PLAN[w].focus,t=isTestWk(w);
   if(t&&(w===3||w===8))return f;if(t)return f+" + test";return w===3?"Build":w===8?"Taper":f}
+// Short version for The Plan list on the 2.4 km tab (the full wording still shows on the day itself).
+let openWks=null;
+function planShort(w,k){let t=planText(w,k);
+  if(isTestWk(w)&&k==="C")return `${C.testDist} all-out · ${w===Math.max(...testWeeks())?"target":"aim"} ${fmt(w===Math.max(...testWeeks())?goalSec():aimAt(w))}`;
+  if(DEMO)return t;
+  const eased=/\((eased|building)/.test(t)?" (eased)":"";t=t.replace(/\s*\(.*?\)/g,"");
+  if(k==="B"){const km=t.match(/[\d.]+ km/),pc=t.match(/Around ([\d:]+\/km)/);return `${km?km[0]:""}${pc?" · ~"+pc[1]:""}`}
+  if(k==="A"){const m=t.match(/^(\d+ × [\d.]+ k?m) in ([\d:]+) each/);return m?`${m[1]} · ${m[2]} each${eased}`:t}
+  const m=t.match(/:\s*(.+?) at ([\d:]+\/km)(, then (.+))?/);return m?`${m[1]} · ${m[2]}${m[4]?" + "+m[4]:""}${eased}`:t}
 function planText(w,k){
   if(k!=="C")return DEMO?PLAN[w][k]:runText(w,k);
   const tw=testWeeks();
@@ -676,7 +694,7 @@ function schedule(){
   for(let n=0;n<400&&(qi<queue.length||n===0);n++){
     const s=ds(d),b=budget(s);const list=n===0?[...todayDone]:[];let used=list.reduce((a,v)=>a+v.sec,0);
     while(b>0&&qi<queue.length&&used<b){list.push(queue[qi]);used+=queue[qi].sec;qi++}
-    if(list.length){map[s]=list;if(list.some(v=>!S.done[v.i]))last=s}
+    if(list.length){list.sort((a,b)=>a.i-b.i);map[s]=list;if(list.some(v=>!S.done[v.i]))last=s}
     d=add(d,1);
   }
   cache.sch={map,last};return cache.sch;
@@ -954,8 +972,10 @@ function weekRecap(){
 function viewRun(){
   const b=best24(),cur=b??baseSec(),pct=Math.max(0,Math.min(100,(baseSec()-cur)/(baseSec()-goalSec())*100));
   const w=Math.floor(diff(TODAY,START)/7);
-  const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7);return `<div class="cell"><div class="grow wk"><div class="h"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span>${i===w?'<span class="badge">This Week</span>':""}</div>
-    <dl><dt>Intervals</dt><dd>${esc(planText(i,"A"))}</dd><dt>Easy</dt><dd>${esc(planText(i,"B"))}</dd><dt>${isTestWk(i)?"Test":KIND.C}</dt><dd>${esc(planText(i,"C"))}</dd></dl></div></div>`}).join("");
+  if(!openWks)openWks=new Set([Math.max(0,Math.min(PLAN.length-1,w))]);
+  const wkRows=PLAN.map((p,i)=>{const ws=add(START,i*7),open=openWks.has(i),past=i<w,tw=isTestWk(i),rp=!tw&&!DEMO&&RUN_C[i][2]<=1;
+    return `<div class="acc wkacc${open?" open":""}${past?" past":""}"><button class="cell acch" data-act="accw" data-w="${i}" aria-expanded="${open}"><div class="grow wkh"><b>Week ${i+1}</b><span class="t2">${ws.getDate()} ${MON[ws.getMonth()]} · ${planFocus(i)}</span></div>${i===w?'<span class="badge">This Week</span>':""}${IC.chev}</button>
+      <div class="accb"><div class="accin wkb"><dl><dt>Intervals</dt><dd>${esc(planShort(i,"A"))}</dd><dt>Easy</dt><dd>${esc(planShort(i,"B"))}</dd><dt>${tw?"Test":rp?"Race pace":KIND.C}</dt><dd>${esc(planShort(i,"C"))}</dd></dl></div></div></div>`}).join("");
   const log=[...S.runs].sort((a,b)=>b.d<a.d?-1:1).map(r=>{const c=coachOf(r.coach),note=(S.runNote||{})[r.d],part=S.runDone[r.d]==="part";
     return `<button class="cell runrow" data-act="runinfo" data-swipe="run" data-k="${esc(r.d+"|"+r.sec+"|"+r.km)}"><div class="grow" style="text-align:left;min-width:0"><div class="rr1">${distTxt(r.km)}${r.tt?` <span class="badge">${C.testBadge}</span>`:""}${coachPill(c)}</div><div class="t2 ell">${nice(pd(r.d))} · ${fmt(paceOf(r.sec,r.km))} ${C.paceU}${r.loc?` · ${esc(r.loc)}`:""}</div></div><span class="trail" style="font:600 20px var(--round);color:var(--label)">${fmt(r.sec)}</span>${IC.chev}</button>`}).join("");
   const head=`<div class="lt"><div class="sub">${C.fitSub}</div><h1>${C.fitTitle}</h1></div>
@@ -979,7 +999,7 @@ function viewRun(){
   </div><div class="sf">${C.voice?"Say it fills in the form below. You can also say “yesterday”, a day like “Tuesday”, or “test” for a full-effort 2.4. ":""}Logging a ${C.run} also ticks off that day's session.</div></div>
   ${log?`<div class="sec"><div class="sh">History</div><div class="grp">${log}</div></div>`:""}`;
   const planSec=`<div class="sec"><div class="sh">The Plan</div><div class="grp">${wkRows}</div>
-  <div class="sf">Up to three ${C.runs} a week, only on free days. Never on a shift day, never the morning a night shift ends, and never two hard sessions back to back. ${WU}</div></div>`;
+  <div class="sf">${WU}</div></div>`;
   return wide()?head+cols(charts+planSec,logSec):head+charts+logSec+planSec;
 }
 
@@ -2033,6 +2053,8 @@ document.addEventListener("click",e=>{
   else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed({t:"Shifts cleared",s:"Tap days to add them back",k:"undo"})}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
   else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast({t:"Backup copied",s:"Paste it into Notes to keep it safe",k:"copy"}),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast({t:"Copy it yourself",s:"Select the text in the box and copy",k:"copy"})})}
   else if(a==="import"){try{const o=JSON.parse(document.getElementById("imp").value);if(!o||typeof o.shifts!=="object")throw 0;S=Object.assign({},DEF,o);changed({t:"Backup restored",s:"Your progress is back",k:"ok"})}catch(err){toast({t:"Not a backup",s:"Paste the full text you copied",k:"warn"})}}
+  else if(a==="accw"){const i=+el.dataset.w,box=el.closest(".acc"),open=!box.classList.contains("open");
+    box.classList.toggle("open",open);el.setAttribute("aria-expanded",open);open?openWks.add(i):openWks.delete(i);return}
   else if(a==="acc"){const k=el.dataset.dom,box=el.closest(".acc"),open=!box.classList.contains("open");
     box.classList.toggle("open",open);el.setAttribute("aria-expanded",open);open?openDoms.add(k):openDoms.delete(k);return}
   else if(a==="jumpnext"){const n=VID.find(v=>!S.done[v.i]);if(!n)return;const box=document.querySelector(`.acc[data-dom="${n.dom}"]`);
