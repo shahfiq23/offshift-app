@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.5.1">
+<meta name="app-version" content="2.5.2">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -593,11 +593,12 @@ const screenTarget=s=>Math.max(5,9-4*Math.max(0,diff(pd(s),new Date(2026,10,1)))
 // Shift days are fully off. "rec" = the day a night shift ends (home ~9am, sleeping): no run, half study.
 // Each week picks up to 3 runs on the remaining free days. Intervals matter most, then tempo/test, then easy.
 // Two hard sessions are never placed on back-to-back days.
-// The week's original plan, ignoring skips and today's date, so planned runs stay where they were.
+// The week's plan around your shifts and skipped days (skipping re-plans the week, as before). It doesn't
+// depend on today's date, so a planned run stays on its day even after the day has passed.
 function basePlan(w){
   if(cache["b"+w])return cache["b"+w];
   const days=[...Array(7)].map((_,i)=>ds(add(START,w*7+i)));
-  const free=days.filter(s=>{const t=dayType(s);return t==="off"||t==="busy"});
+  const free=days.filter(s=>dayType(s)==="off"&&!skipRun(s));
   const testWk=isTestWk(w);
   const val={A:10,B:4,C:testWk?12:8};
   const combos=(arr,k,st=0,cur=[])=>k===0?[cur]:arr.slice(st).flatMap((_,j)=>combos(arr,k-1,st+j+1,[...cur,arr[st+j]]));
