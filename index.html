@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.7.2">
+<meta name="app-version" content="2.7.3">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -160,6 +160,11 @@ body.reading{overflow:hidden}
 .wk-c .ws-tag.hollow{background:transparent;color:var(--indigo);box-shadow:0 0 0 1.2px var(--indigo) inset}
 .wk-c .ws-tag.grey{background:var(--label3)}
 /* two-finger hold: a Dynamic Island-style capsule with a ring that fills */
+.seg.seg4{grid-template-columns:repeat(4,1fr)}
+.hpad{position:relative;height:150px;border-radius:12px;background:var(--fill);display:grid;place-items:center;touch-action:none;user-select:none;-webkit-user-select:none}
+.hpad-t{font-size:15px;color:var(--label2);transition:opacity .2s}
+.hpad.busy .hpad-t{opacity:0}
+.hpad .pad-hold{position:absolute;top:50%;left:50%;right:auto;margin:0;translate:-50% -50%;pointer-events:none}
 .hold{position:fixed;left:0;right:0;margin:0 auto;width:fit-content;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:121;display:flex;align-items:center;gap:10px;
   background:#000;color:#fff;border-radius:22px;padding:9px 16px 9px 10px;box-shadow:0 8px 24px rgba(0,0,0,.25),0 0 0 .5px rgba(255,255,255,.14) inset;
   transform:scale(.7) translateY(-8px);opacity:0;transition:transform .3s cubic-bezier(.2,1.35,.35,1),opacity .2s}
@@ -1647,15 +1652,21 @@ function viewSettings(){
   <div class="sec"><div class="sh">Startup</div><div class="grp">
     <div class="cell"><label class="grow" for="set-splash">Heartbeat animation</label><input class="sw" type="checkbox" id="set-splash" data-act="splash" ${S.splash===false?"":"checked"}></div>
   </div></div>`],
-    gestures:["Gestures",()=>`<div class="sec"><div class="grp">
-    <div class="cell"><label class="grow" for="set-gest">Gestures</label><input class="sw" type="checkbox" id="set-gest" data-act="gestoff" ${gestOn()?"checked":""}></div>
-  </div><div class="sf">${gestOn()?"Turn off to stop all swipe and hold gestures.":"All gestures are off. Pull down to refresh still works."}</div></div>
+    gestures:["Gesture Control",()=>`<div class="sec"><div class="grp">
+    <div class="cell"><label class="grow" for="set-gest">Gesture Control</label><input class="sw" type="checkbox" id="set-gest" data-act="gestoff" ${gestOn()?"checked":""}></div>
+  </div><div class="sf">${gestOn()?"Turn off to stop all swipe and hold gestures.":"All gestures are off."}</div></div>
   ${gestOn()?`<div class="sec"><div class="sh">How They Work</div><div class="grp">
     ${[["Swipe with two fingers","Left or right to switch tabs."],["Hold two fingers","Runs your Quick Action when the ring fills."],["Swipe with one finger","On Today, go to the next or previous day."]].map(([a,b])=>`<div class="cell"><div class="grow"><div>${a}</div><div class="t2">${b}</div></div></div>`).join("")}
   </div></div>
   <div class="sec"><div class="sh">Quick Action</div><div class="grp">
     ${QA.map(a=>`<button class="cell runrow" data-act="qa1" data-k="${a.k}" role="radio" aria-checked="${qaKey()===a.k}"><div class="grow" style="text-align:left"><div>${esc(a.name)}</div>${a.k==="study"&&(DEMO||!smReady())?`<div class="t2">${esc(a.need)}</div>`:""}</div>${qaKey()===a.k?`<span style="color:var(--blue)">${IC.check.replace("<svg",'<svg width="20" height="20"')}</span>`:""}</button>`).join("")}
-  </div><div class="sf">Hold two fingers anywhere until the ring fills.</div></div>`:""}`],
+  </div></div>
+  <div class="sec"><div class="sh">Hold For</div><div class="grp"><div class="cell" style="display:block">
+    <div class="seg seg4" role="radiogroup" aria-label="Hold for">${HOLDS.map(ms=>`<button role="radio" aria-checked="${holdMs()===ms}" data-act="holdms" data-v="${ms}">${holdLbl(ms)}</button>`).join("")}</div></div></div></div>
+  <div class="sec"><div class="sh">Try It</div><div class="grp"><div class="cell" style="display:block;padding:10px">
+    <div class="hpad" id="hold-pad"><div class="hpad-t">Hold two fingers here</div>
+      <div class="hold pad-hold" aria-hidden="true"><svg viewBox="0 0 22 22" width="22" height="22"><circle cx="11" cy="11" r="9" class="hr-bg"/><circle cx="11" cy="11" r="9" class="hr-fg" transform="rotate(-90 11 11)"/><path class="hr-ck" d="M7 11.3l2.6 2.6L15 8.4"/></svg><span class="hold-t">${esc(qaCur().label())}</span></div></div>
+  </div></div></div>`:""}`],
     profile:["Name",()=>`<div class="sec"><div class="grp">
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
   </div></div>`],
@@ -1697,7 +1708,7 @@ function viewSettings(){
   const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):"Off";
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
   const head=`<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>`;
-  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gestures",gestOn()?"On":"Off")}${row("profile","Name",esc(nameOf()))}</div></div>
+  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gesture Control",gestOn()?"On":"Off")}${row("profile","Name",esc(nameOf()))}</div></div>
   <div class="sec"><div class="grp">${row("goal",C.goalLbl,fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}${DEMO?"":row("notes","Goodnotes",dbxOn()?"On":"Off")}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
@@ -2035,6 +2046,7 @@ document.addEventListener("click",e=>{
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
   else if(a==="weekgo"){WEEKSEL=el.dataset.d;render(true);return}
+  else if(a==="holdms"){S.holdMs=+el.dataset.v;if(S.holdMs===1000)delete S.holdMs;save();const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="qa1"){S.qa1=el.dataset.k;save();const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="gestoff"){S.gest=el.checked?undefined:false;if(S.gest===undefined)delete S.gest;save();const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="note"){openNote(el.dataset.id);return}
@@ -2108,19 +2120,20 @@ document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;co
 // ---------- Two-finger gestures ----------
 // Swipe left/right with two fingers: next/previous tab. Hold two fingers still: your Quick Actions (Settings › Gestures). 4- and 5-finger gestures belong to iPadOS and are left alone.
 const gestOn=()=>S.gest!==false;
+const HOLDS=[500,1000,1500,2000],holdMs=()=>HOLDS.includes(S.holdMs)?S.holdMs:1000,holdLbl=ms=>`${ms/1000} s`;
 const TABS=["today","plan","run","secplus","settings"];
 const curTab=()=>{const r=route();return r==="day"||r==="week"?"today":r};
 function goTab(n){const i=TABS.indexOf(curTab()),j=i+n;if(j<0||j>=TABS.length)return;location.hash="#"+TABS[j]}
 function openWeek(from){WEEKFROM=from;WEEKSEL=from;location.hash="#week"}
 function closeWeek(){const d=WEEKFROM&&weekDays(pd(WEEKSEL||T)).includes(WEEKFROM)?WEEKFROM:weekDays(pd(WEEKSEL||T)).includes(T)?T:weekDays(pd(WEEKSEL||T))[0];goDay(d)}
 (function(){
-  let g=null,lp=null,lp2=null;const HOLD=800;
+  let g=null,lp=null,lp2=null;
   const pts=e=>{const [a,b]=e.touches;return {x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2,d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)}};
-  const off=t=>!document.getElementById("sheet").hidden||!document.getElementById("reader").hidden||document.body.classList.contains("gate")||(t.closest&&t.closest("input,textarea,select"));
+  const off=t=>!document.getElementById("sheet").hidden||!document.getElementById("reader").hidden||document.body.classList.contains("gate")||(t.closest&&t.closest("input,textarea,select,#hold-pad"));
   document.addEventListener("touchstart",e=>{
     if(e.touches.length===2&&gestOn()&&!off(e.target)){const p=pts(e);g={x0:p.x,y0:p.y,d0:Math.max(1,p.d),dx:0,dy:0,sc:1,moved:false,done:false};
       // After a short pause (so a two-finger swipe doesn't flash it), the ring starts filling; when full, the action runs.
-      clearTimeout(lp);clearTimeout(lp2);lp=setTimeout(()=>{if(!g||g.moved)return;holdShow(HOLD-150);lp2=setTimeout(()=>{if(g&&!g.moved&&!g.done){g.done=true;holdDone()}},HOLD-150)},150)}
+      const H=holdMs();clearTimeout(lp);clearTimeout(lp2);lp=setTimeout(()=>{if(!g||g.moved)return;holdShow(H-150);lp2=setTimeout(()=>{if(g&&!g.moved&&!g.done){g.done=true;holdDone()}},H-150)},150)}
     else if(e.touches.length>2){g=null;clearTimeout(lp);clearTimeout(lp2);holdHide()}},{passive:true});
   document.addEventListener("touchmove",e=>{if(!g||e.touches.length!==2)return;const p=pts(e);
     g.dx=p.x-g.x0;g.dy=p.y-g.y0;g.sc=p.d/g.d0;if(Math.hypot(g.dx,g.dy)>12||Math.abs(g.sc-1)>.08){if(!g.done){g.moved=true;clearTimeout(lp);clearTimeout(lp2);holdHide()}}},{passive:true});
@@ -2152,6 +2165,23 @@ function holdDone(){
   const el=document.getElementById("hold");el.classList.add("done");try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}
   clearTimeout(holdT);holdT=setTimeout(()=>{holdHide();runQuick(qaKey())},380);
 }
+// Try It pad on the Gesture Control page: the same capsule and timing as the real hold, but nothing runs.
+(function(){
+  let t=null,on=false,pid=null;
+  const cap=()=>document.querySelector("#hold-pad .pad-hold"),pad=()=>document.getElementById("hold-pad");
+  function start(){const c=cap(),r=c&&c.querySelector(".hr-fg");if(!c)return;clearTimeout(t);on=true;const ms=holdMs();
+    pad().classList.add("busy");c.classList.remove("out","done");r.style.transition="none";r.style.strokeDashoffset="56.55";void r.getBoundingClientRect();
+    requestAnimationFrame(()=>{c.classList.add("on");r.style.transition=`stroke-dashoffset ${ms}ms linear`;r.style.strokeDashoffset="0"});
+    t=setTimeout(()=>{on=false;c.classList.add("done");try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}t=setTimeout(hide,700)},ms)}
+  function hide(){const c=cap();if(!c)return;c.classList.remove("on");c.classList.add("out");const p=pad();if(p)p.classList.remove("busy");
+    t=setTimeout(()=>{const c2=cap();if(c2)c2.classList.remove("out","done")},250)}
+  function stop(){if(!on)return;on=false;clearTimeout(t);hide()}
+  document.addEventListener("touchstart",e=>{if(!e.target.closest||!e.target.closest("#hold-pad"))return;if(e.touches.length===2)start();else if(e.touches.length>2)stop()},{passive:true});
+  document.addEventListener("touchend",e=>{if(on&&e.touches.length<2)stop()},{passive:true});
+  document.addEventListener("touchcancel",()=>stop(),{passive:true});
+  document.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.target.closest&&e.target.closest("#hold-pad")){pid=e.pointerId;start()}});
+  document.addEventListener("pointerup",e=>{if(e.pointerId===pid){pid=null;stop()}});
+})();
 function runQuick(k){
   if(k==="today"){if(route()==="today"){scrollTo({top:0,behavior:"smooth"});toast({t:"You're on Today",k:"ok"})}else goDay(T);return}
   if(k==="log"){location.hash="#run";setTimeout(()=>{const x=document.getElementById("rd");if(x)x.closest(".sec").scrollIntoView({behavior:"smooth",block:"start"})},350);return}
