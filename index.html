@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.5.2">
+<meta name="app-version" content="2.5.3">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -344,6 +344,10 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 .sh-card button:first-of-type{border-top:0}
 .sh-card button.pri{font-weight:600}
 .sh-card button.danger{color:var(--red)}
+.sh-msg .reps{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:14px}
+.sh-card .sh-msg .reps button{width:46px;height:46px;padding:0;border:0;border-radius:23px;background:var(--cell);color:var(--label);font:600 18px var(--font);transition:background .15s,transform .15s}
+.sh-card .sh-msg .reps button:active{transform:scale(.94)}
+.sh-card .sh-msg .reps button.on{background:var(--blue);color:#fff}
 .sh-msg input{margin-top:10px;width:100%;font:17px var(--font);padding:10px 12px;border-radius:10px;border:0;background:var(--cell);color:var(--label);text-align:left}
 .sh-cancel{background:var(--cell);border-radius:14px;padding:16px;font-size:19px;font-weight:600;color:var(--blue)}
 @keyframes sessin{from{transform:translateY(-120%) scale(.6);opacity:0}}
@@ -1201,10 +1205,16 @@ function showRunSheet(d){
   </div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
   sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
 }
+// Sessions with reps (e.g. 6 × 400 m) get a row of numbers to tap; anything else gets an optional note.
 function showPartSheet(d){
-  const sh=document.getElementById("sheet"),cur=(S.runNote||{})[d]||"";
+  const sh=document.getElementById("sheet"),cur=(S.runNote||{})[d]||"",r=runOn(d);
+  const m=r&&!r.test&&r.text.match(/(\d+)\s*×/),n=m?+m[1]:0;
+  if(n>1){const had=+((cur.match(/^(\d+) of /)||[])[1]||0);
+    sh.querySelector(".sh-card").innerHTML=`<div class="sh-msg"><b id="sh-t">How many reps did you do?</b><span>Out of ${n}. It still counts as a ${esc(C.run)} this week.</span>
+      <div class="reps" data-n="${n}">${[...Array(n-1)].map((_,i)=>`<button type="button" data-act="reppick" data-v="${i+1}" class="${had===i+1?"on":""}" aria-pressed="${had===i+1}">${i+1}</button>`).join("")}</div></div>
+      <button data-act="runpartsave" data-d="${d}" class="pri">Save</button>`;return}
   sh.querySelector(".sh-card").innerHTML=`<div class="sh-msg"><b id="sh-t">What did you manage?</b><span>Optional. It still counts as a ${esc(C.run)} this week.</span>
-    <input id="partnote" type="text" maxlength="60" value="${esc(cur)}" placeholder="e.g. 4 of 6 reps" autocomplete="off"></div>
+    <input id="partnote" type="text" maxlength="60" value="${esc(cur)}" placeholder="e.g. 2 km of 3" autocomplete="off"></div>
     <button data-act="runpartsave" data-d="${d}" class="pri">Save</button>`;
   setTimeout(()=>{const i=document.getElementById("partnote");if(i)i.focus()},350);
 }
@@ -1821,7 +1831,10 @@ document.addEventListener("click",e=>{
   else if(a==="rundone"){showRunSheet(el.dataset.d||T);return}
   else if(a==="runall"){hideSheet();setRunDone(el.dataset.d,true);return}
   else if(a==="runpart"){showPartSheet(el.dataset.d);return}
-  else if(a==="runpartsave"){const n=(document.getElementById("partnote")||{}).value||"";hideSheet();setRunDone(el.dataset.d,"part",n.trim().slice(0,60));return}
+  else if(a==="reppick"){el.parentNode.querySelectorAll("button").forEach(b=>{const on=b===el;b.classList.toggle("on",on);b.setAttribute("aria-pressed",on)});return}
+  else if(a==="runpartsave"){const reps=document.querySelector("#sheet .reps"),pick=reps&&reps.querySelector(".on");
+    const n=reps?(pick?`${pick.dataset.v} of ${reps.dataset.n} reps`:""):((document.getElementById("partnote")||{}).value||"");
+    hideSheet();setRunDone(el.dataset.d,"part",n.trim().slice(0,60));return}
   else if(a==="runundo"){hideSheet();setRunDone(el.dataset.d,null);return}
   else if(a==="scr"){const v=parseFloat(document.getElementById("scr").value);if(isNaN(v)||v<0||v>24){toast("Enter hours between 0 and 24");return}S.screen[el.dataset.d]=v;changed("Saved")}
   else if(a==="logrun"){
