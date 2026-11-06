@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.9.0">
+<meta name="app-version" content="2.10.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -193,6 +193,29 @@ body.reading{overflow:hidden}
 /* long-press a roster day */
 .cal .day{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .15s}
 .cal .day.pressed{transform:scale(.92)}
+/* Peek (long-press a roster day), like 3D Touch: page blurs, a card grows out of the day, actions underneath. */
+.peek{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0);-webkit-backdrop-filter:blur(0);backdrop-filter:blur(0);transition:background .3s,backdrop-filter .3s,-webkit-backdrop-filter .3s}
+.peek.on{background:rgba(0,0,0,.28);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.peek .pk-wrap{position:absolute;left:16px;right:16px;max-width:380px;margin:0 auto;display:grid;gap:10px;transform:scale(.35);opacity:0;transition:transform .42s cubic-bezier(.2,1.25,.35,1),opacity .2s}
+.peek.on .pk-wrap{transform:none;opacity:1}
+.peek.out .pk-wrap{transform:scale(.9);opacity:0;transition:transform .22s ease,opacity .18s}
+.pk-card{background:var(--cell);border-radius:18px;padding:16px 16px 6px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.pk-card h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.3px}
+.pk-card .pk-sub{font-size:15px;color:var(--label2);margin:2px 0 8px}
+.pk-row{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:.5px solid var(--sep)}
+.pk-row .ic{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:#fff;flex:none}
+.pk-row .ic svg{width:16px;height:16px}
+.pk-row b{display:block;font-size:15px;font-weight:600}
+.pk-row span{display:block;font-size:14px;color:var(--label2);line-height:1.35}
+.pk-menu{background:var(--bar);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);border-radius:14px;overflow:hidden;width:250px;max-width:100%;display:grid;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.pk-menu button{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;font-size:17px;color:var(--label);border:0;border-top:.5px solid var(--sep);background:none;text-align:left;border-radius:0}
+.pk-menu button:first-child{border-top:0}
+.pk-menu button:active{background:var(--sep)}
+.pk-menu button.danger{color:var(--red)}
+.pk-menu button svg{width:18px;height:18px;flex:none}
+.sh-card button .tick{float:right;color:var(--blue);font-weight:600}
+.sh-card button.opt{text-align:left;color:var(--label);display:flex;justify-content:space-between;align-items:center}
+.sh-card button.opt small{display:block;font-size:13px;color:var(--label2)}
 /* demo banner */
 .demo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--label);
   border-radius:12px;padding:10px 12px 10px 14px;font-size:15px;margin-top:6px}
@@ -893,12 +916,12 @@ function viewPlan(){
     let cells=["M","T","W","T","F","S","S"].map(d=>`<div class="dow">${d}</div>`).join("")+'<div class="day blank"></div>'.repeat(lead);
     for(let i=1;i<=n;i++){const d=new Date(y,m,i),s=ds(d),t=dayType(s),r=runOn(s),v=(sch.map[s]||[]).length,past=d<TODAY;
       const lbl=t==="shift"?shortTime(s):t==="rec"?"sleep":t==="busy"?"busy":"";
-      cells+=`<button class="day${t==="rec"?" rec":t==="busy"?" busy":""}${s===T?" today":""}${past?" past":""}" data-act="${editShifts?"shift":"go"}" data-d="${s}" aria-label="${nice(d)}: ${t==="shift"?"shift "+(shiftTime(s)||""):t==="rec"?"after night shift":t==="busy"?"busy":"free"}${r?", "+KIND[r.k]:""}. ${editShifts?"Tap to toggle shift.":"Tap to open."}" aria-pressed="${t==="shift"}">
+      cells+=`<button class="day${t==="rec"?" rec":t==="busy"?" busy":""}${s===T?" today":""}${past?" past":""}" data-act="${editShifts?"shift":"go"}" data-d="${s}" aria-label="${nice(d)}: ${t==="shift"?"shift "+(shiftTime(s)||""):t==="rec"?"after night shift":t==="busy"?"busy":"free"}${r?", "+KIND[r.k]:""}. ${editShifts?"Tap to change shift.":"Tap to open. Press and hold to preview."}" aria-pressed="${t==="shift"}">
         <span class="n">${i}</span>${lbl?`<span class="st">${lbl}</span>`:'<span class="st" style="visibility:hidden">·</span>'}
         <span class="dots">${r?`<i style="background:var(--orange)"></i>`:""}${v&&!past?`<i style="background:var(--green)"></i>`:""}</span></button>`}
     return `<div class="month"><div class="mh">${LONGMON[m]} ${y}</div><div class="cal${editShifts?" editing":""}">${cells}</div></div>`};
   return `<div class="lt"><div class="sub">Cyber Shift roster</div><div class="row"><h1>Roster</h1><button class="btn ${editShifts?"fill":"tint"} small" data-act="editshifts">${editShifts?"Done":"Edit Shifts"}</button></div></div>
-  ${editShifts?'<div class="sf" style="margin-top:-10px;color:var(--blue)">Tap days to add or remove a shift. Tap Done when finished.</div>':""}
+  ${editShifts?'<div class="sf" style="margin-top:-10px;color:var(--blue)">Tap a day to change its shift. Tap Done when finished.</div>':""}
   <div class="legend"><span><i style="background:var(--indigo)"></i>Shift (N = night)</span><span><i style="background:transparent;border:1.5px solid var(--indigo)"></i>After a night shift</span><span><i style="background:var(--label3)"></i>Busy</span><span><i style="background:var(--orange)"></i>${C.Run}</span><span><i style="background:var(--green)"></i>${C.courseTab} videos</span></div>
   <div class="months">${month(2026,10)}${month(2026,11)}${month(2027,0)}</div>
   <div class="sf" style="margin-top:-12px">Tap any day to see its plan. Use Edit Shifts to change your roster; ${C.runs} and videos move around it automatically.</div>`;
@@ -2072,7 +2095,11 @@ document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;const a=el.dataset.act;
   if(a==="go"){goDay(el.dataset.d);return}
   if(a==="editshifts"){editShifts=!editShifts;render();return}
-  if(a==="shift"){const d=el.dataset.d;if(S.shifts[d])delete S.shifts[d];else S.shifts[d]="Shift";changed()}
+  if(a==="shift"){showShiftPick(el.dataset.d);return}
+  else if(a==="shpick"){const d=el.dataset.d,v=el.dataset.v,was=shiftTime(d);hideSheet();
+    if(v==="none"){if(!S.shifts[d])return;delete S.shifts[d];changed({t:"Shift removed",s:nice(pd(d)),k:"undo"})}
+    else{if(S.shifts[d]===v)return;S.shifts[d]=v;changed({t:was?"Shift changed":"Shift added",s:`${nice(pd(d))} · ${shiftName(v)} ${v.replace("-","–")}`,k:"ok"})}
+    return}
   else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed({t:"Shifts cleared",s:"Tap days to add them back",k:"undo"})}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
   else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast({t:"Backup copied",s:"Paste it into Notes to keep it safe",k:"copy"}),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast({t:"Copy it yourself",s:"Select the text in the box and copy",k:"copy"})})}
   else if(a==="import"){try{const o=JSON.parse(document.getElementById("imp").value);if(!o||typeof o.shifts!=="object")throw 0;S=Object.assign({},DEF,o);changed({t:"Backup restored",s:"Your progress is back",k:"ok"})}catch(err){toast({t:"Not a backup",s:"Paste the full text you copied",k:"warn"})}}
@@ -2111,8 +2138,14 @@ document.addEventListener("click",e=>{
   else if(a==="syncconnect"){connectSync(document.getElementById("set-token").value);return}
   else if(a==="syncnow"){pushSync(true);return}
   else if(a==="weekgo"){WEEKSEL=el.dataset.d;render(true);return}
+  else if(a==="pk"){const d=el.dataset.d,v=el.dataset.v;closePeek();
+    if(v==="open"){goDay(d);return}
+    if(v==="pick"){setTimeout(()=>showShiftPick(d),200);return}
+    S.busy=S.busy||{};const o={...skipOf(d)};if(o[v])delete o[v];else o[v]=1;if(o.run||o.study)S.busy[d]=o;else delete S.busy[d];cache={};
+    changed(o[v]?{t:v==="run"?`${C.Run} skipped`:"Study skipped",s:"Moved to your next free days",k:"moved"}:{t:"Back on the plan",s:nice(pd(d)),k:"undo"});return}
   else if(a==="dm"){const d=el.dataset.d,v=el.dataset.v;hideSheet();
     if(v==="open"){goDay(d);return}
+    if(v==="pick"){setTimeout(()=>showShiftPick(d),320);return}
     if(v==="shift"){if(S.shifts[d]){delete S.shifts[d];changed({t:"Shift removed",s:nice(pd(d)),k:"undo"})}else{S.shifts[d]="Shift";changed({t:"Shift added",s:nice(pd(d)),k:"ok"})}return}
     S.busy=S.busy||{};const o={...skipOf(d)};if(o[v])delete o[v];else o[v]=1;if(o.run||o.study)S.busy[d]=o;else delete S.busy[d];cache={};
     changed(o[v]?{t:v==="run"?`${C.Run} skipped`:"Study skipped",s:"Moved to your next free days",k:"moved"}:{t:"Back on the plan",s:nice(pd(d)),k:"undo"});return}
@@ -2244,14 +2277,64 @@ document.addEventListener("touchend",e=>{if(sx==null||e.touches.length)return;co
 // ---------- Long-press a day on the Roster ----------
 (function(){
   let lp=null,p0=null;window.__noClick=0;
-  const LONGPRESS_DAYS=false; // on hold for now; showDayMenu is kept for later
+  const LONGPRESS_DAYS=true;
   document.addEventListener("touchstart",e=>{clearTimeout(lp);p0=null;if(!LONGPRESS_DAYS||!gestOn()||e.touches.length!==1||editShifts)return;const b=e.target.closest&&e.target.closest(".cal .day[data-d]");if(!b)return;
-    const t=e.touches[0];p0={x:t.clientX,y:t.clientY};lp=setTimeout(()=>{p0=null;window.__noClick=Date.now();try{navigator.vibrate&&navigator.vibrate(10)}catch(_){}b.classList.add("pressed");setTimeout(()=>b.classList.remove("pressed"),250);showDayMenu(b.dataset.d)},500)},{passive:true});
+    const t=e.touches[0];p0={x:t.clientX,y:t.clientY};lp=setTimeout(()=>{p0=null;window.__noClick=Date.now();try{navigator.vibrate&&navigator.vibrate(10)}catch(_){}b.classList.add("pressed");setTimeout(()=>b.classList.remove("pressed"),250);showPeek(b)},450)},{passive:true});
+  document.addEventListener("contextmenu",e=>{const b=e.target.closest&&e.target.closest(".cal .day[data-d]");if(!b||editShifts)return;e.preventDefault();showPeek(b)});
   document.addEventListener("touchmove",e=>{if(!p0)return;const t=e.touches[0];if(Math.hypot(t.clientX-p0.x,t.clientY-p0.y)>10){clearTimeout(lp);p0=null}},{passive:true});
   document.addEventListener("touchend",()=>{clearTimeout(lp);p0=null},{passive:true});
   // The tap that ends a long press shouldn't also open the day, or close the menu that just appeared under the finger.
   document.addEventListener("click",e=>{if(window.__noClick&&Date.now()-window.__noClick<700){window.__noClick=0;e.preventDefault();e.stopPropagation()}},true);
 })();
+// Shift times to pick from: the usual ones plus any others already on the roster.
+const SHIFT_OPTS=["08:00-19:00","11:00-23:00","20:00-08:00","21:00-09:00"];
+const shiftName=t=>{const h=+t.slice(0,2);return h>=19?"Night":h<10?"Morning":"Day"};
+function showShiftPick(d){
+  const cur=shiftTime(d)||(S.shifts[d]?"?":""),opts=[...new Set([...SHIFT_OPTS,...Object.values(S.shifts).filter(v=>/^\d\d:\d\d-\d\d:\d\d$/.test(v))])].sort();
+  const sh=document.getElementById("sheet");
+  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="sh-msg"><b id="sh-t">${nice(pd(d))}</b></div>
+    ${opts.map(v=>`<button class="opt" data-act="shpick" data-d="${d}" data-v="${v}"><span>${shiftName(v)}<small>${v.replace("-","–")}</small></span>${cur===v?'<span class="tick">✓</span>':""}</button>`).join("")}
+    <button class="opt" data-act="shpick" data-d="${d}" data-v="none"><span>No Shift</span>${!cur?'<span class="tick">✓</span>':""}</button>
+  </div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
+  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+}
+// Peek: a quick look at one day without leaving the Roster.
+function peekBody(d){
+  const t=dayType(d),r=runOn(d),sk=skipOf(d),vids=(schedule().map[d]||[]),past=d<T,rows=[];
+  const row=(c,i,b,sub)=>rows.push(`<div class="pk-row"><span class="ic" style="background:${c}">${i}</span><div><b>${b}</b>${sub?`<span>${sub}</span>`:""}</div></div>`);
+  let sub;
+  if(t==="shift"){const st=shiftTime(d);sub=st?`${shiftName(st)} shift · ${st.replace("-","–")}`:"Shift";row("var(--indigo)",isNight(d)?IC.moon:IC.work,sub,"Nothing planned. Rest and recharge.")}
+  else if(t==="rec"){sub="After a night shift";row("var(--teal)",IC.bed,"Sleep first",`No ${C.run} today.`)}
+  else if(t==="busy"){sub="Busy";row("var(--label3)",IC.cal,"Day off from the plan",`${C.Run} and study moved to other days.`)}
+  else sub=r||vids.length?"Free day":"Free day · nothing planned";
+  if(r){const dn=S.runDone[d],st=dn===true?"Done":dn==="part"?`Partly done${(S.runNote||{})[d]?" · "+S.runNote[d]:""}`:r.missed?"Missed":past?"Not done":"";
+    row("var(--orange)",IC.run,`${r.test?C.testName:KIND[r.k]}${st?` · ${st}`:""}`,esc(r.text))}
+  else if(sk.run&&t!=="shift")row("var(--label3)",IC.run,`${C.Run} skipped`,"Moved to your next free day.");
+  if(vids.length){const left=vids.filter(v=>!S.done[v.i]),mins=Math.round(vids.reduce((a,v)=>a+v.sec,0)/60);
+    row("var(--green)",IC.play,`${vids.length} video${vids.length>1?"s":""} · ${mins} min${left.length?"":" · all watched"}`,`${vids[0].i+1}. ${esc(vids[0].title)}${vids.length>1?` <i style="font-style:normal;color:var(--label3)">+${vids.length-1} more</i>`:""}`)}
+  else if(sk.study&&t!=="shift")row("var(--label3)",IC.play,"Study skipped","Videos moved to your next free days.");
+  const run=runs=>S.runs.filter(x=>x.d===d);
+  for(const x of run())row("var(--orange)",IC.check,`${distTxt(x.km)} in ${fmt(x.sec)}`,`${fmt(paceOf(x.sec,x.km))} ${C.paceU}${x.hr?` · ${x.hr} bpm`:""}${x.loc?` · ${esc(x.loc)}`:""}`);
+  return `<h3>${nice(pd(d))}</h3><div class="pk-sub">${sub}</div>${rows.join("")}`;
+}
+function showPeek(b){
+  const d=b.dataset.d,t=dayType(d),r=runOn(d),sk=skipOf(d),past=d<T;closePeek(true);
+  const m=[`<button data-act="pk" data-v="open" data-d="${d}">Open Day${IC.chev}</button>`,
+    `<button data-act="pk" data-v="pick" data-d="${d}">${isShift(d)?"Change Shift":"Add Shift"}${IC.work}</button>`];
+  if(!past&&t!=="shift"){if(r||sk.run)m.push(`<button data-act="pk" data-v="run" data-d="${d}">${sk.run?`Bring Back ${C.Run}`:`Skip ${C.Run}`}${IC.run}</button>`);
+    m.push(`<button data-act="pk" data-v="study" data-d="${d}">${sk.study?"Bring Back Study":"Skip Study"}${IC.play}</button>`)}
+  const pk=document.createElement("div");pk.className="peek";pk.id="peek";pk.setAttribute("role","dialog");pk.setAttribute("aria-modal","true");pk.setAttribute("aria-label",nice(pd(d)));
+  pk.innerHTML=`<div class="pk-wrap"><div class="pk-card">${peekBody(d)}</div><div class="pk-menu">${m.join("")}</div></div>`;
+  document.body.appendChild(pk);
+  const w=pk.querySelector(".pk-wrap"),br=b.getBoundingClientRect(),H=innerHeight,h=w.offsetHeight;
+  let top=br.top+br.height/2-h/2;top=Math.max(56,Math.min(top,H-h-24));w.style.top=top+"px";
+  const wr=w.getBoundingClientRect();w.style.transformOrigin=`${br.left+br.width/2-wr.left}px ${br.top+br.height/2-top}px`;
+  if(br.left+br.width/2>innerWidth/2)pk.querySelector(".pk-menu").style.justifySelf="end";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>pk.classList.add("on")));
+  pk.addEventListener("click",e=>{if(!e.target.closest(".pk-menu button,.pk-card"))closePeek()});
+  pk.querySelector(".pk-card").addEventListener("click",()=>{closePeek();goDay(d)});
+}
+function closePeek(now){const pk=document.getElementById("peek");if(!pk)return;if(now){pk.remove();return}pk.classList.add("out");pk.classList.remove("on");setTimeout(()=>pk.remove(),260)}
 function showDayMenu(d){
   const t=dayType(d),r=runOn(d),sk=skipOf(d),sh=document.getElementById("sheet"),past=d<T,btn=[];
   btn.push(`<button data-act="dm" data-v="open" data-d="${d}" class="pri">Open Day</button>`);
