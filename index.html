@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.10.0">
+<meta name="app-version" content="2.10.1">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -2096,10 +2096,18 @@ document.addEventListener("click",e=>{
   if(a==="go"){goDay(el.dataset.d);return}
   if(a==="editshifts"){editShifts=!editShifts;render();return}
   if(a==="shift"){showShiftPick(el.dataset.d);return}
-  else if(a==="shpick"){const d=el.dataset.d,v=el.dataset.v,was=shiftTime(d);hideSheet();
-    if(v==="none"){if(!S.shifts[d])return;delete S.shifts[d];changed({t:"Shift removed",s:nice(pd(d)),k:"undo"})}
-    else{if(S.shifts[d]===v)return;S.shifts[d]=v;changed({t:was?"Shift changed":"Shift added",s:`${nice(pd(d))} · ${shiftName(v)} ${v.replace("-","–")}`,k:"ok"})}
-    return}
+  else if(a==="shpick"){const d=el.dataset.d,v=el.dataset.v,old=S.shifts[d],was=shiftTime(d);
+    if(v==="none"?!old:old===v){hideSheet();return}
+    // The days right after it with the same old shift: usually a block (e.g. 3 nights) that changed together.
+    const rest=[];if(old)for(let i=1;i<=6;i++){const x=ds(add(pd(d),i));if(S.shifts[x]===old)rest.push(x);else break}
+    const apply=list=>{for(const x of list){if(v==="none")delete S.shifts[x];else S.shifts[x]=v}};
+    apply([d]);
+    if(!rest.length){hideSheet();changed(v==="none"?{t:"Shift removed",s:nice(pd(d)),k:"undo"}:{t:was?"Shift changed":"Shift added",s:`${nice(pd(d))} · ${shiftName(v)} ${v.replace("-","–")}`,k:"ok"});return}
+    save();SHBLOCK={d,v,rest};showShiftBlock();return}
+  else if(a==="shblock"){const {d,v,rest}=SHBLOCK||{};hideSheet();if(!d)return;const all=el.dataset.v==="all";
+    if(all)for(const x of rest){if(v==="none")delete S.shifts[x];else S.shifts[x]=v}
+    const n=all?rest.length+1:1,span=all?`${short(d)} – ${short(rest[rest.length-1])}`:nice(pd(d));SHBLOCK=null;
+    changed(v==="none"?{t:n>1?`${n} shifts removed`:"Shift removed",s:span,k:"undo"}:{t:n>1?`${n} shifts changed`:"Shift changed",s:`${span} · ${shiftName(v)} ${v.replace("-","–")}`,k:"ok"});return}
   else if(a==="clearshifts"){if(el.dataset.sure){S.shifts={};changed({t:"Shifts cleared",s:"Tap days to add them back",k:"undo"})}else{el.dataset.sure=1;el.textContent="Tap Again to Clear All Shifts"}}
   else if(a==="export"){const t=JSON.stringify(S);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast({t:"Backup copied",s:"Paste it into Notes to keep it safe",k:"copy"}),()=>{const ta=document.getElementById("imp");ta.value=t;ta.select();toast({t:"Copy it yourself",s:"Select the text in the box and copy",k:"copy"})})}
   else if(a==="import"){try{const o=JSON.parse(document.getElementById("imp").value);if(!o||typeof o.shifts!=="object")throw 0;S=Object.assign({},DEF,o);changed({t:"Backup restored",s:"Your progress is back",k:"ok"})}catch(err){toast({t:"Not a backup",s:"Paste the full text you copied",k:"warn"})}}
@@ -2297,6 +2305,17 @@ function showShiftPick(d){
     <button class="opt" data-act="shpick" data-d="${d}" data-v="none"><span>No Shift</span>${!cur?'<span class="tick">✓</span>':""}</button>
   </div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
   sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+}
+// After changing the first day of a block, offer to change the rest of it the same way.
+let SHBLOCK=null;
+const short=x=>{const t=pd(x);return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][t.getDay()]} ${t.getDate()} ${MON[t.getMonth()]}`};
+function showShiftBlock(){
+  const {d,v,rest}=SHBLOCK,n=rest.length,card=document.querySelector("#sheet .sh-card"),cn=document.querySelector("#sheet .sh-cancel");if(!card)return;
+  const what=v==="none"?"No Shift":`${shiftName(v)} ${v.replace("-","–")}`;
+  card.innerHTML=`<div class="sh-msg"><b id="sh-t">Change the next ${n===1?"day":n+" days"} too?</b><span>${n===1?short(rest[0]):`${short(rest[0])} – ${short(rest[n-1])}`} ${n===1?"has":"have"} the same shift as ${short(d)} had.</span></div>
+    <button data-act="shblock" data-v="all" class="pri">${v==="none"?`Remove All ${n+1}`:`Change All ${n+1} to ${shiftName(v)}`}</button>
+    <button data-act="shblock" data-v="one">Just ${short(d)}</button>`;
+  if(cn)cn.remove();
 }
 // Peek: a quick look at one day without leaving the Roster.
 function peekBody(d){
