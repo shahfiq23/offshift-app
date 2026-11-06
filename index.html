@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.10.1">
+<meta name="app-version" content="2.11.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -193,6 +193,18 @@ body.reading{overflow:hidden}
 /* long-press a roster day */
 .cal .day{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .15s}
 .cal .day.pressed{transform:scale(.92)}
+/* App lock (Face ID) */
+#lock{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;transition:opacity .3s}
+#lock.out{opacity:0;pointer-events:none}
+#lock img{width:76px;height:76px;border-radius:18px;margin-bottom:8px;box-shadow:0 0 0 .5px var(--sep),0 6px 20px rgba(0,0,0,.25)}
+#lock b{font-size:20px;font-weight:600}
+#lock span{font-size:15px;color:var(--label2);max-width:280px;line-height:1.4}
+#lock .lk-face{color:var(--blue);margin-top:4px}
+#lock .lk-face svg{width:44px;height:44px;transition:transform .3s}
+#lock.busy .lk-face svg{animation:lkpulse 1.1s ease-in-out infinite}
+@keyframes lkpulse{50%{transform:scale(.88);opacity:.6}}
+#lock button{position:absolute;bottom:calc(36px + env(safe-area-inset-bottom,0px));font:600 17px var(--font);color:var(--blue);background:var(--cell);border:0;border-radius:12px;padding:14px 22px;display:flex;gap:8px;align-items:center}
+#lock button svg{width:20px;height:20px}
 /* Peek (long-press a roster day), like 3D Touch: page blurs, a card grows out of the day, actions underneath. */
 .peek{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,0);-webkit-backdrop-filter:blur(0);backdrop-filter:blur(0);transition:background .3s,backdrop-filter .3s,-webkit-backdrop-filter .3s}
 .peek.on{background:rgba(0,0,0,.28);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
@@ -1716,6 +1728,7 @@ function applyTheme(){
 const SET_ICO={
  notes:["#FF9F0A",'<g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4.5" y="2.8" width="11.5" height="14.4" rx="2"/><path d="M4.5 6.2H3M4.5 10H3M4.5 13.8H3M8 7h5M8 10.2h5M8 13.4h3" stroke-linecap="round"/></g>'],
  gestures:["#30B0C7",'<path d="M7.5 10V4.8a1.3 1.3 0 012.6 0V9m0-.5V3.6a1.3 1.3 0 012.6 0V9m0-.8V5a1.3 1.3 0 012.6 0v6.5c0 3.3-2.4 5.7-5.4 5.7-2 0-3.3-.9-4.4-2.4L3.4 11.7a1.3 1.3 0 012-1.6L7.5 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'],
+ faceid:["#34C759",'<path d="M3 7V5a2 2 0 012-2h2M13 3h2a2 2 0 012 2v2M17 13v2a2 2 0 01-2 2h-2M7 17H5a2 2 0 01-2-2v-2M7.2 7.5v1.3M12.8 7.5v1.3M10 7.5v3.6H9M7.6 13.1a3.4 3.4 0 004.8 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'],
  appearance:["#5E5CE6",'<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 3.5a6.5 6.5 0 010 13z" fill="currentColor"/>'],
  profile:["#8E8E93",'<circle cx="10" cy="7" r="3.2" fill="currentColor"/><path d="M3.8 16.5c.8-3 3.3-4.8 6.2-4.8s5.4 1.8 6.2 4.8z" fill="currentColor"/>'],
  goal:["#FF9500",null],
@@ -1752,6 +1765,11 @@ function viewSettings(){
     <div class="hpad" id="hold-pad"><div class="hpad-t">Hold two fingers here</div>
       <div class="hold pad-hold" aria-hidden="true"><svg viewBox="0 0 22 22" width="22" height="22"><circle cx="11" cy="11" r="9" class="hr-bg"/><circle cx="11" cy="11" r="9" class="hr-fg" transform="rotate(-90 11 11)"/><path class="hr-ck" d="M7 11.3l2.6 2.6L15 8.4"/></svg><span class="hold-t">${esc(qaCur().label())}</span></div></div>
   </div></div></div>`:""}`],
+    faceid:[LOCKNAME,()=>{const L=lockCfg();return `<div class="sec"><div class="grp">
+    <div class="cell"><label class="grow" for="set-lock">Lock with ${LOCKNAME}</label><input class="sw" type="checkbox" id="set-lock" data-act="lockon" ${L?"checked":""}></div></div>
+    <div class="sf">Rhythm asks for ${LOCKNAME} when you open it. If it doesn't recognise you, you can use your ${/iPad/.test(navigator.userAgent)||navigator.maxTouchPoints>1&&/Mac/.test(navigator.userAgent)?"iPad":/Win/.test(navigator.platform)?"PC":"iPhone"} passcode. Set up on each device separately.</div></div>
+    ${L?`<div class="sec"><div class="sh">Require ${LOCKNAME}</div><div class="grp">${LOCK_AFTER.map(([ms,l])=>`<button class="cell runrow" data-act="lockafter" data-v="${ms}" role="radio" aria-checked="${L.after===ms}"><div class="grow" style="text-align:left">${l}</div>${L.after===ms?`<span style="color:var(--blue)">${IC.check.replace("<svg",'<svg width="20" height="20"')}</span>`:""}</button>`).join("")}</div>
+    <div class="sf">How long Rhythm can be in the background before it locks again.</div></div>`:""}`}],
     profile:["Name",()=>`<div class="sec"><div class="grp">
     <div class="cell"><label class="grow" for="set-name">Name</label><input id="set-name" type="text" value="${esc(nameOf())}" maxlength="24" autocomplete="off" style="width:160px"></div>
   </div></div>`],
@@ -1794,7 +1812,7 @@ function viewSettings(){
   const smVal=spOn()&&spPlaylist()?(S.session?"Studying":"On"):"Off";
   const syVal=syncOn()?(SY.err?"Needs attention":"On"):"Off";
   const head=`<div class="lt"><div class="sub">Rhythm ${ver}</div><h1>Settings</h1></div>`;
-  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gesture Control",gestOn()?"On":"Off")}${row("profile","Name",esc(nameOf()))}</div></div>
+  const list=`<div class="sec"><div class="grp">${row("appearance","Appearance",{system:"System",light:"Light",dark:"Dark"}[th])}${row("gestures","Gesture Control",gestOn()?"On":"Off")}${lockable()?row("faceid",LOCKNAME,lockCfg()?"On":"Off"):""}${row("profile","Name",esc(nameOf()))}</div></div>
   <div class="sec"><div class="grp">${row("goal",C.goalLbl,fmt(goalSec()))}${row("study","Study",`${S.mins} min a day`)}${row("studymode","Study Mode",smVal)}${DEMO?"":row("notes","Goodnotes",dbxOn()?"On":"Off")}</div></div>
   <div class="sec"><div class="grp">${row("calendar","Calendar",syncOn()?"Live":"")}${row("sync","Sync & Backup",syVal)}</div></div>
   <div class="sec"><div class="grp">${row("reset","Reset","")}${row("about","About",ver)}</div></div>
@@ -2157,6 +2175,7 @@ document.addEventListener("click",e=>{
     if(v==="shift"){if(S.shifts[d]){delete S.shifts[d];changed({t:"Shift removed",s:nice(pd(d)),k:"undo"})}else{S.shifts[d]="Shift";changed({t:"Shift added",s:nice(pd(d)),k:"ok"})}return}
     S.busy=S.busy||{};const o={...skipOf(d)};if(o[v])delete o[v];else o[v]=1;if(o.run||o.study)S.busy[d]=o;else delete S.busy[d];cache={};
     changed(o[v]?{t:v==="run"?`${C.Run} skipped`:"Study skipped",s:"Moved to your next free days",k:"moved"}:{t:"Back on the plan",s:nice(pd(d)),k:"undo"});return}
+  else if(a==="lockafter"){const L=lockCfg();if(L){L.after=+el.dataset.v;lsSet(LOCK_KEY,L)}const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="holdms"){S.holdMs=+el.dataset.v;if(S.holdMs===1000)delete S.holdMs;save();const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="qa1"){S.qa1=el.dataset.k;save();const y=scrollY;render();scrollTo(0,y);return}
   else if(a==="gestoff"){S.gest=el.checked?undefined:false;if(S.gest===undefined)delete S.gest;save();const y=scrollY;render();scrollTo(0,y);return}
@@ -2212,6 +2231,7 @@ document.addEventListener("change",e=>{
   if(el.dataset.act==="vid"){const i=el.dataset.i;if(el.checked)S.done[i]=T;else delete S.done[i];(()=>{if(!el.checked){changed(null);return}const v=VID[+i];changed(null);const n=VID.find(x=>!S.done[x.i]);
     toast({t:`Video ${v.i+1} watched`,s:n?`Next: ${n.title}`:`All ${VID.length} done. ${C.doneMsg}`,k:"video"})})()}
   else if(el.dataset.act==="goal"){S.goal=+el.value;if(S.goal===C.goal)delete S.goal;changed({t:"Goal updated",s:`${fmt(goalSec())} · ${fmt(paceOf(goalSec(),C.dist))}${C.paceU}`,k:"run"})}
+  else if(el.dataset.act==="lockon"){el.checked?lockSetup(el):(lsSet(LOCK_KEY,null),toast({t:`${LOCKNAME} off`,s:"Rhythm opens without it",k:"undo"}),render())}
   else if(el.dataset.act==="maxhr"){S.maxHr=+el.value;changed({t:"Max heart rate updated",s:`Zone 2 is now ${Math.round(S.maxHr*.6)}–${Math.round(S.maxHr*.7)} bpm`,k:"run"})}
   else if(el.dataset.act==="base"){S.base=+el.value;if(S.base===C.base)delete S.base;changed({t:"Current time updated",s:`Paces now start from ${fmt(baseSec())}`,k:"run"})}
   else if(el.dataset.act==="tw"){const tw=[...testWeeks()];tw[+el.dataset.n]=+el.value;S.testWeeks=tw;
@@ -2457,6 +2477,36 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&syncOn())
 setInterval(()=>{if(!document.hidden)pullSync()},60000);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(!S.theme)applyTheme()});
 WIDE.addEventListener?.("change",()=>render());
+// ---------- App lock (Face ID / Touch ID / Windows Hello) ----------
+// A passkey made on this device. Unlocking asks the device to check it's you; nothing leaves the device and there's no server.
+// It hides the app behind a lock screen. It doesn't encrypt the saved data.
+const LOCK_KEY="rhythm-lock",LOCK_AFTER=[[0,"Immediately"],[60000,"After 1 minute"],[900000,"After 15 minutes"],[3600000,"After 1 hour"]];
+const LOCKNAME=/iPhone|iPad/.test(navigator.userAgent)||navigator.maxTouchPoints>1&&/Mac/.test(navigator.userAgent)?"Face ID":/Mac/.test(navigator.userAgent)?"Touch ID":/Win/.test(navigator.platform)?"Windows Hello":"Screen Lock";
+const lockable=()=>!DEMO&&!!window.PublicKeyCredential;
+const lockCfg=()=>{const L=lsGet(LOCK_KEY,null);return lockable()&&L&&L.id?L:null};
+const unb64u=t=>Uint8Array.from(atob(t.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+const FACE_SVG='<svg viewBox="0 0 20 20"><path d="M3 7V5a2 2 0 012-2h2M13 3h2a2 2 0 012 2v2M17 13v2a2 2 0 01-2 2h-2M7 17H5a2 2 0 01-2-2v-2M7.2 7.5v1.3M12.8 7.5v1.3M10 7.5v3.6H9M7.6 13.1a3.4 3.4 0 004.8 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+async function lockSetup(sw){
+  try{const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:"Rhythm",id:location.hostname},
+      user:{id:crypto.getRandomValues(new Uint8Array(16)),name:`Rhythm · ${nameOf()}`,displayName:`Rhythm · ${nameOf()}`},
+      pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"preferred"},timeout:60000}});
+    lsSet(LOCK_KEY,{id:b64url(c.rawId),after:60000});toast({t:`${LOCKNAME} on`,s:"Rhythm will ask for it when you open it",k:"ok"});render()}
+  catch(e){if(sw)sw.checked=false;toast({t:`Couldn't turn on ${LOCKNAME}`,s:e&&e.name==="NotAllowedError"?"Cancelled":"This device doesn't support it",k:"warn"})}
+}
+let LOCKED=false,lockBusy=false,hiddenAt=0;
+function showLock(){if(LOCKED||!lockCfg())return;LOCKED=true;let el=document.getElementById("lock");if(el)el.remove();
+  el=document.createElement("div");el.id="lock";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","Rhythm is locked");
+  el.innerHTML=`<img src="icons/icon-192.png" alt=""><b>Rhythm is Locked</b><span>Unlock with ${LOCKNAME} to open Rhythm.</span><div class="lk-face" aria-hidden="true">${FACE_SVG}</div>
+    <button type="button" data-lk="1">${FACE_SVG}Unlock with ${LOCKNAME}</button>`;
+  el.querySelector("button").addEventListener("click",unlock);document.body.appendChild(el)}
+async function unlock(){const L=lockCfg(),el=document.getElementById("lock");if(!L){LOCKED=false;if(el)el.remove();return}if(lockBusy)return;lockBusy=true;if(el)el.classList.add("busy");
+  try{await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rpId:location.hostname,allowCredentials:[{type:"public-key",id:unb64u(L.id),transports:["internal","hybrid"]}],userVerification:"required",timeout:60000}});
+    LOCKED=false;if(el){el.classList.add("out");setTimeout(()=>el.remove(),320)}}
+  catch(e){}finally{lockBusy=false;const x=document.getElementById("lock");if(x)x.classList.remove("busy")}}
+document.addEventListener("visibilitychange",()=>{const L=lockCfg();if(!L)return;
+  if(document.hidden){hiddenAt=Date.now();if(L.after===0)showLock();return}
+  if(!LOCKED&&hiddenAt&&Date.now()-hiddenAt>=L.after)showLock();if(LOCKED)setTimeout(unlock,250)});
+if(lockCfg()){showLock();setTimeout(unlock,300)}
 render();
 (function(){const sp=document.getElementById("splash");if(!sp)return;
   let ptr=null;try{ptr=sessionStorage.getItem("rhythm-ptr");sessionStorage.removeItem("rhythm-ptr")}catch(e){}
