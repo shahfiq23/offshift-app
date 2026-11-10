@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.11.1">
+<meta name="app-version" content="2.12.0">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -432,6 +432,11 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 .shot-f label{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--cell);border-radius:10px;padding:4px 6px 4px 14px;font-size:17px;color:var(--label)}
 .shot-f label span{display:flex;align-items:center;gap:6px;color:var(--label2)}
 .sh-msg .shot-f input{margin:0;width:90px;text-align:right;background:transparent;padding:8px 6px}
+.evf{max-height:55vh;overflow:auto}
+.evf label[hidden]{display:none}
+.sh-msg .evf input#ev-t{width:170px}
+.sh-msg .evf input[type=date],.sh-msg .evf input[type=time]{width:auto}
+.evf select{background:transparent;border:0;color:var(--label2);font:inherit;font-size:16px;text-align:right;padding:8px 4px;max-width:180px}
 .shot-pace{font-size:15px;color:var(--label2);text-align:center;min-height:22px}
 .shot-reps{display:flex;align-items:center;justify-content:center;gap:18px;font:600 17px var(--font);color:var(--label)}
 .sh-msg .shot-reps span{color:var(--label);font:600 17px var(--font);min-width:110px;text-align:center}
@@ -511,6 +516,7 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 <div class="hold" id="hold" hidden aria-hidden="true"><svg viewBox="0 0 22 22" width="22" height="22"><circle cx="11" cy="11" r="9" class="hr-bg"/><circle cx="11" cy="11" r="9" class="hr-fg" transform="rotate(-90 11 11)"/><path class="hr-ck" d="M7 11.3l2.6 2.6L15 8.4"/></svg><span class="hold-t"></span></div>
 <div class="sheet" id="sheet" hidden></div>
 <input type="file" id="shotfile" accept="image/*" hidden>
+<input type="file" id="icsfile" accept=".ics,text/calendar" hidden>
 <div class="sess" id="sess" role="status" aria-label="Study Mode session" hidden></div>
 <div class="island" id="toast" role="status" aria-live="polite" hidden><span class="iico" id="toastIco"></span><span class="itxt"><b id="toastT"></b><span id="toastS"></span></span></div>
 <script>
@@ -1142,8 +1148,53 @@ function icsText(days,extra=[]){
     if(vids.length){const mins=Math.max(15,Math.round(vids.reduce((a,v)=>a+v.sec,0)/60));
       out.push(ev(`study-${d}`,d,sd[0],sd[1],mins,`${C.courseTitle} · ${vids.length} video${vids.length>1?"s":""}`,vids.map(v=>`${v.i+1}. ${v.title} (${v.len})`).join("\n")));nStudy++}
   }
+  // Your own events (e.g. Invisalign changes), added in Settings › Calendar. Kept from a week ago onwards.
+  if(extra.length)for(const e of (S.events||[]))if(e.d>=ds(add(TODAY,-7))){const [h,m]=(e.t||"09:00").split(":").map(Number);
+    out.push(ev(`ev-${e.id}`,e.d,h,m,e.mins||15,e.title,e.note||"",(e.alerts||[]).map(a=>a===0?"-PT0M":`-PT${a}M`)))}
   return {text:["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Rhythm//Planner//EN","CALSCALE:GREGORIAN","X-WR-CALNAME:Rhythm",...extra,...out,"END:VCALENDAR"].join("\r\n"),nRun,nStudy,nShift};
 }
+// ---------- Your own events in the live calendar ----------
+const ALERTS=[[null,"None"],[0,"At time of event"],[15,"15 minutes before"],[30,"30 minutes before"],[60,"1 hour before"],[120,"2 hours before"],[720,"12 hours before"],[1440,"1 day before"]];
+const alertLbl=a=>{const x=ALERTS.find(([v])=>v===a);return x?x[1]:`${a} min before`};
+const evWhen=e=>{const [h,m]=e.t.split(":").map(Number);return `${short(e.d)} · ${((h+11)%12)+1}:${pad(m)} ${h<12?"AM":"PM"}`};
+function evSection(){
+  const ev=(S.events||[]).filter(e=>e.d>=T),past=(S.events||[]).length-ev.length;
+  const groups={};for(const e of ev)(groups[e.title]=groups[e.title]||[]).push(e);
+  const rows=Object.entries(groups).map(([t,l])=>`<button class="cell runrow" data-act="evgrp" data-t="${esc(t)}"><div class="grow" style="text-align:left"><div>${esc(t)}</div><div class="t2">${l.length>1?`${l.length} events · next ${evWhen(l[0])}`:evWhen(l[0])}${l[0].alerts&&l[0].alerts.length?` · ${l[0].alerts.length} alert${l[0].alerts.length>1?"s":""}`:""}</div></div>${IC.chev}</button>`).join("");
+  return `<div class="sec"><div class="sh">Your Events</div><div class="grp">${rows}
+    <button class="cell btnrow" data-act="evadd">Add Event</button>
+    <button class="cell btnrow" data-act="evimport">Import from Calendar File</button></div>
+    <div class="sf">These go into your Rhythm calendar with their alerts.</div></div>`;
+}
+function showEvAdd(){
+  const sh=document.getElementById("sheet"),sel=(id,v)=>`<select id="${id}">${ALERTS.map(([a,l])=>`<option value="${a===null?"":a}" ${a===v?"selected":""}>${l}</option>`).join("")}</select>`;
+  sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="sh-msg"><b id="sh-t">New Event</b>
+    <div class="shot-f evf">
+    <label>Title<span><input id="ev-t" type="text" maxlength="60" placeholder="Event" style="width:170px"></span></label>
+    <label>Date<span><input id="ev-d" type="date" value="${T}" min="${T}"></span></label>
+    <label>Time<span><input id="ev-h" type="time" value="22:00"></span></label>
+    <label>Repeat<span><select id="ev-r" onchange="document.getElementById('ev-nl').hidden=this.value==='0'"><option value="0">Never</option><option value="7">Every week</option><option value="14">Every 2 weeks</option></select></span></label>
+    <label id="ev-nl" hidden>How many<span><input id="ev-n" type="text" inputmode="numeric" value="8" style="width:50px"></span></label>
+    <label>Alert<span>${sel("ev-a1",720)}</span></label>
+    <label>Second Alert<span>${sel("ev-a2",60)}</span></label></div></div>
+    <button class="pri" data-act="evsave">Add</button></div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
+  sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));
+}
+const evId=()=>Math.random().toString(36).slice(2,10);
+function addEvents(list){S.events=[...(S.events||[]),...list].sort((x,y)=>(x.d+x.t)<(y.d+y.t)?-1:1)}
+// Read a .ics file (e.g. one Claude made): each event's title, local start time, length and alerts.
+function parseIcs(txt){
+  const lines=txt.replace(/\r\n[ \t]/g,"").replace(/\n[ \t]/g,"").split(/\r?\n/),out=[];let cur=null,inAl=false;
+  const un=v=>v.replace(/\\n/gi,"\n").replace(/\\([,;\\])/g,"$1");
+  const when=(k,v)=>{const m=v.match(/(\d{4})(\d\d)(\d\d)(?:T(\d\d)(\d\d))?/);if(!m)return null;let d=new Date(+m[1],m[2]-1,+m[3],+(m[4]||9),+(m[5]||0));
+    if(/Z$/.test(v))d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)));return d};
+  for(const ln of lines){const i=ln.indexOf(":");if(i<0)continue;const k=ln.slice(0,i).toUpperCase(),v=ln.slice(i+1);
+    if(k==="BEGIN"&&v==="VEVENT"){cur={alerts:[]};continue}if(!cur)continue;
+    if(k==="BEGIN"&&v==="VALARM"){inAl=true;continue}if(k==="END"&&v==="VALARM"){inAl=false;continue}
+    if(k==="END"&&v==="VEVENT"){if(cur.s&&cur.title){const x=cur.s;out.push({id:evId(),d:ds(x),t:`${pad(x.getHours())}:${pad(x.getMinutes())}`,title:cur.title.slice(0,60),mins:cur.e?Math.max(5,Math.round((cur.e-cur.s)/60000)):15,alerts:[...new Set(cur.alerts)].slice(0,3)})}cur=null;continue}
+    if(inAl){if(k.startsWith("TRIGGER")){const m=v.match(/^-?P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?/);if(m)cur.alerts.push((+(m[1]||0))*1440+(+(m[2]||0))*60+(+(m[3]||0)))}continue}
+    if(k.startsWith("DTSTART"))cur.s=when(k,v);else if(k.startsWith("DTEND"))cur.e=when(k,v);else if(k==="SUMMARY")cur.title=un(v);else if(k==="DESCRIPTION")cur.note=un(v)}
+  return out}
 function exportCalendar(){
   const span=S.calSpan||"week",last=span==="week"?add(TODAY,6):span==="month"?add(TODAY,27):END;
   const days=[];for(let d=new Date(TODAY);d<=last;d=add(d,1))days.push(ds(d));
@@ -1194,6 +1245,8 @@ function mergeState(a,b){
   o.done=Object.assign({},old.done,nw.done);o.runNote=Object.assign({},old.runNote,nw.runNote);o.runDone=Object.assign({},old.runDone,nw.runDone);
   const k=r=>[r.d,r.km,r.sec].join("|"),have=new Set((o.runs||[]).map(k));
   o.runs=[...(o.runs||[]),...(old.runs||[]).filter(r=>!have.has(k(r)))].sort((x,y)=>x.d<y.d?-1:x.d>y.d?1:0);
+  {const ids=new Set((o.events||[]).map(e=>e.id)),gone=new Set([...(nw.evGone||[]),...(old.evGone||[])]);
+   o.events=[...(o.events||[]),...(old.events||[]).filter(e=>!ids.has(e.id))].filter(e=>!gone.has(e.id)).sort((x,y)=>(x.d+x.t)<(y.d+y.t)?-1:1);o.evGone=[...gone].slice(-200)}
   o.mtime=Date.now();return o; // a merge is a new version, so other devices pick it up
 }
 const sameData=(a,b)=>{const c=o=>JSON.stringify(Object.assign({},o,{mtime:0}));return c(a)===c(b)};
@@ -1767,7 +1820,7 @@ function viewSettings(){
   </div><div class="sf">The day a night shift ends gets half. Shift days get none.</div></div>`],
     studymode:["Study Mode",()=>spotifySection()],
     notes:["Goodnotes",()=>notesSettings()],
-    calendar:["Calendar",()=>liveCalSection()+`<div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
+    calendar:["Calendar",()=>liveCalSection()+(syncOn()&&!DEMO?evSection():"")+`<div class="sec"><div class="sh">Calendar Reminders</div><div class="grp">
     <div class="cell"><label class="grow" for="set-calshifts">Include shifts</label><input class="sw" type="checkbox" id="set-calshifts" data-act="calshifts" ${S.calShifts===false?"":"checked"}></div>
     <div class="cell"><label class="grow" for="set-runat">Run reminder</label><input id="set-runat" type="time" value="${S.runAt||"20:15"}" data-act="calset" style="width:110px"></div>
     <div class="cell"><label class="grow" for="set-studyat">Study reminder</label><input id="set-studyat" type="time" value="${S.studyAt||"17:30"}" data-act="calset" style="width:110px"></div>
@@ -2132,6 +2185,21 @@ document.addEventListener("click",e=>{
   else if(a==="splash"){S.splash=el.checked?undefined:false;if(S.splash===undefined)delete S.splash;save();
     toast({t:el.checked?"Animation on":"Animation off",s:el.checked?"Plays when the app opens":"The app opens straight to Today",k:"ok"});return}
   else if(a==="calexport"){exportCalendar();return}
+  else if(a==="evimport"){document.getElementById("icsfile").click();return}
+  else if(a==="evadd"){showEvAdd();return}
+  else if(a==="evsave"){const t=document.getElementById("ev-t").value.trim(),d=document.getElementById("ev-d").value,h=document.getElementById("ev-h").value||"09:00";
+    if(!t||!/^\d{4}-\d\d-\d\d$/.test(d)){toast({t:"Add a title and date",k:"warn"});return}
+    const rp=+document.getElementById("ev-r").value,n=rp?Math.min(52,Math.max(1,parseInt(document.getElementById("ev-n").value,10)||1)):1;
+    const al=["ev-a1","ev-a2"].map(id=>document.getElementById(id).value).filter(v=>v!=="").map(Number);
+    const list=[...Array(n)].map((_,i)=>({id:evId(),d:ds(add(pd(d),i*rp)),t:h,title:t.slice(0,60),mins:15,alerts:[...new Set(al)]}));
+    hideSheet();addEvents(list);changed({t:n>1?`${n} events added`:"Event added",s:list.length>1?`${short(list[0].d)} – ${short(list[n-1].d)}`:evWhen(list[0]),k:"ok"});return}
+  else if(a==="evgrp"){const t=el.dataset.t,l=(S.events||[]).filter(e=>e.title===t&&e.d>=T),sh=document.getElementById("sheet");
+    sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t"><div class="sh-msg"><b id="sh-t">${esc(t)}</b><span>${l.map(evWhen).join("<br>")}${l[0]&&l[0].alerts.length?`<br><br>Alerts: ${l[0].alerts.map(alertLbl).join(", ")}`:""}</span></div>
+      <button class="danger" data-act="evdel" data-t="${esc(t)}">Delete ${l.length>1?`All ${l.length} Events`:"Event"}</button></div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;
+    sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"));return}
+  else if(a==="evdel"){const t=el.dataset.t,gone=(S.events||[]).filter(e=>e.title===t&&e.d>=T);hideSheet();
+    S.evGone=[...(S.evGone||[]),...gone.map(e=>e.id)].slice(-200);S.events=(S.events||[]).filter(e=>!gone.includes(e));
+    changed({t:gone.length>1?`${gone.length} events deleted`:"Event deleted",s:"Removed from your Rhythm calendar",k:"undo"});return}
   else if(a==="studymode"){startStudyMode();return}
   else if(a==="smwake"){hideSheet();wakePending=Date.now();location.href="spotify:";return}
   else if(a==="smphone"){hideSheet();startStudyMode({allowPhone:true});return}
@@ -2475,6 +2543,11 @@ addEventListener("orientationchange",()=>{const m=document.querySelector('meta[n
 ["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
 document.addEventListener("touchmove",e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
 addEventListener("wheel",e=>{if(e.ctrlKey)e.preventDefault()},{passive:false});
+document.getElementById("icsfile").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
+  let list=[];try{list=parseIcs(await f.text())}catch(_){}
+  const have=new Set((S.events||[]).map(x=>x.title+x.d+x.t));list=list.filter(x=>!have.has(x.title+x.d+x.t));
+  if(!list.length){toast({t:"No new events found",s:f.name,k:"warn"});return}
+  addEvents(list);changed({t:`${list.length} event${list.length>1?"s":""} added`,s:"They'll show in your Rhythm calendar",k:"ok"})});
 document.getElementById("shotfile").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(f)readShot(e.target.dataset.d,e.target.dataset.mode,f)});
 // No press-and-hold menu (copy, look up) outside text boxes.
 document.addEventListener("contextmenu",e=>{if(!(e.target.closest&&e.target.closest("input,textarea,select")))e.preventDefault()});
