@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.12.0">
+<meta name="app-version" content="2.12.1">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -1018,15 +1018,14 @@ function viewRun(){
     <div class="sf">${S.runs.some(r=>r.tt)?`Orange is your logged tests. Stay on or above the dashed target line to reach ${fmt(goalSec())} by 3 January.`:`The dashed line is your target path from ${fmt(baseSec())} to ${fmt(goalSec())}. Your ${C.testShort}s appear here as you log them${(()=>{const d=Object.entries(weekRuns(testWeeks()[0])).find(([,k])=>k==="C");return d?`; the first is on ${nice(pd(d[0]))}`:""})()}.`}</div></div>
   ${S.runs.length?`<div class="sec"><div class="sh">Pace per ${C.Run}</div><div class="grp"><div class="pad" style="padding:12px 8px 6px">${paceChart()}</div></div><div class="sf">Your last ${Math.min(14,S.runs.length)} ${C.runs}. Taller is faster; orange bars are ${C.testShort}s. ${KIND.B}s should sit well below the goal pace.</div></div>`:""}`;
   const logSec=`<div class="sec"><div class="sh">Log a ${C.Run}</div><div class="grp">
-    ${C.voice?`<div class="cell" style="display:grid;gap:6px;align-items:start"><label for="voice" class="t2" style="display:flex;gap:6px;align-items:center;color:var(--blue);font-weight:600;font-size:15px">${IC.mic} Say it</label>
-      <textarea id="voice" rows="2" placeholder="Tap here, then the mic on your keyboard. Try “2.4 in 12 minutes 45”."></textarea><div id="voiceout" class="t2" aria-live="polite"></div></div>`:""}
+    ${C.voice?`<button class="cell btnrow" data-act="logshot" style="font-weight:600">Choose Strava Screenshot</button>`:""}
     <div class="cell"><label class="grow" for="rd">Date</label><input id="rd" type="date" value="${T}" style="width:150px"></div>
     <div class="cell"><label class="grow" for="rk">Distance</label>${C.meters?`<input id="rk" type="number" inputmode="numeric" step="25" min="25" value="400" style="width:70px"><span class="trail">m</span>`:`<input id="rk" type="number" inputmode="decimal" step="0.1" min="0.4" value="2.4" style="width:60px"><span class="trail">km</span>`}</div>
     <div class="cell"><label class="grow" for="rt">Time</label><input id="rt" type="text" inputmode="numeric" placeholder="${fmt(baseSec()-15)}" style="width:80px"></div>
     <div class="cell"><label class="grow" for="rhr">Avg heart rate</label><input id="rhr" type="text" inputmode="numeric" placeholder="Optional" style="width:80px"><span class="trail">bpm</span></div>
     <div class="cell"><label class="grow" for="rtt">Full-effort ${C.testName}</label><input class="sw" id="rtt" type="checkbox"></div>
     <button class="cell btnrow" data-act="logrun" style="font-weight:600">Log ${C.Run}</button>
-  </div><div class="sf">${C.voice?"Say it fills in the form below. You can also say “yesterday”, a day like “Tuesday”, or “test” for a full-effort 2.4. ":""}Logging a ${C.run} also ticks off that day's session.</div></div>
+  </div><div class="sf">${C.voice?"Works for any day, even without a planned run. Or type it in. ":""}Logging a ${C.run} also ticks off that day's session.</div></div>
   ${log?`<div class="sec"><div class="sh">History</div><div class="grp">${log}</div></div>`:""}`;
   const planSec=`<div class="sec"><div class="sh">The Plan</div><div class="grp">${wkRows}</div>
   <div class="sf">${WU}</div></div>`;
@@ -1485,7 +1484,9 @@ function showShotAsk(d,mode){
     <button data-act="shotskip" data-d="${d}" data-mode="${mode}">Skip</button>`;
 }
 async function readShot(d,mode,file){
-  const sh=document.getElementById("sheet"),card=sh.querySelector(".sh-card");if(!card)return;
+  const sh=document.getElementById("sheet");
+  if(sh.hidden||!sh.querySelector(".sh-card")){sh.innerHTML=`<div class="sh-card" role="dialog" aria-modal="true" aria-labelledby="sh-t"></div><button class="sh-cancel" data-act="smcancel">Cancel</button>`;sh.hidden=false;requestAnimationFrame(()=>sh.classList.add("on"))}
+  const card=sh.querySelector(".sh-card");if(!card)return;
   card.innerHTML=`<div class="sh-msg"><b id="sh-t">Reading your screenshot…</b><span>The first time takes a little longer.</span><div class="rd-spinwrap"><svg viewBox="0 0 28 28" width="28" height="28" class="rd-spin">${[...Array(12)].map((_,i)=>`<rect x="12.9" y="2" width="2.2" height="7" rx="1.1" transform="rotate(${i*30} 14 14)" opacity="${(1-i*.07).toFixed(2)}"/>`).join("")}</svg></div></div>`;
   let got={km:null,sec:null,pace:null};
   try{const [w,cv]=await Promise.all([loadOcr(),prepImage(file)]);const {data}=await w.recognize(cv);got=parseStrava(data.text||"")}catch(e){}
@@ -1493,11 +1494,11 @@ async function readShot(d,mode,file){
 }
 function showShotCheck(d,mode,got){
   const r=runOn(d),sr=sessionReps(r),card=document.querySelector("#sheet .sh-card");if(!card)return;
-  let reps=null;if(sr){const c=got.km?Math.round(got.km*1000/sr.m):null;reps=mode==="all"?Math.max(sr.n,c||0):Math.min(sr.n-1,Math.max(1,c||sr.n-1))}
+  let reps=null;if(sr){const c=got.km?Math.round(got.km*1000/sr.m):null;reps=mode!=="part"?Math.max(sr.n,c||0):Math.min(sr.n-1,Math.max(1,c||sr.n-1))}
   SHOT={d,mode,sr,reps};
   const ok=got.km&&got.sec;
   card.innerHTML=`<div class="sh-msg"><b id="sh-t">${ok?"Check your run":"Couldn't read everything"}</b><span>${ok?"Fix anything that looks off.":"Fill in what's missing."}</span>
-    <div class="shot-f"><label>Distance<span><input id="sh-km" type="text" inputmode="decimal" value="${got.km??""}" placeholder="1.6"> km</span></label>
+    <div class="shot-f">${mode==="log"?`<label>Date<span><input id="sh-d" type="date" value="${d}" max="${T}" style="width:auto"></span></label>`:""}<label>Distance<span><input id="sh-km" type="text" inputmode="decimal" value="${got.km??""}" placeholder="1.6"> km</span></label>
     <label>Time<span><input id="sh-t2" type="text" inputmode="numeric" value="${got.sec?fmt(got.sec):""}" placeholder="9:05"></span></label>
     <label>Avg Heart Rate<span><input id="sh-hr" type="text" inputmode="numeric" value="${got.hr??""}" placeholder="160" style="width:56px"> bpm</span></label>
     <label>Where<span><input id="sh-loc" type="text" list="sh-locs" value="${esc(got.loc||"")}" placeholder="e.g. Kallang" autocomplete="off" style="width:150px"></span></label>
@@ -1520,12 +1521,17 @@ function shotPace(){const v=shotVals(),el=document.getElementById("sh-pace");el.
   if(SHOT&&SHOT.sr&&v.km&&!SHOT.touched){const c=Math.round(v.km*1000/SHOT.sr.m);SHOT.reps=SHOT.mode==="all"?Math.max(SHOT.sr.n,c):Math.min(SHOT.sr.n-1,Math.max(1,c));document.getElementById("sh-reps").textContent=`${SHOT.reps} of ${SHOT.sr.n} reps`}}
 function saveShot(d){
   const v=shotVals();if(!v.km||!v.sec){toast({t:"Add the distance and time",s:"Like 1.6 and 9:05",k:"warn"});return}
-  const r=runOn(d),{mode,sr,reps}=SHOT||{};hideSheet();
+  let {mode,sr,reps}=SHOT||{};const log=mode==="log";
+  if(log){const x=(document.getElementById("sh-d")||{}).value;if(x&&/^\d{4}-\d\d-\d\d$/.test(x)&&x!==d){d=x;sr=sessionReps(runOn(d));reps=null}mode="all"}
+  if(log&&S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km)){toast({t:"Already logged",s:"That run is in your history",k:"warn"});return}
+  const r=runOn(d);hideSheet();
   const isT=!!(r&&r.test&&mode==="all"&&Math.abs(v.km-2.4)<=.15);
   const loc=((document.getElementById("sh-loc")||{}).value||"").trim().slice(0,40);
   const coach=coachNote(d,v.km,v.sec,mode,v.hr);
   if(!S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km))S.runs.push(Object.assign({d,km:v.km,sec:v.sec,tt:isT},v.hr?{hr:v.hr}:{},loc?{loc}:{},coach?{coach}:{}));
   const note=sr&&reps!=null&&(mode==="part"||reps>sr.n)?`${reps} of ${sr.n} reps`:"";
+  // From Log a Run: tick the day's session only if there is one and it isn't ticked yet.
+  if(log&&(!r||S.runDone[d])){changed({t:`${C.Run} logged`,s:`${distTxt(v.km)} in ${fmt(v.sec)} · ${nice(pd(d))}`,k:"run"});return}
   setRunDone(d,mode==="all"?true:"part",note);
 }
 
@@ -2253,6 +2259,7 @@ document.addEventListener("click",e=>{
   else if(a==="runall"){if(DEMO){hideSheet();setRunDone(el.dataset.d,true)}else showShotAsk(el.dataset.d,"all");return}
   else if(a==="runpart"){if(DEMO)showPartSheet(el.dataset.d);else showShotAsk(el.dataset.d,"part");return}
   else if(a==="shotskip"){if(el.dataset.mode==="all"){hideSheet();setRunDone(el.dataset.d,true)}else showPartSheet(el.dataset.d);return}
+  else if(a==="logshot"){const f=document.getElementById("shotfile");f.dataset.d=(document.getElementById("rd")||{}).value||T;f.dataset.mode="log";f.value="";f.click();return}
   else if(a==="shotpick"){const f=document.getElementById("shotfile");f.dataset.d=el.dataset.d;f.dataset.mode=el.dataset.mode;f.value="";f.click();return}
   else if(a==="shotrep"){if(!SHOT||!SHOT.sr)return;SHOT.touched=true;SHOT.reps=Math.max(1,Math.min(SHOT.sr.n*2,SHOT.reps+ +el.dataset.v));document.getElementById("sh-reps").textContent=`${SHOT.reps} of ${SHOT.sr.n} reps`;return}
   else if(a==="shotsave"){saveShot(el.dataset.d);return}
