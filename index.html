@@ -6,7 +6,7 @@
 <title>Rhythm</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="app-version" content="2.12.1">
+<meta name="app-version" content="2.12.2">
 <meta name="apple-mobile-web-app-title" content="Rhythm">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>try{var _t=(JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).theme;if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t);if((JSON.parse(localStorage.getItem("offshift-v1")||"{}")||{}).splash===false||sessionStorage.getItem("rhythm-ptr")||sessionStorage.getItem("rhythm-nosplash"))document.documentElement.classList.add("nosplash")}catch(e){}</script>
@@ -433,6 +433,8 @@ body.sessing .page{padding-top:56px;transition:padding-top .35s ease}
 .shot-f label span{display:flex;align-items:center;gap:6px;color:var(--label2)}
 .sh-msg .shot-f input{margin:0;width:90px;text-align:right;background:transparent;padding:8px 6px}
 .evf{max-height:55vh;overflow:auto}
+.sh-msg .shot-f input.sw{width:51px;height:31px;padding:0;margin:4px 0;background:var(--fill)}
+.sh-msg .shot-f input.sw:checked{background:var(--green)}
 .evf label[hidden]{display:none}
 .sh-msg .evf input#ev-t{width:170px}
 .sh-msg .evf input[type=date],.sh-msg .evf input[type=time]{width:auto}
@@ -762,8 +764,11 @@ function basePlan(w){
 function weekRuns(w){
   if(cache["w"+w])return cache["w"+w];
   const base=basePlan(w),out={},missed={},moved={},need=[];
+  const wk0=ds(add(START,w*7)),wk1=ds(add(START,w*7+6));
+  const testLogged=isTestWk(w)&&S.runs.some(r=>r.tt&&r.d>=wk0&&r.d<=wk1);
   for(const [d,k] of Object.entries(base)){
     if(S.runDone[d]){out[d]=k;continue}
+    if(k==="C"&&testLogged)continue; // already did this week's test on another day
     if(skipRun(d)){need.push({k,from:d});continue}
     if(d<T){missed[d]={k,to:null};need.push({k,from:d,miss:true});continue}
     out[d]=k;
@@ -1450,8 +1455,12 @@ const ZONES=["Recovery","Easy","Steady","Hard","Max"];
 function zoneOf(hr){if(!hr)return 0;const p=hr/maxHr();return p<.6?1:p<.7?2:p<.8?3:p<.9?4:5}
 const hrTxt=hr=>hr?`${hr} bpm · Zone ${zoneOf(hr)}`:"";
 // Coach notes: compare what you ran (from the screenshot) with what the plan asked for. No AI, just the numbers.
-function coachNote(d,km,sec,mode,hr){
+function coachNote(d,km,sec,mode,hr,asTest){
   // Returns {tag, tone, tip}: a short verdict for a pill, and at most one sentence of advice.
+  // asTest: logged as a 2.4 test (Log a Run), even on a day with a different session or none planned.
+  if(asTest&&km&&sec){const w=Math.max(0,Math.min(8,Math.floor(diff(pd(d),START)/7)));
+    if(Math.abs(km-2.4)>.15)return {tag:"Not a full 2.4",tone:"info",tip:"Log a full 2.4 to update your paces."};
+    const df=Math.round(sec-aimAt(w));return {tag:Math.abs(df)<3?"On the aim":`${Math.abs(df)} s ${df<0?"faster":"slower"} than aim`,tone:df<=2?"ok":"warn",tip:"Your paces now update to match."}}
   const r=runOn(d);if(!r||!km||!sec)return null;
   const pk=sec/km,t=r.text,toS=x=>{const [a,b]=x.split(":");return +a*60+ +b},N=(tag,tone,tip="")=>({tag,tone,tip});
   if(r.test){const aim=aimAt(r.w),df=Math.round(sec-aim);
@@ -1498,7 +1507,8 @@ function showShotCheck(d,mode,got){
   SHOT={d,mode,sr,reps};
   const ok=got.km&&got.sec;
   card.innerHTML=`<div class="sh-msg"><b id="sh-t">${ok?"Check your run":"Couldn't read everything"}</b><span>${ok?"Fix anything that looks off.":"Fill in what's missing."}</span>
-    <div class="shot-f">${mode==="log"?`<label>Date<span><input id="sh-d" type="date" value="${d}" max="${T}" style="width:auto"></span></label>`:""}<label>Distance<span><input id="sh-km" type="text" inputmode="decimal" value="${got.km??""}" placeholder="1.6"> km</span></label>
+    <div class="shot-f">${mode==="log"?`<label>Date<span><input id="sh-d" type="date" value="${d}" max="${T}" style="width:auto"></span></label>
+      <label>${C.testName}<span><input class="sw" type="checkbox" id="sh-tt" ${got.km&&Math.abs(got.km-2.4)<=.15&&(!runOn(d)||runOn(d).test)?"checked":""}></span></label>`:""}<label>Distance<span><input id="sh-km" type="text" inputmode="decimal" value="${got.km??""}" placeholder="1.6"> km</span></label>
     <label>Time<span><input id="sh-t2" type="text" inputmode="numeric" value="${got.sec?fmt(got.sec):""}" placeholder="9:05"></span></label>
     <label>Avg Heart Rate<span><input id="sh-hr" type="text" inputmode="numeric" value="${got.hr??""}" placeholder="160" style="width:56px"> bpm</span></label>
     <label>Where<span><input id="sh-loc" type="text" list="sh-locs" value="${esc(got.loc||"")}" placeholder="e.g. Kallang" autocomplete="off" style="width:150px"></span></label>
@@ -1508,10 +1518,12 @@ function showShotCheck(d,mode,got){
     <div class="rsum" id="sh-sum" hidden><div class="rsum-h">Run Summary</div><div id="sh-pill"></div><div class="shot-tip" id="sh-tip"></div></div></div></div>
     <button data-act="shotsave" data-d="${d}" class="pri">Save</button>`;
   ["sh-km","sh-t2","sh-hr"].forEach(id=>document.getElementById(id).addEventListener("input",shotPace));
+  ["sh-d","sh-tt"].forEach(id=>{const x=document.getElementById(id);if(x)x.addEventListener("change",shotPace)});
   shotCoach(got.km,got.sec,got.hr);
 }
 const shotLine=(km,sec,hr,pace)=>[km&&sec?`Pace ${fmt(pace||Math.round(sec/km))}/km`:"",hr?`Zone ${zoneOf(hr)} ${ZONES[zoneOf(hr)-1]}`:""].filter(Boolean).join(" · ");
-function shotCoach(km,sec,hr){const c=SHOT&&coachNote(SHOT.d,km,sec,SHOT.mode,hr),p=document.getElementById("sh-pill"),t=document.getElementById("sh-tip"),b=document.getElementById("sh-sum");
+function shotCoach(km,sec,hr){const dd=(document.getElementById("sh-d")||{}).value||(SHOT&&SHOT.d),tt=!!(document.getElementById("sh-tt")||{}).checked;
+  const c=SHOT&&coachNote(dd,km,sec,SHOT.mode==="log"?"all":SHOT.mode,hr,tt),p=document.getElementById("sh-pill"),t=document.getElementById("sh-tip"),b=document.getElementById("sh-sum");
   if(b)b.hidden=!c;if(p)p.innerHTML=coachPill(c);if(t){t.textContent=c&&c.tip||"";t.hidden=!(c&&c.tip)}}
 const shotVals=()=>{const km=parseFloat((document.getElementById("sh-km").value||"").replace(",",".")),m=(document.getElementById("sh-t2").value||"").trim().match(/^(?:(\d+):)?(\d{1,2})[:.](\d{2})$/);
   const h=parseInt((document.getElementById("sh-hr")||{}).value,10);
@@ -1524,14 +1536,14 @@ function saveShot(d){
   let {mode,sr,reps}=SHOT||{};const log=mode==="log";
   if(log){const x=(document.getElementById("sh-d")||{}).value;if(x&&/^\d{4}-\d\d-\d\d$/.test(x)&&x!==d){d=x;sr=sessionReps(runOn(d));reps=null}mode="all"}
   if(log&&S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km)){toast({t:"Already logged",s:"That run is in your history",k:"warn"});return}
-  const r=runOn(d);hideSheet();
-  const isT=!!(r&&r.test&&mode==="all"&&Math.abs(v.km-2.4)<=.15);
+  const r=runOn(d),tt=log&&!!(document.getElementById("sh-tt")||{}).checked;hideSheet();
+  const isT=log?tt&&Math.abs(v.km-2.4)<=.15:!!(r&&r.test&&mode==="all"&&Math.abs(v.km-2.4)<=.15);
   const loc=((document.getElementById("sh-loc")||{}).value||"").trim().slice(0,40);
-  const coach=coachNote(d,v.km,v.sec,mode,v.hr);
+  const coach=coachNote(d,v.km,v.sec,mode,v.hr,isT);
   if(!S.runs.some(x=>x.d===d&&x.sec===v.sec&&x.km===v.km))S.runs.push(Object.assign({d,km:v.km,sec:v.sec,tt:isT},v.hr?{hr:v.hr}:{},loc?{loc}:{},coach?{coach}:{}));
   const note=sr&&reps!=null&&(mode==="part"||reps>sr.n)?`${reps} of ${sr.n} reps`:"";
   // From Log a Run: tick the day's session only if there is one and it isn't ticked yet.
-  if(log&&(!r||S.runDone[d])){changed({t:`${C.Run} logged`,s:`${distTxt(v.km)} in ${fmt(v.sec)} · ${nice(pd(d))}`,k:"run"});return}
+  if(log&&(!r||S.runDone[d]||isT&&!r.test)){cache={};changed(isT?{t:`${C.testName} logged`,s:`${fmt(v.sec)} · paces updated`,k:"run"}:{t:`${C.Run} logged`,s:`${distTxt(v.km)} in ${fmt(v.sec)} · ${nice(pd(d))}`,k:"run"});return}
   setRunDone(d,mode==="all"?true:"part",note);
 }
 
@@ -2275,8 +2287,8 @@ document.addEventListener("click",e=>{
     if(!d||!(km>0)||!m){toast({t:"Check the time",s:"Enter it like 12:45",k:"warn"});return}
     const sec=+m[1]*60+ +m[2],isT=document.getElementById("rtt").checked,prev=best24();
     if(S.runs.some(r=>r.d===d&&r.sec===sec&&r.km===km)){toast({t:"Already logged",s:"That run is in your history",k:"warn"});return}
-    const hr=parseInt(document.getElementById("rhr").value,10),hv=hr>=40&&hr<=240?hr:null,co=coachNote(d,km,sec,"all",hv);
-    S.runs.push(Object.assign({d,km,sec,tt:isT},hv?{hr:hv}:{},co&&!isT?{coach:co}:{}));S.runDone[d]=true;
+    const hr=parseInt(document.getElementById("rhr").value,10),hv=hr>=40&&hr<=240?hr:null,co=coachNote(d,km,sec,"all",hv,isT);
+    S.runs.push(Object.assign({d,km,sec,tt:isT},hv?{hr:hv}:{},co?{coach:co}:{}));cache={};S.runDone[d]=true;
     changed(isT&&(prev==null||sec<prev)?{t:`New best ${C.bestLbl}!`,s:prev==null?`${fmt(sec)} · ${fmt(Math.max(0,sec-goalSec()))} to go`:`${fmt(sec)} · ${fmt(prev-sec)} faster`,k:"best"}
       :{t:`${C.Run} logged`,s:`${distTxt(km)} · ${fmt(sec)} · ${fmt(paceOf(sec,km))}${C.paceU}`,k:"run"})}
   else if(a==="runinfo"){showRunInfo(el.dataset.k);return}
